@@ -4,7 +4,7 @@
 
 ### Phase 1: プロジェクト基盤構築
 
-- [ ] 1. Backend プロジェクトセットアップ
+- [x] 1. Backend プロジェクトセットアップ
 - [x] 1.1 FastAPI アプリケーションの初期化
   - Python 3.10+ のプロジェクト構成を作成する
   - FastAPI フレームワークと必要な依存関係をセットアップする
@@ -30,40 +30,40 @@
 > **開発者へ依頼**: 以下の作業を完了してください。
 >
 > **Google Cloud Console 作業**:
-> - [o] Cloud SQL (PostgreSQL) インスタンスを作成する（Terraform または コンソール）
-> - [o] データベースとユーザーを作成する
-> - [o] 接続情報を環境変数に設定する
+> - [x] Cloud SQL (PostgreSQL) インスタンスを作成する（Terraform または コンソール）
+> - [x] データベースとユーザーを作成する
+> - [x] 接続情報を環境変数に設定する
 >
 > **動作確認**:
-> - [o] `npm run dev` でVite開発サーバーが起動することを確認
-> - [o] Backend の FastAPI サーバーが起動することを確認
+> - [x] `npm run dev` でVite開発サーバーが起動することを確認
+> - [x] Backend の FastAPI サーバーが起動することを確認
 
 ---
 
 ### Phase 2: 認証基盤
 
-- [ ] 2. Firebase 認証とGmail OAuth 連携
-- [ ] 2.1 Firebase Authentication ミドルウェア実装
+- [x] 2. Firebase 認証とGmail OAuth 連携
+- [x] 2.1 Firebase Authentication ミドルウェア実装
   - Firebase Admin SDK を使用したトークン検証機能を実装する
   - Authorization ヘッダーからトークンを抽出する
   - 無効なトークンに対して 401 Unauthorized を返す
   - ユーザー情報（firebase_uid, email）をリクエストコンテキストに注入する
   - _Requirements: 6.3, 6.4, 6.5_
 
-- [ ] 2.2 Gmail OAuth サービス実装
+- [x] 2.2 Gmail OAuth サービス実装
   - OAuth 認証URL生成機能を実装する（state パラメータ含む）
   - 認証コードをトークンに交換する機能を実装する
   - Refresh Token / Access Token をデータベースに保存する
   - Access Token の有効期限切れ時に自動更新する機能を実装する
   - _Requirements: 1.3, 6.1, 6.2_
 
-- [ ] 2.3 Gmail OAuth API エンドポイント実装
+- [x] 2.3 Gmail OAuth API エンドポイント実装
   - GET /api/auth/gmail/url エンドポイントを実装する
   - POST /api/auth/gmail/callback エンドポイントを実装する
   - GET /api/auth/gmail/status エンドポイントを実装する
   - _Requirements: 1.3, 6.1, 6.2_
 
-- [ ] 2.4 (P) Frontend 認証コンテキスト実装
+- [x] 2.4 (P) Frontend 認証コンテキスト実装
   - Firebase Authentication との連携を実装する
   - Google Sign-In フローを実装する
   - ID Token の取得・保持・自動更新機能を実装する
@@ -76,25 +76,25 @@
 > **開発者へ依頼**: Phase 2 のコード実装前に以下を完了してください。
 >
 > **Firebase Console 作業**:
-> - [ ] Firebase プロジェクトを作成する（GCP プロジェクトと紐付け）
-> - [ ] Authentication > Sign-in method で **Google** を有効化する
-> - [ ] プロジェクト設定 > サービスアカウント > 新しい秘密鍵を生成（JSON）
-> - [ ] Firebase SDK の設定情報（apiKey, authDomain 等）を取得する
+> - [x] Firebase プロジェクトを作成する（GCP プロジェクトと紐付け）
+> - [x] Authentication > Sign-in method で **Google** を有効化する
+> - [x] プロジェクト設定 > サービスアカウント > 新しい秘密鍵を生成（JSON）
+> - [x] Firebase SDK の設定情報（apiKey, authDomain 等）を取得する
 >
 > **Google Cloud Console 作業**:
-> - [ ] APIs & Services > OAuth consent screen を設定する（External, Testing）
-> - [ ] Test users に開発メンバーの Gmail アドレスを追加する
-> - [ ] APIs & Services > Credentials > OAuth 2.0 Client ID を作成する（Web application）
-> - [ ] 承認済みリダイレクト URI を設定する
-> - [ ] Client ID と Client Secret を環境変数に設定する
-> - [ ] Gmail API を有効化する
+> - [x] APIs & Services > OAuth consent screen を設定する（External, Testing）
+> - [x] Test users に開発メンバーの Gmail アドレスを追加する
+> - [x] APIs & Services > Credentials > OAuth 2.0 Client ID を作成する（Web application）
+> - [x] 承認済みリダイレクト URI を設定する
+> - [x] Client ID と Client Secret を環境変数に設定する
+> - [x] Gmail API を有効化する
 
 #### 📋 Phase 2 終了時のユーザー作業
 
 > **動作確認**:
-> - [ ] Frontend で Google ログインができることを確認
-> - [ ] Gmail 連携ボタンをクリックし、OAuth 認証フローが動作することを確認
-> - [ ] 認証後に Backend で Refresh Token が保存されていることを確認
+> - [x] Frontend で Google ログインができることを確認
+> - [x] Gmail 連携ボタンをクリックし、OAuth 認証フローが動作することを確認
+> - [x] 認証後に Backend で Refresh Token が保存されていることを確認
 
 ---
 
