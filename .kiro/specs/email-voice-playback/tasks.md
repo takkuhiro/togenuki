@@ -5,21 +5,21 @@
 ### Phase 1: プロジェクト基盤構築
 
 - [ ] 1. Backend プロジェクトセットアップ
-- [ ] 1.1 FastAPI アプリケーションの初期化
+- [x] 1.1 FastAPI アプリケーションの初期化
   - Python 3.10+ のプロジェクト構成を作成する
   - FastAPI フレームワークと必要な依存関係をセットアップする
   - 非同期処理（async/await）の基本構造を準備する
   - 環境変数管理の仕組みを構築する
   - _Requirements: 1.1, 1.2_
 
-- [ ] 1.2 (P) データベーススキーマとモデル定義
+- [x] 1.2 (P) データベーススキーマとモデル定義
   - PostgreSQL 用のテーブル定義を作成する（users, contacts, emails）
   - SQLAlchemy ORM モデルを実装する
   - マイグレーション管理の仕組みを構築する
   - OAuth トークン保存用のカラムを含める（gmail_refresh_token, gmail_access_token, gmail_token_expires_at）
   - _Requirements: 1.5, 6.5_
 
-- [ ] 1.3 (P) Frontend プロジェクトのVite移行
+- [x] 1.3 (P) Frontend プロジェクトのVite移行
   - 既存のCreate React AppプロジェクトをViteに移行する
   - TypeScript設定を調整する
   - 開発サーバーとビルド設定を確認する
@@ -30,13 +30,13 @@
 > **開発者へ依頼**: 以下の作業を完了してください。
 >
 > **Google Cloud Console 作業**:
-> - [ ] Cloud SQL (PostgreSQL) インスタンスを作成する（Terraform または コンソール）
-> - [ ] データベースとユーザーを作成する
-> - [ ] 接続情報を環境変数に設定する
+> - [o] Cloud SQL (PostgreSQL) インスタンスを作成する（Terraform または コンソール）
+> - [o] データベースとユーザーを作成する
+> - [o] 接続情報を環境変数に設定する
 >
 > **動作確認**:
-> - [ ] `npm run dev` でVite開発サーバーが起動することを確認
-> - [ ] Backend の FastAPI サーバーが起動することを確認
+> - [o] `npm run dev` でVite開発サーバーが起動することを確認
+> - [o] Backend の FastAPI サーバーが起動することを確認
 
 ---
 
