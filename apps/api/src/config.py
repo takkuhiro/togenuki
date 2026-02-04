@@ -19,6 +19,14 @@ class Settings(BaseSettings):
     debug: bool = False
     database_url: str = "postgresql://localhost:5432/togenuki"
 
+    # Google OAuth settings
+    google_client_id: str = ""
+    google_client_secret: str = ""
+    google_redirect_uri: str = "http://localhost:3000/auth/gmail/callback"
+
+    # Firebase Admin SDK
+    firebase_credentials_path: str = "secrets/firebase-service-account.json"
+
 
 @lru_cache
 def get_settings() -> Settings:
