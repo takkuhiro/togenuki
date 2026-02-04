@@ -1,0 +1,17 @@
+# GCP Project Configuration
+project_id = "your-gcp-project-id"
+region     = "asia-northeast1"
+
+# Cloud SQL Configuration
+db_instance_name = "togenuki-db"
+db_name          = "togenuki"
+db_user          = "togenuki"
+db_password      = "your-secure-password"
+
+# Authorized networks (add your IP for local access)
+# authorized_networks = [
+#   {
+#     name = "my-ip"
+#     cidr = "203.0.113.1/32"
+#   }
+# ]
