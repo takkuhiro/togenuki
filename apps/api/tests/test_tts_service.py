@@ -25,7 +25,7 @@ class TestTTSService:
             patch("src.services.tts_service.get_settings") as mock_settings,
         ):
             mock_settings.return_value.gcs_bucket_name = "test-bucket"
-            mock_settings.return_value.tts_voice_name = "ja-JP-Wavenet-B"
+            mock_settings.return_value.tts_voice_name = "ja-JP-Chirp3-HD-Callirrhoe"
             mock_settings.return_value.tts_language_code = "ja-JP"
 
             service = TTSService()
@@ -41,11 +41,11 @@ class TestTTSService:
             patch("src.services.tts_service.get_settings") as mock_settings,
         ):
             mock_settings.return_value.gcs_bucket_name = "test-bucket"
-            mock_settings.return_value.tts_voice_name = "ja-JP-Wavenet-B"
+            mock_settings.return_value.tts_voice_name = "ja-JP-Chirp3-HD-Callirrhoe"
             mock_settings.return_value.tts_language_code = "ja-JP"
 
             service = TTSService()
-            assert service.voice_name == "ja-JP-Wavenet-B"
+            assert service.voice_name == "ja-JP-Chirp3-HD-Callirrhoe"
             assert service.language_code == "ja-JP"
 
 
@@ -63,7 +63,7 @@ class TestSynthesizeAudio:
             patch("src.services.tts_service.get_settings") as mock_settings,
         ):
             mock_settings.return_value.gcs_bucket_name = "test-bucket"
-            mock_settings.return_value.tts_voice_name = "ja-JP-Wavenet-B"
+            mock_settings.return_value.tts_voice_name = "ja-JP-Chirp3-HD-Callirrhoe"
             mock_settings.return_value.tts_language_code = "ja-JP"
 
             # Mock TTS client response
@@ -92,7 +92,7 @@ class TestSynthesizeAudio:
             patch("src.services.tts_service.get_settings") as mock_settings,
         ):
             mock_settings.return_value.gcs_bucket_name = "test-bucket"
-            mock_settings.return_value.tts_voice_name = "ja-JP-Wavenet-B"
+            mock_settings.return_value.tts_voice_name = "ja-JP-Chirp3-HD-Callirrhoe"
             mock_settings.return_value.tts_language_code = "ja-JP"
 
             service = TTSService()
@@ -116,7 +116,7 @@ class TestGCSUpload:
             patch("src.services.tts_service.get_settings") as mock_settings,
         ):
             mock_settings.return_value.gcs_bucket_name = "test-bucket"
-            mock_settings.return_value.tts_voice_name = "ja-JP-Wavenet-B"
+            mock_settings.return_value.tts_voice_name = "ja-JP-Chirp3-HD-Callirrhoe"
             mock_settings.return_value.tts_language_code = "ja-JP"
 
             # Mock TTS
@@ -157,7 +157,7 @@ class TestGCSUpload:
             patch("src.services.tts_service.get_settings") as mock_settings,
         ):
             mock_settings.return_value.gcs_bucket_name = "test-bucket"
-            mock_settings.return_value.tts_voice_name = "ja-JP-Wavenet-B"
+            mock_settings.return_value.tts_voice_name = "ja-JP-Chirp3-HD-Callirrhoe"
             mock_settings.return_value.tts_language_code = "ja-JP"
 
             # Mock TTS
@@ -200,7 +200,7 @@ class TestTTSErrorHandling:
             patch("src.services.tts_service.get_settings") as mock_settings,
         ):
             mock_settings.return_value.gcs_bucket_name = "test-bucket"
-            mock_settings.return_value.tts_voice_name = "ja-JP-Wavenet-B"
+            mock_settings.return_value.tts_voice_name = "ja-JP-Chirp3-HD-Callirrhoe"
             mock_settings.return_value.tts_language_code = "ja-JP"
 
             mock_client = MagicMock()
@@ -224,7 +224,7 @@ class TestTTSErrorHandling:
             patch("src.services.tts_service.get_settings") as mock_settings,
         ):
             mock_settings.return_value.gcs_bucket_name = "test-bucket"
-            mock_settings.return_value.tts_voice_name = "ja-JP-Wavenet-B"
+            mock_settings.return_value.tts_voice_name = "ja-JP-Chirp3-HD-Callirrhoe"
             mock_settings.return_value.tts_language_code = "ja-JP"
 
             # Mock TTS success
@@ -262,7 +262,7 @@ class TestTTSErrorHandling:
             patch("src.services.tts_service.get_settings") as mock_settings,
         ):
             mock_settings.return_value.gcs_bucket_name = "test-bucket"
-            mock_settings.return_value.tts_voice_name = "ja-JP-Wavenet-B"
+            mock_settings.return_value.tts_voice_name = "ja-JP-Chirp3-HD-Callirrhoe"
             mock_settings.return_value.tts_language_code = "ja-JP"
 
             mock_client = MagicMock()
