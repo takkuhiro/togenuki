@@ -43,7 +43,7 @@ describe("AudioPlayer", () => {
 
       render(<AudioPlayer audioUrl="https://example.com/audio.mp3" emailId="1" />);
 
-      const playButton = screen.getByRole("button", { name: /再生|やさしく聴く/ });
+      const playButton = screen.getByRole("button", { name: /再生|とげぬき再生/ });
       await user.click(playButton);
 
       expect(mockPlay).toHaveBeenCalled();
@@ -53,7 +53,7 @@ describe("AudioPlayer", () => {
       render(<AudioPlayer audioUrl={null} emailId="1" />);
 
       expect(
-        screen.queryByRole("button", { name: /再生|やさしく聴く/ })
+        screen.queryByRole("button", { name: /再生|とげぬき再生/ })
       ).not.toBeInTheDocument();
     });
   });
@@ -64,7 +64,7 @@ describe("AudioPlayer", () => {
 
       render(<AudioPlayer audioUrl="https://example.com/audio.mp3" emailId="1" />);
 
-      const playButton = screen.getByRole("button", { name: /再生|やさしく聴く/ });
+      const playButton = screen.getByRole("button", { name: /再生|とげぬき再生/ });
       await user.click(playButton);
 
       await waitFor(() => {
@@ -80,7 +80,7 @@ describe("AudioPlayer", () => {
       render(<AudioPlayer audioUrl="https://example.com/audio.mp3" emailId="1" />);
 
       // Start playing
-      const playButton = screen.getByRole("button", { name: /再生|やさしく聴く/ });
+      const playButton = screen.getByRole("button", { name: /再生|とげぬき再生/ });
       await user.click(playButton);
 
       await waitFor(() => {
@@ -102,7 +102,7 @@ describe("AudioPlayer", () => {
       render(<AudioPlayer audioUrl="https://example.com/audio.mp3" emailId="1" />);
 
       // Start playing
-      const playButton = screen.getByRole("button", { name: /再生|やさしく聴く/ });
+      const playButton = screen.getByRole("button", { name: /再生|とげぬき再生/ });
       await user.click(playButton);
 
       await waitFor(() => {
@@ -128,7 +128,7 @@ describe("AudioPlayer", () => {
 
       render(<AudioPlayer audioUrl="https://example.com/audio.mp3" emailId="1" />);
 
-      const playButton = screen.getByRole("button", { name: /再生|やさしく聴く/ });
+      const playButton = screen.getByRole("button", { name: /再生|とげぬき再生/ });
       await user.click(playButton);
 
       await waitFor(() => {

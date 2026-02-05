@@ -102,11 +102,6 @@ function App() {
       </header>
 
       <main className="main-content">
-        <div className="dashboard-intro">
-          <h2>やさしいメール</h2>
-          <p>メールをタップすると、やさしく読み上げてくれるよ</p>
-        </div>
-
         <EmailList />
       </main>
     </div>

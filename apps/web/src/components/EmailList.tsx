@@ -18,12 +18,18 @@ import { EmailCard } from "./EmailCard";
  * - Shows loading state while fetching
  * - Shows empty state when no emails
  * - Shows error state on fetch failure
+ * - Toggle expansion for individual email cards
  */
 export function EmailList() {
   const { idToken } = useAuth();
   const [emails, setEmails] = useState<Email[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [expandedEmailId, setExpandedEmailId] = useState<string | null>(null);
+
+  const handleToggle = useCallback((emailId: string) => {
+    setExpandedEmailId((prevId) => (prevId === emailId ? null : emailId));
+  }, []);
 
   const loadEmails = useCallback(async () => {
     if (!idToken) {
@@ -79,7 +85,12 @@ export function EmailList() {
   return (
     <div className="email-list">
       {emails.map((email) => (
-        <EmailCard key={email.id} email={email} />
+        <EmailCard
+          key={email.id}
+          email={email}
+          isExpanded={expandedEmailId === email.id}
+          onToggle={() => handleToggle(email.id)}
+        />
       ))}
     </div>
   );

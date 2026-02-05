@@ -90,7 +90,7 @@ export function AudioPlayer({ audioUrl }: AudioPlayerProps) {
     if (isLoading) return "読み込み中...";
     if (isPlaying) return "一時停止";
     if (hasPlayed) return "もう一度聴く";
-    return "やさしく聴く";
+    return "とげぬき再生";
   };
 
   return (
@@ -111,7 +111,7 @@ export function AudioPlayer({ audioUrl }: AudioPlayerProps) {
         ) : (
           <>
             <PlayIcon />
-            {hasPlayed ? "もう一度聴く" : "やさしく聴く"}
+            {hasPlayed ? "もう一度聴く" : "とげぬき再生"}
           </>
         )}
       </button>

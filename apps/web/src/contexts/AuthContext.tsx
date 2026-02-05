@@ -73,7 +73,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (user) {
       try {
         const token = await user.getIdToken();
-        console.log("idToken", token);
         setState((prev) => ({ ...prev, idToken: token }));
       } catch {
         setState((prev) => ({ ...prev, idToken: null }));

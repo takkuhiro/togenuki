@@ -2,7 +2,7 @@
  * @vitest-environment jsdom
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { render, screen, waitFor, within, fireEvent } from "@testing-library/react";
 import { EmailList } from "../components/EmailList";
 import * as emailApi from "../api/emails";
 
@@ -90,7 +90,7 @@ describe("EmailList", () => {
   });
 
   describe("処理中メールのローディング表示 (Requirement 4.5)", () => {
-    it("should show loading indicator for unprocessed emails", async () => {
+    it("should show loading indicator for unprocessed emails when expanded", async () => {
       vi.mocked(emailApi.fetchEmails).mockResolvedValue({
         emails: mockEmails,
         total: 2,
@@ -102,9 +102,83 @@ describe("EmailList", () => {
         // Find the card for佐藤課長 (unprocessed)
         const unprocessedCard = screen.getByText("佐藤課長").closest("article");
         expect(unprocessedCard).toBeInTheDocument();
+      });
+
+      // Click to expand the unprocessed email card
+      const unprocessedCard = screen.getByText("佐藤課長").closest("article");
+      const header = unprocessedCard?.querySelector(".email-card-header");
+      if (header) {
+        fireEvent.click(header);
+      }
+
+      await waitFor(() => {
         if (unprocessedCard) {
           expect(within(unprocessedCard).getByText("処理中...")).toBeInTheDocument();
         }
+      });
+    });
+  });
+
+  describe("トグル形式", () => {
+    it("should expand email card on header click", async () => {
+      vi.mocked(emailApi.fetchEmails).mockResolvedValue({
+        emails: mockEmails,
+        total: 2,
+      });
+
+      render(<EmailList />);
+
+      await waitFor(() => {
+        expect(screen.getByText("田中部長")).toBeInTheDocument();
+      });
+
+      // Initially, converted body should not be visible
+      expect(screen.queryByText("変換後テキスト1")).not.toBeInTheDocument();
+
+      // Click to expand the first email card
+      const processedCard = screen.getByText("田中部長").closest("article");
+      const header = processedCard?.querySelector(".email-card-header");
+      if (header) {
+        fireEvent.click(header);
+      }
+
+      // After expansion, converted body should be visible
+      await waitFor(() => {
+        expect(screen.getByText("変換後テキスト1")).toBeInTheDocument();
+      });
+    });
+
+    it("should collapse email card when clicking header again", async () => {
+      vi.mocked(emailApi.fetchEmails).mockResolvedValue({
+        emails: mockEmails,
+        total: 2,
+      });
+
+      render(<EmailList />);
+
+      await waitFor(() => {
+        expect(screen.getByText("田中部長")).toBeInTheDocument();
+      });
+
+      const processedCard = screen.getByText("田中部長").closest("article");
+      const header = processedCard?.querySelector(".email-card-header");
+
+      // Click to expand
+      if (header) {
+        fireEvent.click(header);
+      }
+
+      await waitFor(() => {
+        expect(screen.getByText("変換後テキスト1")).toBeInTheDocument();
+      });
+
+      // Click again to collapse
+      if (header) {
+        fireEvent.click(header);
+      }
+
+      await waitFor(() => {
+        expect(screen.queryByText("変換後テキスト1")).not.toBeInTheDocument();
       });
     });
   });

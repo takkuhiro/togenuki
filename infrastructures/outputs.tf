@@ -69,8 +69,13 @@ output "artifact_registry_repository" {
 }
 
 output "docker_image_url" {
-  description = "Docker image URL for pushing (use with :tag)"
+  description = "Docker image URL for API (use with :tag)"
   value       = "${var.region}-docker.pkg.dev/${var.project_id}/${google_artifact_registry_repository.api.name}/${var.cloud_run_service_name}"
+}
+
+output "docker_image_url_web" {
+  description = "Docker image URL for Web (use with :tag)"
+  value       = "${var.region}-docker.pkg.dev/${var.project_id}/${google_artifact_registry_repository.api.name}/${var.cloud_run_web_service_name}"
 }
 
 # ============================================
@@ -78,18 +83,28 @@ output "docker_image_url" {
 # ============================================
 
 output "cloud_run_service_name" {
-  description = "Cloud Run service name"
+  description = "Cloud Run API service name"
   value       = google_cloud_run_v2_service.api.name
 }
 
 output "cloud_run_url" {
-  description = "Cloud Run service URL"
+  description = "Cloud Run API service URL"
   value       = google_cloud_run_v2_service.api.uri
 }
 
 output "webhook_url" {
   description = "Gmail webhook URL for Pub/Sub"
   value       = "${google_cloud_run_v2_service.api.uri}/api/webhook/gmail"
+}
+
+output "cloud_run_web_service_name" {
+  description = "Cloud Run Web service name"
+  value       = google_cloud_run_v2_service.web.name
+}
+
+output "cloud_run_web_url" {
+  description = "Cloud Run Web service URL"
+  value       = google_cloud_run_v2_service.web.uri
 }
 
 # ============================================

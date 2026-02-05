@@ -8,17 +8,20 @@ import { AudioPlayer } from "./AudioPlayer";
 
 interface EmailCardProps {
   email: Email;
+  isExpanded: boolean;
+  onToggle: () => void;
 }
 
 /**
- * Email card component that displays email information in a card format.
+ * Email card component that displays email information in a toggle format.
  *
  * Features:
- * - Shows sender name, subject, and converted body
- * - Shows loading indicator for unprocessed emails
- * - Includes audio player for processed emails
+ * - Header (sender, subject, date) is always visible
+ * - Click to expand/collapse content
+ * - Shows loading indicator for unprocessed emails (when expanded)
+ * - Includes audio player for processed emails (when expanded)
  */
-export function EmailCard({ email }: EmailCardProps) {
+export function EmailCard({ email, isExpanded, onToggle }: EmailCardProps) {
   const formatDate = (dateString: string | null) => {
     if (!dateString) return "";
 
@@ -45,30 +48,42 @@ export function EmailCard({ email }: EmailCardProps) {
   };
 
   return (
-    <article className="email-card">
-      <div className="email-card-header">
-        <div className="email-card-sender">
-          <span className="sender-name">{email.senderName || "不明な送信者"}</span>
-          <span className="sender-email">{email.senderEmail}</span>
+    <article className={`email-card ${isExpanded ? "email-card--expanded" : ""}`}>
+      {/* Header - Always visible, clickable to toggle */}
+      <div className="email-card-header" onClick={onToggle} role="button" tabIndex={0}>
+        <div className="email-card-header-main">
+          <div className="email-card-sender">
+            <span className="sender-name">{email.senderName || "不明な送信者"}</span>
+            <span className="sender-email">{email.senderEmail}</span>
+          </div>
+          <h3 className="email-card-subject">{email.subject || "(件名なし)"}</h3>
         </div>
-        <span className="email-card-date">{formatDate(email.receivedAt)}</span>
+        <div className="email-card-header-meta">
+          <span className="email-card-date">{formatDate(email.receivedAt)}</span>
+          <span className={`email-card-chevron ${isExpanded ? "email-card-chevron--up" : ""}`}>
+            ▼
+          </span>
+        </div>
       </div>
 
-      <h3 className="email-card-subject">{email.subject || "(件名なし)"}</h3>
-
-      {email.isProcessed ? (
-        <>
-          {email.convertedBody && (
-            <p className="email-card-body">{email.convertedBody}</p>
+      {/* Content - Only visible when expanded */}
+      {isExpanded && (
+        <div className="email-card-content">
+          {email.isProcessed ? (
+            <>
+              {email.convertedBody && (
+                <p className="email-card-body">{email.convertedBody}</p>
+              )}
+              <div className="email-card-actions">
+                <AudioPlayer audioUrl={email.audioUrl} emailId={email.id} />
+              </div>
+            </>
+          ) : (
+            <div className="email-card-processing">
+              <span className="processing-spinner" aria-hidden="true" />
+              <span>処理中...</span>
+            </div>
           )}
-          <div className="email-card-actions">
-            <AudioPlayer audioUrl={email.audioUrl} emailId={email.id} />
-          </div>
-        </>
-      ) : (
-        <div className="email-card-processing">
-          <span className="processing-spinner" aria-hidden="true" />
-          <span>処理中...</span>
         </div>
       )}
     </article>
