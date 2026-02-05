@@ -35,7 +35,7 @@ class Settings(BaseSettings):
     gemini_model: str = "gemini-2.5-flash"
 
     # Cloud TTS settings
-    tts_voice_name: str = "ja-JP-Chirp3-HD-F1"
+    tts_voice_name: str = "ja-JP-Chirp3-HD-Callirrhoe"
     tts_language_code: str = "ja-JP"
 
     # Cloud Storage settings

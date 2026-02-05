@@ -247,6 +247,9 @@ button:disabled {
   padding: 1.25rem;
   cursor: pointer;
   transition: background-color 0.2s ease;
+  width: 100%;
+  background: none;
+  text-align: left;
 }
 
 .email-card-header:hover {

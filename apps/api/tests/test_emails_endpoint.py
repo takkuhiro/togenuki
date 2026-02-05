@@ -76,7 +76,7 @@ class TestEmailsEndpoint:
         mock_session: MagicMock,
     ) -> None:
         """Authenticated user should receive their emails sorted by received_at descending."""
-        from src.routers.emails import get_user_emails, router
+        from src.routers.emails import router
 
         app = FastAPI()
         app.include_router(router, prefix="/api")
@@ -87,7 +87,7 @@ class TestEmailsEndpoint:
             __import__("src.routers.emails", fromlist=["get_user_emails"]),
             "get_user_emails",
             new=AsyncMock(return_value=mock_emails_data),
-        ) as mock_get_emails:
+        ):
             mock_auth.verify_id_token.return_value = {
                 "uid": mock_user.uid,
                 "email": mock_user.email,
@@ -173,7 +173,7 @@ class TestEmailsEndpoint:
             async with AsyncClient(
                 transport=ASGITransport(app=app), base_url="http://test"
             ) as client:
-                response = await client.get(
+                await client.get(
                     "/api/emails",
                     headers={"Authorization": "Bearer valid_token"},
                 )
