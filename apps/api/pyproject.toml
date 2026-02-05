@@ -23,6 +23,10 @@ dependencies = [
     "google-auth>=2.0.0",
     "httpx>=0.28.0",
     "uuid6>=2024.1.12",
+    "google-genai>=1.0.0",
+    "google-cloud-texttospeech>=2.17.0",
+    "google-cloud-storage>=2.18.0",
+    "result>=0.17.0",
 ]
 
 [project.optional-dependencies]

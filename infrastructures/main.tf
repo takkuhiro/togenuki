@@ -181,6 +181,16 @@ resource "google_cloud_run_v2_service" "api" {
         value = "secrets/firebase-service-account.json"
       }
 
+      env {
+        name  = "GCS_BUCKET_NAME"
+        value = google_storage_bucket.audio.name
+      }
+
+      env {
+        name  = "GEMINI_API_KEY"
+        value = var.gemini_api_key
+      }
+
       # Cloud SQL connection
       volume_mounts {
         name       = "cloudsql"
@@ -226,4 +236,47 @@ resource "google_cloud_run_v2_service_iam_member" "public" {
   location = google_cloud_run_v2_service.api.location
   role     = "roles/run.invoker"
   member   = "allUsers"
+}
+
+# ============================================
+# Cloud Storage (Audio Files)
+# ============================================
+
+# GCS Bucket for audio files
+resource "google_storage_bucket" "audio" {
+  name     = var.gcs_audio_bucket_name
+  location = var.region
+
+  # Uniform bucket-level access
+  uniform_bucket_level_access = true
+
+  # Public access prevention disabled (we want public access for hackathon)
+  public_access_prevention = "inherited"
+
+  # Versioning disabled for cost savings
+  versioning {
+    enabled = false
+  }
+
+  # Lifecycle rule: delete files after 30 days (hackathon cleanup)
+  lifecycle_rule {
+    condition {
+      age = 30
+    }
+    action {
+      type = "Delete"
+    }
+  }
+
+  labels = {
+    app     = "togenuki"
+    purpose = "audio-files"
+  }
+}
+
+# Make bucket publicly readable (for hackathon - use signed URLs in production)
+resource "google_storage_bucket_iam_member" "audio_public" {
+  bucket = google_storage_bucket.audio.name
+  role   = "roles/storage.objectViewer"
+  member = "allUsers"
 }

@@ -106,3 +106,22 @@ variable "google_oauth_redirect_uri" {
   type        = string
   default     = "http://localhost:3000/auth/gmail/callback"
 }
+
+# ============================================
+# Cloud Storage Configuration
+# ============================================
+
+variable "gcs_audio_bucket_name" {
+  description = "GCS bucket name for audio files"
+  type        = string
+}
+
+# ============================================
+# Gemini API Configuration
+# ============================================
+
+variable "gemini_api_key" {
+  description = "Gemini API key for gyaru conversion"
+  type        = string
+  sensitive   = true
+}

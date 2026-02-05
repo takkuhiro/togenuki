@@ -91,3 +91,17 @@ output "webhook_url" {
   description = "Gmail webhook URL for Pub/Sub"
   value       = "${google_cloud_run_v2_service.api.uri}/api/webhook/gmail"
 }
+
+# ============================================
+# Cloud Storage Outputs
+# ============================================
+
+output "gcs_audio_bucket_name" {
+  description = "GCS bucket name for audio files"
+  value       = google_storage_bucket.audio.name
+}
+
+output "gcs_audio_bucket_url" {
+  description = "GCS bucket URL"
+  value       = google_storage_bucket.audio.url
+}
