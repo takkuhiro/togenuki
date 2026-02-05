@@ -8,14 +8,6 @@ db_name          = "togenuki"
 db_user          = "togenuki"
 db_password      = "your-secure-password"
 
-# Authorized networks (add your IP for local access)
-# authorized_networks = [
-#   {
-#     name = "my-ip"
-#     cidr = "203.0.113.1/32"
-#   }
-# ]
-
 # Cloud Pub/Sub Configuration (Gmail Push Notifications)
 pubsub_topic_name        = "gmail-notifications"
 pubsub_subscription_name = "gmail-webhook-push"

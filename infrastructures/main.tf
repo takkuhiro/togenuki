@@ -280,3 +280,70 @@ resource "google_storage_bucket_iam_member" "audio_public" {
   role   = "roles/storage.objectViewer"
   member = "allUsers"
 }
+
+# ============================================
+# Cloud Run (Frontend Web)
+# ============================================
+
+# Cloud Run Service for Web Frontend
+resource "google_cloud_run_v2_service" "web" {
+  name     = var.cloud_run_web_service_name
+  location = var.region
+
+  template {
+    containers {
+      # Initial image - will be updated via gcloud command
+      image = var.cloud_run_web_image
+
+      ports {
+        container_port = 8080
+      }
+
+      resources {
+        limits = {
+          cpu    = "1"
+          memory = "512Mi"
+        }
+      }
+
+      # Environment variables
+      env {
+        name  = "API_URL"
+        value = google_cloud_run_v2_service.api.uri
+      }
+    }
+
+    scaling {
+      min_instance_count = 0
+      max_instance_count = 5
+    }
+  }
+
+  traffic {
+    type    = "TRAFFIC_TARGET_ALLOCATION_TYPE_LATEST"
+    percent = 100
+  }
+
+  labels = {
+    app = "togenuki"
+  }
+
+  lifecycle {
+    # Ignore image changes - managed by gcloud command
+    ignore_changes = [
+      template[0].containers[0].image,
+      client,
+      client_version,
+    ]
+  }
+
+  depends_on = [google_cloud_run_v2_service.api]
+}
+
+# Allow unauthenticated access to Web Cloud Run
+resource "google_cloud_run_v2_service_iam_member" "web_public" {
+  name     = google_cloud_run_v2_service.web.name
+  location = google_cloud_run_v2_service.web.location
+  role     = "roles/run.invoker"
+  member   = "allUsers"
+}
