@@ -100,22 +100,22 @@
 
 ### Phase 3: メール受信・処理パイプライン
 
-- [ ] 3. Webhook とメール処理
-- [ ] 3.1 Pub/Sub Webhook ハンドラー実装
+- [x] 3. Webhook とメール処理
+- [x] 3.1 Pub/Sub Webhook ハンドラー実装
   - POST /api/webhook/gmail エンドポイントを実装する
   - Pub/Sub メッセージのデコード処理を実装する
   - 即座に 200 OK を返却し、BackgroundTasks で非同期処理を開始する
   - 重複通知の検出機能を実装する（historyId ベース）
   - _Requirements: 1.1, 1.2_
 
-- [ ] 3.2 Gmail API メール取得機能実装
+- [x] 3.2 Gmail API メール取得機能実装
   - Gmail API を使用してメール本文を取得する機能を実装する
   - 送信者情報（メールアドレス、名前）を抽出する
   - 登録済み連絡先かどうかを検証する機能を実装する
   - 未登録連絡先の場合は処理をスキップする
   - _Requirements: 1.3, 1.4_
 
-- [ ] 3.3 メール処理オーケストレーション実装
+- [x] 3.3 メール処理オーケストレーション実装
   - メール取得からギャル語変換、音声生成までの処理フローを実装する
   - 各処理段階でデータベースを更新する（is_processed フラグ管理）
   - エラー発生時のログ記録とリトライ処理を実装する
@@ -126,14 +126,14 @@
 > **開発者へ依頼**: Webhook 受信のために以下を完了してください。
 >
 > **Google Cloud Console 作業**:
-> - [ ] Cloud Pub/Sub API を有効化する
-> - [ ] Pub/Sub トピックを作成する（例: `gmail-notifications`）
-> - [ ] トピックに `gmail-api-push@system.gserviceaccount.com` の Publisher 権限を付与する
-> - [ ] Pub/Sub サブスクリプションを作成する（Push 型、Webhook URL 指定）
+> - [x] Cloud Pub/Sub API を有効化する
+> - [x] Pub/Sub トピックを作成する（例: `gmail-notifications`）
+> - [x] トピックに `gmail-api-push@system.gserviceaccount.com` の Publisher 権限を付与する
+> - [x] Pub/Sub サブスクリプションを作成する（Push 型、Webhook URL 指定）
 >
 > **Cloud Run デプロイ**（Webhook 受信のため）:
-> - [ ] Backend を Cloud Run にデプロイする（Terraform または コンソール）
-> - [ ] Webhook URL を Pub/Sub サブスクリプションに設定する
+> - [x] Backend を Cloud Run にデプロイする（Terraform または コンソール）
+> - [x] Webhook URL を Pub/Sub サブスクリプションに設定する
 
 #### 📋 Phase 3 終了時のユーザー作業
 
