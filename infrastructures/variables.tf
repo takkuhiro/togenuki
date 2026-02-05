@@ -43,3 +43,66 @@ variable "authorized_networks" {
   }))
   default = []
 }
+
+# ============================================
+# Cloud Pub/Sub Configuration
+# ============================================
+
+variable "pubsub_topic_name" {
+  description = "Pub/Sub topic name for Gmail push notifications"
+  type        = string
+  default     = "gmail-notifications"
+}
+
+variable "pubsub_subscription_name" {
+  description = "Pub/Sub subscription name for webhook delivery"
+  type        = string
+  default     = "gmail-webhook-push"
+}
+
+# ============================================
+# Artifact Registry Configuration
+# ============================================
+
+variable "artifact_registry_repository" {
+  description = "Artifact Registry repository name"
+  type        = string
+  default     = "togenuki"
+}
+
+# ============================================
+# Cloud Run Configuration
+# ============================================
+
+variable "cloud_run_service_name" {
+  description = "Cloud Run service name"
+  type        = string
+  default     = "togenuki-api"
+}
+
+variable "cloud_run_image" {
+  description = "Docker image for Cloud Run (initial placeholder, updated via docker push)"
+  type        = string
+  default     = "us-docker.pkg.dev/cloudrun/container/hello"  # Public hello image as placeholder
+}
+
+# ============================================
+# Google OAuth Configuration
+# ============================================
+
+variable "google_oauth_client_id" {
+  description = "Google OAuth Client ID for Gmail API"
+  type        = string
+}
+
+variable "google_oauth_client_secret" {
+  description = "Google OAuth Client Secret for Gmail API"
+  type        = string
+  sensitive   = true
+}
+
+variable "google_oauth_redirect_uri" {
+  description = "Google OAuth redirect URI"
+  type        = string
+  default     = "http://localhost:3000/auth/gmail/callback"
+}

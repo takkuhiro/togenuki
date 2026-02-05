@@ -1,6 +1,6 @@
 """Tests for Gmail OAuth API endpoints."""
 
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -16,7 +16,7 @@ class TestGetGmailAuthUrl:
     @pytest.mark.asyncio
     async def test_get_gmail_auth_url_returns_200(self) -> None:
         """GET /api/auth/gmail/url should return 200 OK."""
-        from src.routers.gmail_oauth import router, get_current_user
+        from src.routers.gmail_oauth import get_current_user, router
 
         app = FastAPI()
         app.include_router(router, prefix="/api/auth/gmail")
@@ -36,7 +36,7 @@ class TestGetGmailAuthUrl:
     @pytest.mark.asyncio
     async def test_get_gmail_auth_url_returns_valid_url(self) -> None:
         """GET /api/auth/gmail/url should return a valid OAuth URL."""
-        from src.routers.gmail_oauth import router, get_current_user
+        from src.routers.gmail_oauth import get_current_user, router
 
         app = FastAPI()
         app.include_router(router, prefix="/api/auth/gmail")
@@ -76,8 +76,8 @@ class TestPostGmailCallback:
     @pytest.mark.asyncio
     async def test_post_gmail_callback_returns_200_on_success(self) -> None:
         """POST /api/auth/gmail/callback should return 200 on success."""
-        from src.routers.gmail_oauth import router, get_current_user
         from src.database import get_db
+        from src.routers.gmail_oauth import get_current_user, router
 
         app = FastAPI()
         app.include_router(router, prefix="/api/auth/gmail")
@@ -124,8 +124,8 @@ class TestPostGmailCallback:
     @pytest.mark.asyncio
     async def test_post_gmail_callback_returns_400_on_invalid_code(self) -> None:
         """POST /api/auth/gmail/callback should return 400 on invalid code."""
-        from src.routers.gmail_oauth import router, get_current_user
         from src.database import get_db
+        from src.routers.gmail_oauth import get_current_user, router
 
         app = FastAPI()
         app.include_router(router, prefix="/api/auth/gmail")
@@ -142,7 +142,9 @@ class TestPostGmailCallback:
 
         with patch("src.routers.gmail_oauth.GmailOAuthService") as mock_service:
             mock_service_instance = MagicMock()
-            mock_service_instance.exchange_code_for_tokens = AsyncMock(return_value=None)
+            mock_service_instance.exchange_code_for_tokens = AsyncMock(
+                return_value=None
+            )
             mock_service.return_value = mock_service_instance
 
             async with AsyncClient(
@@ -179,8 +181,8 @@ class TestGetGmailStatus:
     @pytest.mark.asyncio
     async def test_get_gmail_status_returns_200(self) -> None:
         """GET /api/auth/gmail/status should return 200 OK."""
-        from src.routers.gmail_oauth import router, get_current_user
         from src.database import get_db
+        from src.routers.gmail_oauth import get_current_user, router
 
         app = FastAPI()
         app.include_router(router, prefix="/api/auth/gmail")
@@ -188,7 +190,9 @@ class TestGetGmailStatus:
         mock_user = MagicMock()
         mock_user.gmail_refresh_token = "test-refresh-token"
         mock_user.gmail_access_token = "test-access-token"
-        mock_user.gmail_token_expires_at = datetime.now(timezone.utc) + timedelta(hours=1)
+        mock_user.gmail_token_expires_at = datetime.now(timezone.utc) + timedelta(
+            hours=1
+        )
 
         mock_result = MagicMock()
         mock_result.scalar_one_or_none.return_value = mock_user
@@ -216,8 +220,8 @@ class TestGetGmailStatus:
         self,
     ) -> None:
         """GET /api/auth/gmail/status should return connected: true if token exists."""
-        from src.routers.gmail_oauth import router, get_current_user
         from src.database import get_db
+        from src.routers.gmail_oauth import get_current_user, router
 
         app = FastAPI()
         app.include_router(router, prefix="/api/auth/gmail")
@@ -225,7 +229,9 @@ class TestGetGmailStatus:
         mock_user = MagicMock()
         mock_user.gmail_refresh_token = "test-refresh-token"
         mock_user.gmail_access_token = "test-access-token"
-        mock_user.gmail_token_expires_at = datetime.now(timezone.utc) + timedelta(hours=1)
+        mock_user.gmail_token_expires_at = datetime.now(timezone.utc) + timedelta(
+            hours=1
+        )
 
         mock_result = MagicMock()
         mock_result.scalar_one_or_none.return_value = mock_user
@@ -251,8 +257,8 @@ class TestGetGmailStatus:
     @pytest.mark.asyncio
     async def test_get_gmail_status_returns_connected_false_when_no_token(self) -> None:
         """GET /api/auth/gmail/status should return connected: false if no token."""
-        from src.routers.gmail_oauth import router, get_current_user
         from src.database import get_db
+        from src.routers.gmail_oauth import get_current_user, router
 
         app = FastAPI()
         app.include_router(router, prefix="/api/auth/gmail")

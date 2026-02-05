@@ -27,6 +27,9 @@ class Settings(BaseSettings):
     # Firebase Admin SDK
     firebase_credentials_path: str = "secrets/firebase-service-account.json"
 
+    # GCP Project
+    project_id: str = "aitech-good-s15112"
+
 
 @lru_cache
 def get_settings() -> Settings:
