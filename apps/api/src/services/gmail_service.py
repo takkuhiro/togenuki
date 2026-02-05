@@ -280,3 +280,43 @@ class GmailApiClient:
                 )
 
             return cast(dict[str, Any], response.json())
+
+    async def search_messages(
+        self,
+        query: str,
+        max_results: int = 30,
+    ) -> list[dict[str, Any]]:
+        """Search messages using Gmail API query.
+
+        Args:
+            query: Gmail search query (e.g., "from:email@example.com")
+            max_results: Maximum number of messages to return
+
+        Returns:
+            List of message metadata (id, threadId)
+
+        Raises:
+            GmailApiError: If API call fails
+        """
+        url = f"{GMAIL_API_BASE_URL}/messages"
+        params = {
+            "q": query,
+            "maxResults": max_results,
+        }
+
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                url, headers=self.headers, params=params, timeout=30.0
+            )
+
+            if response.status_code != 200:
+                logger.error(
+                    f"Gmail search API error: {response.status_code} - {response.text}"
+                )
+                raise GmailApiError(
+                    f"Failed to search messages: {response.text}",
+                    status_code=response.status_code,
+                )
+
+            data = cast(dict[str, Any], response.json())
+            return cast(list[dict[str, Any]], data.get("messages", []))

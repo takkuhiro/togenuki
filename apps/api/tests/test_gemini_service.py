@@ -223,3 +223,150 @@ class TestGeminiConfiguration:
 
             service = GeminiService()
             assert service.model == "gemini-2.5-flash"
+
+
+class TestAnalyzePatterns:
+    """Tests for analyze_patterns method."""
+
+    @pytest.mark.asyncio
+    async def test_analyze_patterns_returns_json_string(self):
+        """analyze_patterns should return a JSON string with learned patterns."""
+        from src.services.gemini_service import GeminiService
+
+        with (
+            patch("src.services.gemini_service.get_settings") as mock_settings,
+            patch("src.services.gemini_service.genai") as mock_genai,
+        ):
+            mock_settings.return_value.gemini_api_key = "test-api-key"
+            mock_settings.return_value.gemini_model = None
+            mock_client = MagicMock()
+            mock_genai.Client.return_value = mock_client
+
+            mock_response = MagicMock()
+            mock_response.text = '{"contactCharacteristics": {"tone": "formal"}, "userReplyPatterns": {"responseStyle": "polite"}}'
+            mock_client.models.generate_content = MagicMock(return_value=mock_response)
+
+            service = GeminiService()
+            email_history = [
+                {"sender": "boss@example.com", "body": "報告書を提出してください。", "user_reply": "承知いたしました。"},
+                {"sender": "boss@example.com", "body": "会議の件、確認お願いします。", "user_reply": "はい、確認いたします。"},
+            ]
+            result = await service.analyze_patterns(
+                contact_name="上司さん",
+                email_history=email_history,
+            )
+
+            assert result.is_ok()
+            json_str = result.unwrap()
+            assert isinstance(json_str, str)
+            assert "contactCharacteristics" in json_str
+
+    @pytest.mark.asyncio
+    async def test_analyze_patterns_includes_contact_name_in_prompt(self):
+        """analyze_patterns should include contact name in the prompt."""
+        from src.services.gemini_service import GeminiService
+
+        with (
+            patch("src.services.gemini_service.get_settings") as mock_settings,
+            patch("src.services.gemini_service.genai") as mock_genai,
+        ):
+            mock_settings.return_value.gemini_api_key = "test-api-key"
+            mock_settings.return_value.gemini_model = None
+            mock_client = MagicMock()
+            mock_genai.Client.return_value = mock_client
+
+            mock_response = MagicMock()
+            mock_response.text = '{"contactCharacteristics": {}, "userReplyPatterns": {}}'
+            mock_client.models.generate_content = MagicMock(return_value=mock_response)
+
+            service = GeminiService()
+            email_history = [
+                {"sender": "boss@example.com", "body": "テスト", "user_reply": "テスト返信"},
+            ]
+            await service.analyze_patterns(
+                contact_name="田中部長",
+                email_history=email_history,
+            )
+
+            call_args = mock_client.models.generate_content.call_args
+            contents = call_args.kwargs.get("contents") or call_args.args[1]
+            assert "田中部長" in str(contents)
+
+    @pytest.mark.asyncio
+    async def test_analyze_patterns_with_empty_history_returns_error(self):
+        """analyze_patterns should return error for empty email history."""
+        from src.services.gemini_service import GeminiError, GeminiService
+
+        with (
+            patch("src.services.gemini_service.get_settings") as mock_settings,
+            patch("src.services.gemini_service.genai"),
+        ):
+            mock_settings.return_value.gemini_api_key = "test-api-key"
+            mock_settings.return_value.gemini_model = None
+
+            service = GeminiService()
+            result = await service.analyze_patterns(
+                contact_name="上司さん",
+                email_history=[],
+            )
+
+            assert result.is_err()
+            assert result.unwrap_err() == GeminiError.INVALID_INPUT
+
+    @pytest.mark.asyncio
+    async def test_analyze_patterns_handles_api_error(self):
+        """analyze_patterns should handle API errors gracefully."""
+        from src.services.gemini_service import GeminiError, GeminiService
+
+        with (
+            patch("src.services.gemini_service.get_settings") as mock_settings,
+            patch("src.services.gemini_service.genai") as mock_genai,
+        ):
+            mock_settings.return_value.gemini_api_key = "test-api-key"
+            mock_settings.return_value.gemini_model = None
+            mock_client = MagicMock()
+            mock_genai.Client.return_value = mock_client
+            mock_client.models.generate_content = MagicMock(
+                side_effect=Exception("API Error")
+            )
+
+            service = GeminiService()
+            email_history = [
+                {"sender": "boss@example.com", "body": "テスト", "user_reply": "テスト返信"},
+            ]
+            result = await service.analyze_patterns(
+                contact_name="上司さん",
+                email_history=email_history,
+            )
+
+            assert result.is_err()
+            assert result.unwrap_err() == GeminiError.API_ERROR
+
+    @pytest.mark.asyncio
+    async def test_analyze_patterns_handles_rate_limit(self):
+        """analyze_patterns should detect rate limit errors."""
+        from src.services.gemini_service import GeminiError, GeminiService
+
+        with (
+            patch("src.services.gemini_service.get_settings") as mock_settings,
+            patch("src.services.gemini_service.genai") as mock_genai,
+        ):
+            mock_settings.return_value.gemini_api_key = "test-api-key"
+            mock_settings.return_value.gemini_model = None
+            mock_client = MagicMock()
+            mock_genai.Client.return_value = mock_client
+
+            rate_limit_error = Exception("429 Resource has been exhausted")
+            mock_client.models.generate_content = MagicMock(side_effect=rate_limit_error)
+
+            service = GeminiService()
+            email_history = [
+                {"sender": "boss@example.com", "body": "テスト", "user_reply": "テスト返信"},
+            ]
+            result = await service.analyze_patterns(
+                contact_name="上司さん",
+                email_history=email_history,
+            )
+
+            assert result.is_err()
+            assert result.unwrap_err() == GeminiError.RATE_LIMIT

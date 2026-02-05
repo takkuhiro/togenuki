@@ -35,44 +35,44 @@
 
 ### Phase 2: バックエンドサービス実装
 
-- [ ] 2. ContactRepositoryの実装
-- [ ] 2.1 (P) 連絡先作成機能を実装する
+- [x] 2. ContactRepositoryの実装
+- [x] 2.1 (P) 連絡先作成機能を実装する
   - ユーザーIDとメールアドレス・名前・Gmail検索クエリを受け取り、contactsテーブルにレコードを作成
   - is_learning_complete=falseで初期化
   - 同一ユーザー・同一メールアドレスの重複チェックを行い、重複時は例外をスロー
   - _Requirements: 1.1, 1.3, 1.4_
 
-- [ ] 2.2 (P) 連絡先一覧取得機能を実装する
+- [x] 2.2 (P) 連絡先一覧取得機能を実装する
   - ユーザーIDに紐づく連絡先のみを取得
   - 学習状態（is_learning_complete, learning_failed_at）を含めて返却
   - _Requirements: 2.5, 6.3_
 
-- [ ] 2.3 (P) 連絡先削除機能を実装する
+- [x] 2.3 (P) 連絡先削除機能を実装する
   - 連絡先IDで指定されたレコードを削除（関連するcontact_contextはCASCADEで自動削除）
   - 存在チェックを行い、存在しない場合はNoneを返却
   - _Requirements: 3.3, 3.5_
 
-- [ ] 2.4 (P) 学習コンテキスト保存機能を実装する
+- [x] 2.4 (P) 学習コンテキスト保存機能を実装する
   - contact_contextテーブルに学習結果（learned_patterns JSON）を保存
   - 学習完了時にis_learning_complete=trueに更新するメソッドも実装
   - _Requirements: 4.5, 4.6_
 
-- [ ] 3. GmailApiClientの拡張
-- [ ] 3.1 メッセージ検索機能を追加する
+- [x] 3. GmailApiClientの拡張
+- [x] 3.1 メッセージ検索機能を追加する
   - Gmail検索クエリを使用して過去メールを検索
   - 最大30件のメッセージIDリストを取得
   - Gmail APIエラー時は例外をスロー（呼び出し元でログ記録）
   - _Requirements: 4.2, 4.7_
 
-- [ ] 4. GeminiServiceの拡張
-- [ ] 4.1 メールパターン分析機能を追加する
+- [x] 4. GeminiServiceの拡張
+- [x] 4.1 メールパターン分析機能を追加する
   - 連絡先名とメール履歴を受け取り、相手の特徴とユーザーの返信パターンを分析
   - 分析結果をJSON形式で返却（contactCharacteristics, userReplyPatterns）
   - エラー時はResult型でエラーを返却
   - _Requirements: 4.3, 4.4_
 
-- [ ] 5. LearningServiceの実装
-- [ ] 5.1 学習処理オーケストレーションを実装する
+- [x] 5. LearningServiceの実装
+- [x] 5.1 学習処理オーケストレーションを実装する
   - 連絡先登録後に非同期で呼び出される学習処理
   - Gmail APIで過去メール30件を取得
   - Gemini APIでパターン分析を実行
@@ -86,10 +86,10 @@
 > **開発者へ依頼**: 以下の動作確認を実施してください。
 >
 > **動作確認**（pytest または手動テスト）:
-> - [ ] ContactRepository の各メソッドがDBに正しく読み書きできることを確認
-> - [ ] GmailApiClient.search_messages() がGmail APIからメッセージを取得できることを確認
-> - [ ] GeminiService.analyze_patterns() がパターン分析結果を返却することを確認
-> - [ ] LearningService.process_learning() がエンドツーエンドで動作することを確認
+> - [x] ContactRepository の各メソッドがDBに正しく読み書きできることを確認
+> - [x] GmailApiClient.search_messages() がGmail APIからメッセージを取得できることを確認
+> - [x] GeminiService.analyze_patterns() がパターン分析結果を返却することを確認
+> - [x] LearningService.process_learning() がエンドツーエンドで動作することを確認
 >
 > **注意事項**:
 > - Gmail API と Gemini API の呼び出しには有効な認証情報が必要です

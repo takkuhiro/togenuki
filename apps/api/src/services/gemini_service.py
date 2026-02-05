@@ -1,7 +1,8 @@
-"""Gemini Service for Gyaru Language Conversion.
+"""Gemini Service for Gyaru Language Conversion and Pattern Analysis.
 
-This service uses Gemini 2.5 Flash to convert email text into
-"全肯定ギャル" (all-affirming gyaru) style speech.
+This service uses Gemini 2.5 Flash to:
+- Convert email text into "全肯定ギャル" (all-affirming gyaru) style speech
+- Analyze email patterns for contact learning
 """
 
 import asyncio
@@ -128,4 +129,84 @@ class GeminiService:
                 logger.warning(f"Gemini API rate limited: {e}")
                 return Err(GeminiError.RATE_LIMIT)
             logger.exception(f"Gemini API error: {e}")
+            return Err(GeminiError.API_ERROR)
+
+    async def analyze_patterns(
+        self,
+        contact_name: str,
+        email_history: list[dict],
+    ) -> Result[str, GeminiError]:
+        """Analyze email history and extract patterns.
+
+        Args:
+            contact_name: Name of the contact
+            email_history: List of email dicts with sender, body, user_reply
+
+        Returns:
+            Result containing JSON string with learned_patterns or error
+        """
+        if not email_history:
+            logger.warning("Empty email history provided for pattern analysis")
+            return Err(GeminiError.INVALID_INPUT)
+
+        try:
+            # Format email history for the prompt
+            emails_text = ""
+            for i, email in enumerate(email_history, 1):
+                emails_text += f"""
+### メール {i}
+**送信者メール**: {email.get('body', '')}
+**ユーザーの返信**: {email.get('user_reply', '（返信なし）')}
+"""
+
+            user_prompt = f"""以下は「{contact_name}」との過去のメールやり取りです。
+
+{emails_text}
+
+上記のやり取りを分析し、以下の情報を抽出してJSON形式で出力してください：
+
+1. **contactCharacteristics（相手のメール特徴）**:
+   - tone: 語調の特徴（例：「丁寧で形式的」「カジュアル」「威圧的」など）
+   - commonExpressions: よく使う表現のリスト
+   - requestPatterns: 要求パターンのリスト（例：「期限を明示する」「質問形式で依頼する」など）
+
+2. **userReplyPatterns（ユーザーの返信パターン）**:
+   - responseStyle: 対応スタイル（例：「丁寧で謙虚」「簡潔」など）
+   - commonExpressions: よく使う表現のリスト
+   - formalityLevel: 丁寧さのレベル（例：「非常に丁寧」「普通」「カジュアル」など）
+
+出力はJSON形式のみで、説明文は不要です。"""
+
+            system_instruction = """あなたはメールコミュニケーションの分析エキスパートです。
+過去のメールやり取りから、相手のコミュニケーションスタイルとユーザーの返信パターンを分析します。
+出力は必ず有効なJSON形式で、日本語で記述してください。"""
+
+            response = await asyncio.to_thread(
+                self.client.models.generate_content,
+                model=self.model,
+                contents=user_prompt,
+                config=genai.types.GenerateContentConfig(
+                    system_instruction=system_instruction,
+                    temperature=0.3,
+                    max_output_tokens=2048,
+                ),
+            )
+
+            result_text = response.text
+            if result_text is None:
+                logger.error("Gemini returned empty response for pattern analysis")
+                return Err(GeminiError.API_ERROR)
+
+            logger.info(f"Successfully analyzed patterns for contact {contact_name}")
+            return Ok(result_text)
+
+        except asyncio.TimeoutError:
+            logger.error("Gemini API request timed out during pattern analysis")
+            return Err(GeminiError.TIMEOUT)
+        except Exception as e:
+            error_str = str(e).lower()
+            if "429" in error_str or "exhausted" in error_str or "rate" in error_str:
+                logger.warning(f"Gemini API rate limited during pattern analysis: {e}")
+                return Err(GeminiError.RATE_LIMIT)
+            logger.exception(f"Gemini API error during pattern analysis: {e}")
             return Err(GeminiError.API_ERROR)
