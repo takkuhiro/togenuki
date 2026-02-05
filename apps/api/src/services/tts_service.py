@@ -118,8 +118,8 @@ class TTSService:
 
             audio_config = texttospeech.AudioConfig(
                 audio_encoding=texttospeech.AudioEncoding.MP3,
-                speaking_rate=1.0,
-                pitch=2.0,  # Slightly higher pitch for gyaru voice
+                # speaking_rate=1.0, # Chirp3-HD-Callirrhoeの場合は不要
+                # pitch=2.0,  # Chirp3-HD-Callirrhoeの場合は不要
             )
 
             # Call TTS API (sync call wrapped for async)
