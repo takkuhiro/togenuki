@@ -4,14 +4,15 @@ Provides functions to:
 - Check if sender is a registered contact
 - Check if email already exists
 - Create email records
+- Get user emails
 """
 
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.models import Contact, Email
+from src.models import Contact, Email, User
 
 
 async def is_registered_contact(
@@ -96,3 +97,41 @@ async def create_email_record(
     )
     session.add(email)
     return email
+
+
+async def get_user_by_firebase_uid(
+    session: AsyncSession, firebase_uid: str
+) -> User | None:
+    """Get user by Firebase UID.
+
+    Args:
+        session: Database session
+        firebase_uid: The user's Firebase UID
+
+    Returns:
+        User if found, None otherwise
+    """
+    query = select(User).where(User.firebase_uid == firebase_uid)
+    result = await session.execute(query)
+    return result.scalar_one_or_none()
+
+
+async def get_emails_by_user_id(
+    session: AsyncSession, user_id: UUID
+) -> list[Email]:
+    """Get all emails for a user sorted by received_at descending.
+
+    Args:
+        session: Database session
+        user_id: The user's ID
+
+    Returns:
+        List of Email objects sorted by received_at descending
+    """
+    query = (
+        select(Email)
+        .where(Email.user_id == user_id)
+        .order_by(desc(Email.received_at))
+    )
+    result = await session.execute(query)
+    return list(result.scalars().all())

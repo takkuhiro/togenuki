@@ -75,13 +75,25 @@ variable "artifact_registry_repository" {
 # ============================================
 
 variable "cloud_run_service_name" {
-  description = "Cloud Run service name"
+  description = "Cloud Run service name for API"
   type        = string
   default     = "togenuki-api"
 }
 
 variable "cloud_run_image" {
-  description = "Docker image for Cloud Run (initial placeholder, updated via docker push)"
+  description = "Docker image for API Cloud Run (initial placeholder, updated via docker push)"
+  type        = string
+  default     = "us-docker.pkg.dev/cloudrun/container/hello"  # Public hello image as placeholder
+}
+
+variable "cloud_run_web_service_name" {
+  description = "Cloud Run service name for Web frontend"
+  type        = string
+  default     = "togenuki-web"
+}
+
+variable "cloud_run_web_image" {
+  description = "Docker image for Web Cloud Run (initial placeholder, updated via docker push)"
   type        = string
   default     = "us-docker.pkg.dev/cloudrun/container/hello"  # Public hello image as placeholder
 }

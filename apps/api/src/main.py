@@ -4,6 +4,7 @@ from fastapi import FastAPI
 
 from src.auth.firebase_admin import initialize_firebase
 from src.config import get_settings
+from src.routers.emails import router as emails_router
 from src.routers.gmail_oauth import router as gmail_oauth_router
 from src.routers.gmail_watch import router as gmail_watch_router
 from src.routers.webhook import router as webhook_router
@@ -24,6 +25,7 @@ app = FastAPI(
 )
 
 # Include routers
+app.include_router(emails_router, prefix="/api")
 app.include_router(gmail_oauth_router, prefix="/api/auth/gmail")
 app.include_router(gmail_watch_router)
 app.include_router(webhook_router)
