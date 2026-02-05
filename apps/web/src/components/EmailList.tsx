@@ -3,11 +3,11 @@
  * Requirements: 4.1, 4.2, 4.3, 4.4, 4.5
  */
 
-import { useState, useEffect, useCallback } from "react";
-import type { Email } from "../types/email";
-import { fetchEmails } from "../api/emails";
-import { useAuth } from "../contexts/AuthContext";
-import { EmailCard } from "./EmailCard";
+import { useCallback, useEffect, useState } from 'react';
+import { fetchEmails } from '../api/emails';
+import { useAuth } from '../contexts/AuthContext';
+import type { Email } from '../types/email';
+import { EmailCard } from './EmailCard';
 
 /**
  * Email list component that fetches and displays all emails for the user.
@@ -44,7 +44,7 @@ export function EmailList() {
       const response = await fetchEmails(idToken);
       setEmails(response.emails);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "エラーが発生しました");
+      setError(err instanceof Error ? err.message : 'エラーが発生しました');
     } finally {
       setIsLoading(false);
     }
@@ -67,7 +67,7 @@ export function EmailList() {
     return (
       <div className="email-list-error" role="alert">
         <p>エラー: {error}</p>
-        <button onClick={loadEmails} className="retry-button">
+        <button type="button" onClick={loadEmails} className="retry-button">
           再読み込み
         </button>
       </div>

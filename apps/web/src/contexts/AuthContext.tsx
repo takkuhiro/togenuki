@@ -1,22 +1,16 @@
 /**
  * Authentication context for managing Firebase Auth state.
  */
+
 import {
-  createContext,
-  useContext,
-  useEffect,
-  useState,
-  useCallback,
-  type ReactNode,
-} from "react";
-import {
-  GoogleAuthProvider,
-  signInWithPopup,
   signOut as firebaseSignOut,
+  GoogleAuthProvider,
   onAuthStateChanged,
+  signInWithPopup,
   type User,
-} from "firebase/auth";
-import { auth } from "../firebase/config";
+} from 'firebase/auth';
+import { createContext, type ReactNode, useCallback, useContext, useEffect, useState } from 'react';
+import { auth } from '../firebase/config';
 
 /**
  * Firebase user information.
@@ -30,7 +24,7 @@ export interface FirebaseUser {
 /**
  * Authentication error types.
  */
-export type AuthError = "auth_failed" | "sign_out_failed" | "unknown";
+export type AuthError = 'auth_failed' | 'sign_out_failed' | 'unknown';
 
 /**
  * Authentication state.
@@ -122,7 +116,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch {
       setState((prev) => ({
         ...prev,
-        error: "auth_failed",
+        error: 'auth_failed',
         isLoading: false,
       }));
     }
@@ -136,7 +130,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch {
       setState((prev) => ({
         ...prev,
-        error: "sign_out_failed",
+        error: 'sign_out_failed',
         isLoading: false,
       }));
     }
@@ -162,7 +156,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!state.idToken) return false;
 
     try {
-      const response = await fetch("/api/auth/gmail/status", {
+      const response = await fetch('/api/auth/gmail/status', {
         headers: {
           Authorization: `Bearer ${state.idToken}`,
         },
@@ -184,7 +178,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!state.idToken) return;
 
     try {
-      const response = await fetch("/api/auth/gmail/url", {
+      const response = await fetch('/api/auth/gmail/url', {
         headers: {
           Authorization: `Bearer ${state.idToken}`,
         },
@@ -195,7 +189,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         window.location.href = data.url;
       }
     } catch {
-      setState((prev) => ({ ...prev, error: "unknown" }));
+      setState((prev) => ({ ...prev, error: 'unknown' }));
     }
   }, [state.idToken]);
 
@@ -217,7 +211,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 export function useAuth(): AuthContextValue {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error("useAuth must be used within an AuthProvider");
+    throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
 }

@@ -1,7 +1,7 @@
-import "./App.css";
-import { useAuth } from "./contexts/AuthContext";
-import { GmailCallback } from "./pages/GmailCallback";
-import { EmailList } from "./components/EmailList";
+import './App.css';
+import { EmailList } from './components/EmailList';
+import { useAuth } from './contexts/AuthContext';
+import { GmailCallback } from './pages/GmailCallback';
 
 function App() {
   const {
@@ -17,13 +17,13 @@ function App() {
 
   // Simple routing: check if we're on the Gmail callback page
   const path = window.location.pathname;
-  if (path === "/auth/gmail/callback") {
+  if (path === '/auth/gmail/callback') {
     return <GmailCallback />;
   }
 
   const handleCheckGmailStatus = async () => {
     const connected = await checkGmailStatus();
-    alert(`Gmail連携状態: ${connected ? "連携済み" : "未連携"}`);
+    alert(`Gmail連携状態: ${connected ? '連携済み' : '未連携'}`);
   };
 
   if (isLoading) {
@@ -45,7 +45,7 @@ function App() {
           <h1>TogeNuki</h1>
           <p className="app-description">メールストレス軽減AIツール</p>
           {error && <p className="error-message">エラー: {error}</p>}
-          <button onClick={signInWithGoogle} className="login-button">
+          <button type="button" onClick={signInWithGoogle} className="login-button">
             Googleでログイン
           </button>
         </div>
@@ -61,7 +61,7 @@ function App() {
           <div className="header-content">
             <h1>TogeNuki</h1>
             <div className="header-actions">
-              <button onClick={signOut} className="logout-button">
+              <button type="button" onClick={signOut} className="logout-button">
                 ログアウト
               </button>
             </div>
@@ -71,10 +71,10 @@ function App() {
           <div className="setup-container">
             <h2>Gmail連携が必要です</h2>
             <p>メールを読み込むためにGmail連携を行ってください。</p>
-            <button onClick={connectGmail} className="gmail-button">
+            <button type="button" onClick={connectGmail} className="gmail-button">
               Gmail連携
             </button>
-            <button onClick={handleCheckGmailStatus} className="check-button">
+            <button type="button" onClick={handleCheckGmailStatus} className="check-button">
               Gmail状態確認
             </button>
           </div>
@@ -94,7 +94,7 @@ function App() {
           </div>
           <div className="header-actions">
             <span className="user-email">{user.email}</span>
-            <button onClick={signOut} className="logout-button-small">
+            <button type="button" onClick={signOut} className="logout-button-small">
               ログアウト
             </button>
           </div>
