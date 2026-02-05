@@ -4,7 +4,8 @@ Handles the complete email processing pipeline:
 1. Fetch new emails from Gmail API based on Pub/Sub notification
 2. Validate sender against registered contacts
 3. Store email in database
-4. Trigger AI conversion and TTS (placeholder for Phase 4)
+4. Convert to gyaru style using Gemini
+5. Generate audio using Cloud TTS
 """
 
 from dataclasses import dataclass
@@ -14,17 +15,19 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.auth.gmail_oauth import GmailOAuthService
-from src.models import User
+from src.models import Email, User
 from src.repositories.email_repository import (
     create_email_record,
     email_exists,
     get_contact_for_email,
 )
+from src.services.gemini_service import GeminiService
 from src.services.gmail_service import (
     GmailApiClient,
     GmailApiError,
     parse_gmail_message,
 )
+from src.services.tts_service import TTSService
 from src.utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -60,6 +63,8 @@ class EmailProcessorService:
         """
         self.session = session
         self.oauth_service = GmailOAuthService()
+        self.gemini_service = GeminiService()
+        self.tts_service = TTSService()
 
     async def process_notification(
         self, email_address: str, history_id: str
@@ -184,18 +189,67 @@ class EmailProcessorService:
                 f"from={sender_email}, subject={email_data.get('subject')}"
             )
 
-            # 4. TODO: Trigger AI conversion and TTS (Phase 4)
-            # This will be implemented in Phase 4:
-            # - Call GeminiService for gyaru conversion
-            # - Call TTSService for audio generation
-            # - Update email.converted_body, email.audio_url
-            # - Set email.is_processed = True
+            # 4. Trigger AI conversion (Gemini) and TTS
+            await self._process_ai_conversion(email, email_data)
 
             return MessageResult(processed=True, email_id=email.id)
 
         except Exception as e:
             logger.exception(f"Error processing message: {e}")
             return MessageResult(processed=False, reason=f"Processing error: {str(e)}")
+
+    async def _process_ai_conversion(
+        self,
+        email: "Email",
+        email_data: dict,
+    ) -> None:
+        """Process AI conversion (Gemini) and TTS for an email.
+
+        Args:
+            email: Email model instance
+            email_data: Parsed email data dict
+        """
+
+        sender_name = email_data.get("sender_name") or email_data.get("sender_email", "")
+        original_body = email_data.get("original_body") or ""
+
+        # Skip AI processing if no body
+        if not original_body.strip():
+            logger.warning(f"Email {email.id} has no body, skipping AI conversion")
+            return
+
+        # 1. Convert to gyaru style using Gemini
+        gemini_result = await self.gemini_service.convert_to_gyaru(
+            sender_name=sender_name,
+            original_body=original_body,
+        )
+
+        if gemini_result.is_err():
+            logger.error(
+                f"Gemini conversion failed for email {email.id}: {gemini_result.unwrap_err()}"
+            )
+            return
+
+        converted_body = gemini_result.unwrap()
+        email.converted_body = converted_body
+        logger.info(f"Email {email.id} converted to gyaru style")
+
+        # 2. Generate audio using TTS
+        tts_result = await self.tts_service.synthesize_and_upload(
+            text=converted_body,
+            email_id=email.id,
+        )
+
+        if tts_result.is_err():
+            logger.error(
+                f"TTS synthesis failed for email {email.id}: {tts_result.unwrap_err()}"
+            )
+            return
+
+        audio_url = tts_result.unwrap()
+        email.audio_url = audio_url
+        email.is_processed = True
+        logger.info(f"Email {email.id} audio generated: {audio_url}")
 
     async def _get_user_by_email(self, email_address: str) -> User | None:
         """Fetch user by email address.
