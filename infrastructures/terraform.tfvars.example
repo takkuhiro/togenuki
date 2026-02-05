@@ -15,3 +15,21 @@ db_password      = "your-secure-password"
 #     cidr = "203.0.113.1/32"
 #   }
 # ]
+
+# Cloud Pub/Sub Configuration (Gmail Push Notifications)
+pubsub_topic_name        = "gmail-notifications"
+pubsub_subscription_name = "gmail-webhook-push"
+
+# Artifact Registry Configuration
+artifact_registry_repository = "togenuki"
+
+# Cloud Run Configuration
+cloud_run_service_name = "togenuki-api"
+# Initial placeholder image (public hello image)
+# After terraform apply, run ./apps/api/deploy.sh to deploy actual API
+cloud_run_image = "us-docker.pkg.dev/cloudrun/container/hello"
+
+# Google OAuth Configuration (for Gmail API)
+google_oauth_client_id     = "your-client-id.apps.googleusercontent.com"
+google_oauth_client_secret = "your-client-secret"
+google_oauth_redirect_uri  = "http://localhost:3000/auth/gmail/callback"

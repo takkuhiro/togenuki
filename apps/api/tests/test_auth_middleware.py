@@ -1,10 +1,9 @@
 """Tests for Firebase Authentication middleware."""
 
-from typing import Any
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
-from fastapi import FastAPI, Depends
+from fastapi import Depends, FastAPI
 from httpx import ASGITransport, AsyncClient
 
 
@@ -25,7 +24,9 @@ class TestAuthMiddleware:
         app = FastAPI()
 
         @app.get("/protected")
-        async def protected_route(user: FirebaseUser = Depends(get_current_user)) -> dict:
+        async def protected_route(
+            user: FirebaseUser = Depends(get_current_user),
+        ) -> dict:
             return {"uid": user.uid}
 
         async with AsyncClient(
@@ -45,7 +46,9 @@ class TestAuthMiddleware:
         app = FastAPI()
 
         @app.get("/protected")
-        async def protected_route(user: FirebaseUser = Depends(get_current_user)) -> dict:
+        async def protected_route(
+            user: FirebaseUser = Depends(get_current_user),
+        ) -> dict:
             return {"uid": user.uid}
 
         async with AsyncClient(
@@ -69,7 +72,9 @@ class TestAuthMiddleware:
         app = FastAPI()
 
         @app.get("/protected")
-        async def protected_route(user: FirebaseUser = Depends(get_current_user)) -> dict:
+        async def protected_route(
+            user: FirebaseUser = Depends(get_current_user),
+        ) -> dict:
             return {"uid": user.uid}
 
         with patch("src.auth.middleware.auth") as mock_auth:
@@ -95,7 +100,9 @@ class TestAuthMiddleware:
         app = FastAPI()
 
         @app.get("/protected")
-        async def protected_route(user: FirebaseUser = Depends(get_current_user)) -> dict:
+        async def protected_route(
+            user: FirebaseUser = Depends(get_current_user),
+        ) -> dict:
             return {"uid": user.uid, "email": user.email}
 
         with patch("src.auth.middleware.auth") as mock_auth:
@@ -124,7 +131,9 @@ class TestAuthMiddleware:
         app = FastAPI()
 
         @app.get("/protected")
-        async def protected_route(user: FirebaseUser = Depends(get_current_user)) -> dict:
+        async def protected_route(
+            user: FirebaseUser = Depends(get_current_user),
+        ) -> dict:
             return {"uid": user.uid}
 
         with patch("src.auth.middleware.auth") as mock_auth:

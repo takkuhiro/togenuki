@@ -6,16 +6,17 @@ Create Date: 2026-02-04 13:05:46.431107
 
 """
 
-from typing import Sequence, Union
+from collections.abc import Sequence
 
 import sqlalchemy as sa
+
 from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "47c94c087902"
-down_revision: Union[str, Sequence[str], None] = None
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | Sequence[str] | None = None
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
@@ -28,9 +29,7 @@ def upgrade() -> None:
         sa.Column("email", sa.String(255), nullable=False),
         sa.Column("gmail_refresh_token", sa.Text(), nullable=True),
         sa.Column("gmail_access_token", sa.Text(), nullable=True),
-        sa.Column(
-            "gmail_token_expires_at", sa.DateTime(timezone=True), nullable=True
-        ),
+        sa.Column("gmail_token_expires_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column(
             "created_at",
             sa.DateTime(timezone=True),
@@ -44,9 +43,7 @@ def upgrade() -> None:
     op.create_table(
         "contacts",
         sa.Column("id", sa.Integer(), primary_key=True),
-        sa.Column(
-            "user_id", sa.Integer(), sa.ForeignKey("users.id"), nullable=False
-        ),
+        sa.Column("user_id", sa.Integer(), sa.ForeignKey("users.id"), nullable=False),
         sa.Column("contact_email", sa.String(255), nullable=False),
         sa.Column("contact_name", sa.String(255), nullable=True),
         sa.Column("gmail_query", sa.String(512), nullable=True),
@@ -67,9 +64,7 @@ def upgrade() -> None:
     op.create_table(
         "emails",
         sa.Column("id", sa.Integer(), primary_key=True),
-        sa.Column(
-            "user_id", sa.Integer(), sa.ForeignKey("users.id"), nullable=False
-        ),
+        sa.Column("user_id", sa.Integer(), sa.ForeignKey("users.id"), nullable=False),
         sa.Column(
             "contact_id", sa.Integer(), sa.ForeignKey("contacts.id"), nullable=True
         ),
@@ -81,9 +76,7 @@ def upgrade() -> None:
         sa.Column("converted_body", sa.Text(), nullable=True),
         sa.Column("audio_url", sa.String(1024), nullable=True),
         sa.Column("received_at", sa.DateTime(timezone=True), nullable=True),
-        sa.Column(
-            "is_processed", sa.Boolean(), server_default="false", nullable=False
-        ),
+        sa.Column("is_processed", sa.Boolean(), server_default="false", nullable=False),
         sa.Column(
             "created_at",
             sa.DateTime(timezone=True),

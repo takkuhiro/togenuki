@@ -1,7 +1,5 @@
 """Firebase Authentication middleware for FastAPI."""
 
-from typing import Optional
-
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from firebase_admin import auth
@@ -12,7 +10,7 @@ security = HTTPBearer(auto_error=False)
 
 
 async def get_current_user(
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
+    credentials: HTTPAuthorizationCredentials | None = Depends(security),
 ) -> FirebaseUser:
     """
     Verify Firebase ID Token and return user information.
@@ -53,10 +51,10 @@ async def get_current_user(
         if "expired" in error_message:
             error_type = AuthError.EXPIRED_TOKEN
         else:
-            error_type = AuthError.EXPIRED_TOKEN
+            error_type = AuthError.INVALID_TOKEN
 
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail={"error": error_type.value},
             headers={"WWW-Authenticate": "Bearer"},
-        )
+        ) from e
