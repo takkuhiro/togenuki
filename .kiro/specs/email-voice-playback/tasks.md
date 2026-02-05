@@ -151,33 +151,33 @@
 
 ### Phase 4: AI サービス連携
 
-- [ ] 4. Gemini ギャル語変換サービス
-- [ ] 4.1 Gemini API クライアント実装
+- [x] 4. Gemini ギャル語変換サービス
+- [x] 4.1 Gemini API クライアント実装
   - google-genai SDK を使用した API クライアントを実装する
   - ギャル語変換用のシステムプロンプトを定義する
   - 送信者名をプロンプトに埋め込む機能を実装する
   - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5_
 
-- [ ] 4.2 ギャル語変換処理実装
+- [x] 4.2 ギャル語変換処理実装
   - メール本文を入力としてギャル語に変換する機能を実装する
   - 変換結果をデータベースに保存する（converted_body）
   - API エラー時のリトライ処理を実装する（指数バックオフ）
   - _Requirements: 2.6, 2.7_
 
-- [ ] 5. 音声合成サービス
-- [ ] 5.1 Cloud TTS API クライアント実装
+- [x] 5. 音声合成サービス
+- [x] 5.1 Cloud TTS API クライアント実装
   - Google Cloud TTS SDK を使用した音声合成機能を実装する
   - 日本語女性音声（ja-JP-Wavenet-B）を設定する
   - MP3 形式で音声データを生成する
   - _Requirements: 3.1, 3.2_
 
-- [ ] 5.2 GCS アップロード機能実装
+- [x] 5.2 GCS アップロード機能実装
   - 生成した音声ファイルを Cloud Storage にアップロードする機能を実装する
   - 公開 URL を生成する
   - ファイル名の命名規則を実装する（{email_id}_{timestamp}.mp3）
   - _Requirements: 3.3, 3.4_
 
-- [ ] 5.3 音声処理フロー統合
+- [x] 5.3 音声処理フロー統合
   - ギャル語変換完了後に音声合成を実行する処理フローを統合する
   - 音声 URL をデータベースに保存する（audio_url）
   - 全処理完了時に is_processed を true に更新する
@@ -189,19 +189,24 @@
 > **開発者へ依頼**: AI サービス利用のために以下を完了してください。
 >
 > **Google Cloud Console 作業**:
-> - [ ] Vertex AI API または Generative Language API を有効化する
-> - [ ] Gemini API キーを取得し、環境変数に設定する
-> - [ ] Cloud Text-to-Speech API を有効化する
-> - [ ] Cloud Storage バケットを作成する（例: `togenuki-audio`）
-> - [ ] バケットを公開設定にする（`allUsers` に `Storage Object Viewer` 権限を付与）
+> - [x] Vertex AI API または Generative Language API を有効化する
+> - [x] Gemini API キーを取得し、環境変数に設定する
+> - [x] Cloud Text-to-Speech API を有効化する
+>
+> **Terraform 作業** (Cloud Storage バケット):
+> - [x] `infrastructures/terraform.tfvars` に `gemini_api_key` を設定する
+> - [x] `terraform plan` で変更内容を確認する
+> - [x] `terraform apply` でCloud Storageバケットを作成する
+>   - バケット名: `aitech-good-s15112-togenuki-audio`
+>   - 公開設定: `allUsers` に `Storage Object Viewer` 権限（Terraform管理）
 >   - ※ 本番環境では署名付き URL を使用してください
 
 #### 📋 Phase 4 終了時のユーザー作業
 
 > **動作確認**:
-> - [ ] テストメールを送信し、ギャル語変換が実行されることを確認
-> - [ ] 音声ファイルが GCS にアップロードされることを確認
-> - [ ] 音声 URL にアクセスして再生できることを確認
+> - [x] テストメールを送信し、ギャル語変換が実行されることを確認
+> - [x] 音声ファイルが GCS にアップロードされることを確認
+> - [x] 音声 URL にアクセスして再生できることを確認
 
 ---
 

@@ -30,6 +30,17 @@ class Settings(BaseSettings):
     # GCP Project
     project_id: str = "aitech-good-s15112"
 
+    # Gemini API settings
+    gemini_api_key: str = ""
+    gemini_model: str = "gemini-2.5-flash"
+
+    # Cloud TTS settings
+    tts_voice_name: str = "ja-JP-Chirp3-HD-F1"
+    tts_language_code: str = "ja-JP"
+
+    # Cloud Storage settings
+    gcs_bucket_name: str = "togenuki-audio"
+
 
 @lru_cache
 def get_settings() -> Settings:
