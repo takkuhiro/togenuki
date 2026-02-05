@@ -76,6 +76,7 @@ class TestContactModel:
         assert hasattr(Contact, "contact_name")
         assert hasattr(Contact, "gmail_query")
         assert hasattr(Contact, "is_learning_complete")
+        assert hasattr(Contact, "learning_failed_at")
         assert hasattr(Contact, "created_at")
 
     def test_contact_table_name(self) -> None:
@@ -171,6 +172,44 @@ class TestEmailModel:
         )
         # Default value is applied when inserted to DB, not on instance creation
         assert hasattr(email, "is_processed")
+
+
+class TestContactContextModel:
+    """ContactContext model tests."""
+
+    def test_contact_context_model_exists(self) -> None:
+        """ContactContext model should be importable."""
+        from src.models import ContactContext
+
+        assert ContactContext is not None
+
+    def test_contact_context_has_required_fields(self) -> None:
+        """ContactContext model should have all required fields."""
+        from src.models import ContactContext
+
+        assert hasattr(ContactContext, "id")
+        assert hasattr(ContactContext, "contact_id")
+        assert hasattr(ContactContext, "learned_patterns")
+        assert hasattr(ContactContext, "updated_at")
+
+    def test_contact_context_table_name(self) -> None:
+        """ContactContext model should have correct table name."""
+        from src.models import ContactContext
+
+        assert ContactContext.__tablename__ == "contact_context"
+
+    def test_contact_context_can_be_created(self) -> None:
+        """ContactContext instance should be creatable with required fields."""
+        from src.models import ContactContext
+
+        test_contact_id = uuid7()
+        learned_patterns = '{"contactCharacteristics": {}, "userReplyPatterns": {}}'
+        context = ContactContext(
+            contact_id=test_contact_id,
+            learned_patterns=learned_patterns,
+        )
+        assert context.contact_id == test_contact_id
+        assert context.learned_patterns == learned_patterns
 
 
 class TestBase:
@@ -301,3 +340,120 @@ class TestDatabaseIntegration:
         assert hasattr(user, "contacts")
         assert len(user.contacts) == 1
         assert user.contacts[0].contact_email == "boss@example.com"
+
+    def test_can_create_contact_context_with_contact(self, session: Session) -> None:
+        """Should be able to create a contact context linked to a contact."""
+        from src.models import Contact, ContactContext, User
+
+        user = User(firebase_uid="uid-123", email="test@example.com")
+        session.add(user)
+        session.commit()
+
+        contact = Contact(
+            user_id=user.id,
+            contact_email="boss@example.com",
+            contact_name="Boss",
+        )
+        session.add(contact)
+        session.commit()
+
+        learned_patterns = '{"contactCharacteristics": {"tone": "formal"}, "userReplyPatterns": {}}'
+        context = ContactContext(
+            contact_id=contact.id,
+            learned_patterns=learned_patterns,
+        )
+        session.add(context)
+        session.commit()
+
+        from sqlalchemy import select
+
+        result = session.execute(select(ContactContext)).scalar_one()
+        assert result.contact_id == contact.id
+        assert result.learned_patterns == learned_patterns
+        assert result.updated_at is not None
+
+    def test_contact_has_context_relationship(self, session: Session) -> None:
+        """Contact should have context relationship (one-to-one)."""
+        from src.models import Contact, ContactContext, User
+
+        user = User(firebase_uid="uid-123", email="test@example.com")
+        session.add(user)
+        session.commit()
+
+        contact = Contact(
+            user_id=user.id,
+            contact_email="boss@example.com",
+        )
+        session.add(contact)
+        session.commit()
+
+        context = ContactContext(
+            contact_id=contact.id,
+            learned_patterns='{"test": true}',
+        )
+        session.add(context)
+        session.commit()
+
+        session.refresh(contact)
+        assert hasattr(contact, "context")
+        assert contact.context is not None
+        assert contact.context.learned_patterns == '{"test": true}'
+
+    def test_contact_context_deleted_on_contact_delete(self, session: Session) -> None:
+        """ContactContext should be deleted when contact is deleted (CASCADE)."""
+        from sqlalchemy import select
+
+        from src.models import Contact, ContactContext, User
+
+        user = User(firebase_uid="uid-123", email="test@example.com")
+        session.add(user)
+        session.commit()
+
+        contact = Contact(
+            user_id=user.id,
+            contact_email="boss@example.com",
+        )
+        session.add(contact)
+        session.commit()
+
+        context = ContactContext(
+            contact_id=contact.id,
+            learned_patterns='{"test": true}',
+        )
+        session.add(context)
+        session.commit()
+
+        # Verify context exists
+        result = session.execute(select(ContactContext)).scalars().all()
+        assert len(result) == 1
+
+        # Delete contact
+        session.delete(contact)
+        session.commit()
+
+        # Verify context is also deleted
+        result = session.execute(select(ContactContext)).scalars().all()
+        assert len(result) == 0
+
+    def test_contact_learning_failed_at_field(self, session: Session) -> None:
+        """Contact should have learning_failed_at field."""
+        from datetime import datetime, timezone
+
+        from src.models import Contact, User
+
+        user = User(firebase_uid="uid-123", email="test@example.com")
+        session.add(user)
+        session.commit()
+
+        contact = Contact(
+            user_id=user.id,
+            contact_email="boss@example.com",
+            learning_failed_at=datetime.now(timezone.utc),
+        )
+        session.add(contact)
+        session.commit()
+
+        from sqlalchemy import select
+
+        result = session.execute(select(Contact)).scalar_one()
+        assert result.learning_failed_at is not None

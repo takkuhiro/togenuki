@@ -10,14 +10,14 @@
 
 ### Phase 1: データベース拡張
 
-- [ ] 1. データベースモデルとマイグレーション
-- [ ] 1.1 ContactContextモデルを定義する
+- [x] 1. データベースモデルとマイグレーション
+- [x] 1.1 ContactContextモデルを定義する
   - ContactContextテーブル（id, contact_id, learned_patterns, updated_at）を作成
   - contact_idに外部キー制約とUNIQUE制約を設定
   - ON DELETE CASCADEで連絡先削除時に自動削除
   - _Requirements: 4.5_
 
-- [ ] 1.2 Contactモデルにlearning_failed_atカラムを追加する
+- [x] 1.2 Contactモデルにlearning_failed_atカラムを追加する
   - 既存のcontactsテーブルにlearning_failed_at（タイムスタンプ）を追加
   - 学習失敗時のエラー状態を記録可能にする
   - _Requirements: 4.7_
@@ -27,9 +27,9 @@
 > **開発者へ依頼**: 以下の作業を完了してください。
 >
 > **マイグレーション実行**:
-> - [ ] `alembic upgrade head` でマイグレーションを適用する
-> - [ ] データベースに `contact_context` テーブルが作成されたことを確認する
-> - [ ] `contacts` テーブルに `learning_failed_at` カラムが追加されたことを確認する
+> - [x] `alembic upgrade head` でマイグレーションを適用する
+> - [x] データベースに `contact_context` テーブルが作成されたことを確認する
+> - [x] `contacts` テーブルに `learning_failed_at` カラムが追加されたことを確認する
 
 ---
 

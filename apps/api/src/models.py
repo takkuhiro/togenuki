@@ -63,6 +63,9 @@ class Contact(Base):
     contact_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     gmail_query: Mapped[str | None] = mapped_column(String(512), nullable=True)
     is_learning_complete: Mapped[bool] = mapped_column(Boolean, default=False)
+    learning_failed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )
@@ -70,11 +73,39 @@ class Contact(Base):
     # Relationships
     user: Mapped["User"] = relationship("User", back_populates="contacts")
     emails: Mapped[list["Email"]] = relationship("Email", back_populates="contact")
+    context: Mapped[Optional["ContactContext"]] = relationship(
+        "ContactContext", back_populates="contact", uselist=False, cascade="all, delete-orphan"
+    )
 
     __table_args__ = (
         Index("idx_contacts_user_id", "user_id"),
         # Unique constraint on user_id + contact_email is handled by migration
     )
+
+
+class ContactContext(Base):
+    """ContactContext model for storing learned patterns from email analysis."""
+
+    __tablename__ = "contact_context"
+
+    id: Mapped[UUID] = mapped_column(
+        PG_UUID(as_uuid=True), primary_key=True, default=generate_uuid7
+    )
+    contact_id: Mapped[UUID] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("contacts.id", ondelete="CASCADE"),
+        unique=True,
+        nullable=False,
+    )
+    learned_patterns: Mapped[str] = mapped_column(Text, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+    )
+
+    # Relationships
+    contact: Mapped["Contact"] = relationship("Contact", back_populates="context")
+
+    __table_args__ = (Index("idx_contact_context_contact_id", "contact_id"),)
 
 
 class Email(Base):
