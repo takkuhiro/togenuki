@@ -99,22 +99,22 @@
 
 ### Phase 3: APIエンドポイント実装
 
-- [ ] 6. ContactsRouterの実装
-- [ ] 6.1 連絡先登録エンドポイントを実装する
+- [x] 6. ContactsRouterの実装
+- [x] 6.1 連絡先登録エンドポイントを実装する
   - POST /api/contactsでメールアドレス・名前・Gmail検索クエリを受け取る
   - Firebase ID Token認証を必須とする
   - 登録後にBackgroundTasksで学習処理を起動
-  - 即座に200 OKとcontact_id、status: "learning_started"を返却
+  - 即座に201 Createdとcontact_id、status: "learning_started"を返却
   - 重複時は409 Conflictを返却
   - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 6.1, 6.2_
 
-- [ ] 6.2 連絡先一覧取得エンドポイントを実装する
+- [x] 6.2 連絡先一覧取得エンドポイントを実装する
   - GET /api/contactsで認証済みユーザーの連絡先一覧を返却
   - 各連絡先の学習状態を含む
   - 他ユーザーの連絡先は返却しない
   - _Requirements: 2.1, 2.5, 6.1, 6.2, 6.3_
 
-- [ ] 6.3 連絡先削除エンドポイントを実装する
+- [x] 6.3 連絡先削除エンドポイントを実装する
   - DELETE /api/contacts/{id}で連絡先を削除
   - 他ユーザーの連絡先削除時は403 Forbidden
   - 存在しない連絡先削除時は404 Not Found
@@ -125,15 +125,21 @@
 > **開発者へ依頼**: API エンドポイントの動作確認を実施してください。
 >
 > **動作確認**（curl または Swagger UI）:
-> - [ ] `POST /api/contacts` で連絡先が登録できることを確認
-> - [ ] 登録後すぐに `200 OK` と `status: "learning_started"` が返却されることを確認
-> - [ ] `GET /api/contacts` で連絡先一覧が取得できることを確認
-> - [ ] `DELETE /api/contacts/{id}` で連絡先が削除できることを確認
-> - [ ] 他ユーザーの連絡先操作時に `403 Forbidden` が返却されることを確認
+> - [x] `POST /api/contacts` で連絡先が登録できることを確認（201 Created）
+> - [x] 登録後すぐに `201 Created` と `status: "learning_started"` が返却されることを確認
+> - [x] `GET /api/contacts` で連絡先一覧が取得できることを確認（200 OK）
+> - [x] `DELETE /api/contacts/{id}` で連絡先が削除できることを確認（204 No Content）
+> - [x] 他ユーザーの連絡先操作時に `403 Forbidden` が返却されることを確認（ユニットテストで検証済み）
+> - [x] 認証なしアクセス時に `401 Unauthorized` が返却されることを確認
+> - [x] 重複登録時に `409 Conflict` が返却されることを確認
+> - [x] 存在しないID削除時に `404 Not Found` が返却されることを確認
+> - [x] 無効なメールアドレス形式で `422 Unprocessable Entity` が返却されることを確認
 >
 > **Cloud Run デプロイ**（本番環境テストの場合）:
-> - [ ] Backend を Cloud Run にデプロイする
-> - [ ] デプロイ後のAPIエンドポイントで動作確認
+> - [x] Backend を Cloud Run にデプロイする
+> - [x] デプロイ後のAPIエンドポイントで動作確認
+>
+> **テストスクリプト**: `apps/api/scripts/test_contacts_api.sh`
 
 ---
 
