@@ -1,10 +1,9 @@
 """Tests for Gmail OAuth service."""
 
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from sqlalchemy.ext.asyncio import AsyncSession
 
 
 class TestGmailOAuthService:
@@ -40,7 +39,7 @@ class TestGmailOAuthService:
     @pytest.mark.asyncio
     async def test_exchange_code_for_tokens_success(self) -> None:
         """exchange_code_for_tokens should return tokens on success."""
-        from src.auth.gmail_oauth import GmailOAuthService, OAuthTokens
+        from src.auth.gmail_oauth import GmailOAuthService
 
         with patch("src.auth.gmail_oauth.httpx.AsyncClient") as mock_client:
             mock_response = MagicMock()
@@ -112,7 +111,9 @@ class TestGmailOAuthService:
             assert result["access_token"] == "new-access-token"
 
     @pytest.mark.asyncio
-    async def test_refresh_access_token_invalid_refresh_token_returns_none(self) -> None:
+    async def test_refresh_access_token_invalid_refresh_token_returns_none(
+        self,
+    ) -> None:
         """refresh_access_token should return None on invalid refresh token."""
         from src.auth.gmail_oauth import GmailOAuthService
 

@@ -3,7 +3,7 @@
 Provides endpoints to set up and manage Gmail push notifications.
 """
 
-from datetime import datetime, timezone
+from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -14,7 +14,7 @@ from src.auth.middleware import get_current_user
 from src.auth.schemas import FirebaseUser
 from src.database import get_db
 from src.models import User
-from src.services.gmail_watch import GmailWatchResult, GmailWatchService
+from src.services.gmail_watch import GmailWatchService
 from src.utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -77,41 +77,52 @@ async def setup_gmail_watch(
     if not user.gmail_refresh_token:
         raise HTTPException(
             status_code=400,
-            detail="Gmail not connected. Please complete Gmail OAuth first."
+            detail="Gmail not connected. Please complete Gmail OAuth first.",
         )
 
     # Get valid access token
     oauth_service = GmailOAuthService()
+    token_result = await oauth_service.ensure_valid_access_token(
+        current_token=user.gmail_access_token,
+        expires_at=user.gmail_token_expires_at,
+        refresh_token=user.gmail_refresh_token,
+    )
 
-    # Check if token needs refresh
-    if oauth_service.is_token_expired(user.gmail_token_expires_at):
-        refreshed = await oauth_service.refresh_access_token(user.gmail_refresh_token)
-        if not refreshed:
-            raise HTTPException(
-                status_code=401,
-                detail="Failed to refresh Gmail access token. Please reconnect Gmail."
-            )
-        # Update user's tokens
-        user.gmail_access_token = refreshed["access_token"]
-        user.gmail_token_expires_at = refreshed["expires_at"]
+    if not token_result:
+        raise HTTPException(
+            status_code=401,
+            detail="Failed to refresh Gmail access token. Please reconnect Gmail.",
+        )
+
+    # Update user's tokens if they were refreshed
+    if token_result["access_token"] != user.gmail_access_token:
+        user.gmail_access_token = token_result["access_token"]
+        user.gmail_token_expires_at = token_result["expires_at"]
         await session.commit()
 
     # Setup Gmail watch
     watch_service = GmailWatchService()
-    result = await watch_service.setup_watch(user.gmail_access_token)
+    watch_result = await watch_service.setup_watch(user.gmail_access_token)
 
-    if result.success:
-        logger.info(f"Gmail watch setup for user {user.id}")
+    if watch_result.success:
+        # Save history_id to user record for later use in notification processing
+        user.gmail_history_id = watch_result.history_id
+        await session.commit()
+        logger.info(
+            f"Gmail watch setup for user {user.id}, historyId={watch_result.history_id}"
+        )
         return WatchResponse(
             success=True,
-            history_id=result.history_id,
-            expiration=result.expiration,
+            history_id=watch_result.history_id,
+            expiration=watch_result.expiration,
         )
     else:
-        logger.error(f"Gmail watch setup failed for user {user.id}: {result.error}")
+        logger.error(
+            f"Gmail watch setup failed for user {user.id}: {watch_result.error}"
+        )
         return WatchResponse(
             success=False,
-            error=result.error,
+            error=watch_result.error,
         )
 
 
@@ -129,10 +140,7 @@ async def stop_gmail_watch(
     user = await get_user_from_db(firebase_user, session)
 
     if not user.gmail_access_token:
-        raise HTTPException(
-            status_code=400,
-            detail="Gmail not connected"
-        )
+        raise HTTPException(status_code=400, detail="Gmail not connected")
 
     # Stop Gmail watch
     watch_service = GmailWatchService()
@@ -142,7 +150,4 @@ async def stop_gmail_watch(
         logger.info(f"Gmail watch stopped for user {user.id}")
         return WatchResponse(success=True)
     else:
-        return WatchResponse(
-            success=False,
-            error="Failed to stop Gmail watch"
-        )
+        return WatchResponse(success=False, error="Failed to stop Gmail watch")

@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from uuid6 import uuid7
 
 from src.auth.schemas import FirebaseUser
 from src.models import User
@@ -16,7 +17,7 @@ class TestGmailWatchService:
     def mock_user(self) -> User:
         """Create a mock user with Gmail OAuth tokens."""
         return User(
-            id=1,
+            id=uuid7(),
             firebase_uid="test-uid-123",
             email="user@example.com",
             gmail_refresh_token="refresh-token-xxx",
@@ -31,7 +32,7 @@ class TestGmailWatchService:
 
         mock_response = {
             "historyId": "12345",
-            "expiration": "1704672000000"  # Unix timestamp in ms
+            "expiration": "1704672000000",  # Unix timestamp in ms
         }
 
         with patch("httpx.AsyncClient") as mock_client_class:
@@ -52,7 +53,7 @@ class TestGmailWatchService:
     @pytest.mark.asyncio
     async def test_setup_gmail_watch_failure(self):
         """Test Gmail watch setup failure."""
-        from src.services.gmail_watch import GmailWatchService, GmailWatchError
+        from src.services.gmail_watch import GmailWatchService
 
         with patch("httpx.AsyncClient") as mock_client_class:
             mock_client = AsyncMock()
@@ -98,7 +99,7 @@ class TestGmailWatchEndpoint:
     def mock_user(self) -> User:
         """Create a mock user."""
         return User(
-            id=1,
+            id=uuid7(),
             firebase_uid="test-uid-123",
             email="user@example.com",
             gmail_refresh_token="refresh-token",
@@ -110,45 +111,49 @@ class TestGmailWatchEndpoint:
         self, mock_firebase_user: FirebaseUser, mock_user: User
     ):
         """Test POST /api/gmail/watch endpoint success by directly calling router function."""
-        from src.routers.gmail_watch import setup_gmail_watch, WatchResponse
+        from src.routers.gmail_watch import setup_gmail_watch
         from src.services.gmail_watch import GmailWatchResult
 
         mock_session = AsyncMock()
 
-        with patch(
-            "src.routers.gmail_watch.get_user_from_db",
-            new_callable=AsyncMock,
-            return_value=mock_user
+        with (
+            patch(
+                "src.routers.gmail_watch.get_user_from_db",
+                new_callable=AsyncMock,
+                return_value=mock_user,
+            ),
+            patch("src.routers.gmail_watch.GmailOAuthService") as mock_oauth_class,
         ):
+            mock_oauth = MagicMock()
+            # Mock ensure_valid_access_token to return valid token
+            mock_oauth.ensure_valid_access_token = AsyncMock(
+                return_value={
+                    "access_token": "access-token",
+                    "expires_at": datetime.now(timezone.utc),
+                }
+            )
+            mock_oauth_class.return_value = mock_oauth
+
             with patch(
-                "src.routers.gmail_watch.GmailOAuthService"
-            ) as mock_oauth_class:
-                mock_oauth = MagicMock()
-                # Token is not expired
-                mock_oauth.is_token_expired.return_value = False
-                mock_oauth_class.return_value = mock_oauth
+                "src.routers.gmail_watch.GmailWatchService"
+            ) as mock_service_class:
+                mock_service = MagicMock()
+                mock_result = GmailWatchResult(
+                    success=True,
+                    history_id="12345",
+                    expiration=datetime.now(timezone.utc),
+                )
+                mock_service.setup_watch = AsyncMock(return_value=mock_result)
+                mock_service_class.return_value = mock_service
 
-                with patch(
-                    "src.routers.gmail_watch.GmailWatchService"
-                ) as mock_service_class:
-                    mock_service = MagicMock()
-                    mock_result = GmailWatchResult(
-                        success=True,
-                        history_id="12345",
-                        expiration=datetime.now(timezone.utc)
-                    )
-                    mock_service.setup_watch = AsyncMock(return_value=mock_result)
-                    mock_service_class.return_value = mock_service
+                # Call the router function directly
+                response = await setup_gmail_watch(
+                    firebase_user=mock_firebase_user, session=mock_session
+                )
 
-                    # Call the router function directly
-                    response = await setup_gmail_watch(
-                        firebase_user=mock_firebase_user,
-                        session=mock_session
-                    )
-
-                    assert response.success is True
-                    assert response.history_id == "12345"
-                    assert response.expiration is not None
+                assert response.success is True
+                assert response.history_id == "12345"
+                assert response.expiration is not None
 
     @pytest.mark.asyncio
     async def test_setup_watch_requires_gmail_connection(
@@ -167,13 +172,12 @@ class TestGmailWatchEndpoint:
         with patch(
             "src.routers.gmail_watch.get_user_from_db",
             new_callable=AsyncMock,
-            return_value=mock_user
+            return_value=mock_user,
         ):
             # Should raise HTTPException with status 400
             with pytest.raises(HTTPException) as exc_info:
                 await setup_gmail_watch(
-                    firebase_user=mock_firebase_user,
-                    session=mock_session
+                    firebase_user=mock_firebase_user, session=mock_session
                 )
 
             assert exc_info.value.status_code == 400
@@ -188,9 +192,7 @@ class TestGmailWatchResult:
         from src.services.gmail_watch import GmailWatchResult
 
         result = GmailWatchResult(
-            success=True,
-            history_id="12345",
-            expiration=datetime.now(timezone.utc)
+            success=True, history_id="12345", expiration=datetime.now(timezone.utc)
         )
 
         assert result.success is True
@@ -200,10 +202,7 @@ class TestGmailWatchResult:
         """Test failed watch result."""
         from src.services.gmail_watch import GmailWatchResult
 
-        result = GmailWatchResult(
-            success=False,
-            error="API Error"
-        )
+        result = GmailWatchResult(success=False, error="API Error")
 
         assert result.success is False
         assert result.error == "API Error"

@@ -5,8 +5,6 @@ import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from fastapi import FastAPI
-from fastapi.testclient import TestClient
 from httpx import ASGITransport, AsyncClient
 
 from src.main import app
@@ -18,29 +16,23 @@ class TestWebhookEndpoint:
     @pytest.fixture
     def valid_pubsub_message(self) -> dict:
         """Create a valid Pub/Sub message payload."""
-        data = {
-            "emailAddress": "user@example.com",
-            "historyId": "12345"
-        }
+        data = {"emailAddress": "user@example.com", "historyId": "12345"}
         encoded_data = base64.b64encode(json.dumps(data).encode()).decode()
         return {
             "message": {
                 "data": encoded_data,
                 "messageId": "msg-123",
-                "publishTime": "2024-01-01T00:00:00Z"
+                "publishTime": "2024-01-01T00:00:00Z",
             },
-            "subscription": "projects/test/subscriptions/gmail-push"
+            "subscription": "projects/test/subscriptions/gmail-push",
         }
 
     @pytest.fixture
     def invalid_pubsub_message_missing_data(self) -> dict:
         """Create a Pub/Sub message without data field."""
         return {
-            "message": {
-                "messageId": "msg-123",
-                "publishTime": "2024-01-01T00:00:00Z"
-            },
-            "subscription": "projects/test/subscriptions/gmail-push"
+            "message": {"messageId": "msg-123", "publishTime": "2024-01-01T00:00:00Z"},
+            "subscription": "projects/test/subscriptions/gmail-push",
         }
 
     @pytest.fixture
@@ -50,27 +42,22 @@ class TestWebhookEndpoint:
             "message": {
                 "data": "not-valid-base64!!!",
                 "messageId": "msg-123",
-                "publishTime": "2024-01-01T00:00:00Z"
+                "publishTime": "2024-01-01T00:00:00Z",
             },
-            "subscription": "projects/test/subscriptions/gmail-push"
+            "subscription": "projects/test/subscriptions/gmail-push",
         }
 
     @pytest.mark.asyncio
-    async def test_webhook_returns_200_immediately(
-        self, valid_pubsub_message: dict
-    ):
+    async def test_webhook_returns_200_immediately(self, valid_pubsub_message: dict):
         """Test that webhook returns 200 OK immediately for valid message."""
         async with AsyncClient(
-            transport=ASGITransport(app=app),
-            base_url="http://test"
+            transport=ASGITransport(app=app), base_url="http://test"
         ) as client:
             with patch(
-                "src.routers.webhook.process_gmail_notification",
-                new_callable=AsyncMock
+                "src.routers.webhook.process_gmail_notification", new_callable=AsyncMock
             ):
                 response = await client.post(
-                    "/api/webhook/gmail",
-                    json=valid_pubsub_message
+                    "/api/webhook/gmail", json=valid_pubsub_message
                 )
 
         assert response.status_code == 200
@@ -84,10 +71,7 @@ class TestWebhookEndpoint:
         from src.routers.webhook import decode_pubsub_data
 
         # Test the decode function directly
-        data = {
-            "emailAddress": "user@example.com",
-            "historyId": "12345"
-        }
+        data = {"emailAddress": "user@example.com", "historyId": "12345"}
         encoded = base64.b64encode(json.dumps(data).encode()).decode()
 
         result = decode_pubsub_data(encoded)
@@ -101,12 +85,10 @@ class TestWebhookEndpoint:
     ):
         """Test that webhook returns 400 for message without data field."""
         async with AsyncClient(
-            transport=ASGITransport(app=app),
-            base_url="http://test"
+            transport=ASGITransport(app=app), base_url="http://test"
         ) as client:
             response = await client.post(
-                "/api/webhook/gmail",
-                json=invalid_pubsub_message_missing_data
+                "/api/webhook/gmail", json=invalid_pubsub_message_missing_data
             )
 
         assert response.status_code == 400
@@ -117,12 +99,10 @@ class TestWebhookEndpoint:
     ):
         """Test that webhook returns 400 for invalid base64 data."""
         async with AsyncClient(
-            transport=ASGITransport(app=app),
-            base_url="http://test"
+            transport=ASGITransport(app=app), base_url="http://test"
         ) as client:
             response = await client.post(
-                "/api/webhook/gmail",
-                json=invalid_pubsub_message_invalid_base64
+                "/api/webhook/gmail", json=invalid_pubsub_message_invalid_base64
             )
 
         assert response.status_code == 400
@@ -135,39 +115,30 @@ class TestWebhookEndpoint:
             "message": {
                 "data": invalid_json_data,
                 "messageId": "msg-123",
-                "publishTime": "2024-01-01T00:00:00Z"
+                "publishTime": "2024-01-01T00:00:00Z",
             },
-            "subscription": "projects/test/subscriptions/gmail-push"
+            "subscription": "projects/test/subscriptions/gmail-push",
         }
 
         async with AsyncClient(
-            transport=ASGITransport(app=app),
-            base_url="http://test"
+            transport=ASGITransport(app=app), base_url="http://test"
         ) as client:
-            response = await client.post(
-                "/api/webhook/gmail",
-                json=payload
-            )
+            response = await client.post("/api/webhook/gmail", json=payload)
 
         assert response.status_code == 400
 
     @pytest.mark.asyncio
-    async def test_webhook_adds_to_background_tasks(
-        self, valid_pubsub_message: dict
-    ):
+    async def test_webhook_adds_to_background_tasks(self, valid_pubsub_message: dict):
         """Test that webhook adds processing to background tasks."""
         from fastapi import BackgroundTasks
 
         mock_bg_tasks = MagicMock(spec=BackgroundTasks)
 
         # Test that is_duplicate_notification returns False so task is added
-        with patch(
-            "src.routers.webhook.is_duplicate_notification",
-            return_value=False
-        ):
+        with patch("src.routers.webhook.is_duplicate_notification", return_value=False):
             from src.routers.webhook import (
-                handle_gmail_webhook,
                 PubSubMessage,
+                handle_gmail_webhook,
                 process_gmail_notification,
             )
 
@@ -188,26 +159,23 @@ class TestDuplicateNotificationDetection:
     @pytest.fixture
     def pubsub_message_with_history(self) -> dict:
         """Create a Pub/Sub message with specific historyId."""
+
         def _create(history_id: str) -> dict:
-            data = {
-                "emailAddress": "user@example.com",
-                "historyId": history_id
-            }
+            data = {"emailAddress": "user@example.com", "historyId": history_id}
             encoded_data = base64.b64encode(json.dumps(data).encode()).decode()
             return {
                 "message": {
                     "data": encoded_data,
                     "messageId": f"msg-{history_id}",
-                    "publishTime": "2024-01-01T00:00:00Z"
+                    "publishTime": "2024-01-01T00:00:00Z",
                 },
-                "subscription": "projects/test/subscriptions/gmail-push"
+                "subscription": "projects/test/subscriptions/gmail-push",
             }
+
         return _create
 
     @pytest.mark.asyncio
-    async def test_duplicate_history_id_is_detected(
-        self, pubsub_message_with_history
-    ):
+    async def test_duplicate_history_id_is_detected(self, pubsub_message_with_history):
         """Test that duplicate historyId notifications are detected and skipped."""
         message1 = pubsub_message_with_history("99999")
         message2 = pubsub_message_with_history("99999")  # Same historyId
@@ -219,25 +187,18 @@ class TestDuplicateNotificationDetection:
             call_count += 1
 
         async with AsyncClient(
-            transport=ASGITransport(app=app),
-            base_url="http://test"
+            transport=ASGITransport(app=app), base_url="http://test"
         ) as client:
             with patch(
                 "src.routers.webhook.process_gmail_notification",
-                side_effect=count_calls
+                side_effect=count_calls,
             ):
                 with patch(
                     "src.routers.webhook.is_duplicate_notification",
-                    side_effect=[False, True]  # First is new, second is duplicate
+                    side_effect=[False, True],  # First is new, second is duplicate
                 ):
-                    response1 = await client.post(
-                        "/api/webhook/gmail",
-                        json=message1
-                    )
-                    response2 = await client.post(
-                        "/api/webhook/gmail",
-                        json=message2
-                    )
+                    response1 = await client.post("/api/webhook/gmail", json=message1)
+                    response2 = await client.post("/api/webhook/gmail", json=message2)
 
         # Both should return 200 (we always acknowledge Pub/Sub)
         assert response1.status_code == 200
@@ -260,16 +221,15 @@ class TestDuplicateNotificationDetection:
             call_count += 1
 
         async with AsyncClient(
-            transport=ASGITransport(app=app),
-            base_url="http://test"
+            transport=ASGITransport(app=app), base_url="http://test"
         ) as client:
             with patch(
                 "src.routers.webhook.process_gmail_notification",
-                side_effect=count_calls
+                side_effect=count_calls,
             ):
                 with patch(
                     "src.routers.webhook.is_duplicate_notification",
-                    return_value=False  # Both are new
+                    return_value=False,  # Both are new
                 ):
                     await client.post("/api/webhook/gmail", json=message1)
                     await client.post("/api/webhook/gmail", json=message2)
@@ -286,13 +246,9 @@ class TestPubSubMessageSchema:
         payload = {"subscription": "test"}
 
         async with AsyncClient(
-            transport=ASGITransport(app=app),
-            base_url="http://test"
+            transport=ASGITransport(app=app), base_url="http://test"
         ) as client:
-            response = await client.post(
-                "/api/webhook/gmail",
-                json=payload
-            )
+            response = await client.post("/api/webhook/gmail", json=payload)
 
         assert response.status_code == 422
 
@@ -304,17 +260,13 @@ class TestPubSubMessageSchema:
             "message": {
                 "data": base64.b64encode(json.dumps(data).encode()).decode(),
                 "messageId": "msg-123",
-                "publishTime": "2024-01-01T00:00:00Z"
+                "publishTime": "2024-01-01T00:00:00Z",
             }
         }
 
         async with AsyncClient(
-            transport=ASGITransport(app=app),
-            base_url="http://test"
+            transport=ASGITransport(app=app), base_url="http://test"
         ) as client:
-            response = await client.post(
-                "/api/webhook/gmail",
-                json=payload
-            )
+            response = await client.post("/api/webhook/gmail", json=payload)
 
         assert response.status_code == 422

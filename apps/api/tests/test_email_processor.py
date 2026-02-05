@@ -12,6 +12,7 @@ from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from uuid6 import uuid7
 
 from src.models import Contact, Email, User
 
@@ -23,21 +24,22 @@ class TestEmailProcessor:
     def mock_user(self) -> User:
         """Create a mock user with Gmail OAuth tokens."""
         user = User(
-            id=1,
+            id=uuid7(),
             firebase_uid="test-uid-123",
             email="user@example.com",
             gmail_refresh_token="refresh-token-xxx",
             gmail_access_token="access-token-xxx",
             gmail_token_expires_at=datetime.now(timezone.utc),
+            gmail_history_id="12345",
         )
         return user
 
     @pytest.fixture
-    def mock_contact(self) -> Contact:
+    def mock_contact(self, mock_user: User) -> Contact:
         """Create a mock registered contact."""
         return Contact(
-            id=1,
-            user_id=1,
+            id=uuid7(),
+            user_id=mock_user.id,
             contact_email="boss@company.com",
             contact_name="上司さん",
         )
@@ -57,7 +59,7 @@ class TestEmailProcessor:
                     "data": base64.urlsafe_b64encode(
                         "明日までに報告書を提出してください。".encode()
                     ).decode()
-                }
+                },
             },
             "internalDate": "1704067200000",
         }
@@ -74,19 +76,17 @@ class TestEmailProcessor:
                             "message": {
                                 "id": "msg-123",
                                 "threadId": "thread-123",
-                                "labelIds": ["INBOX", "UNREAD"]
+                                "labelIds": ["INBOX", "UNREAD"],
                             }
                         }
-                    ]
+                    ],
                 }
             ],
-            "historyId": "12347"
+            "historyId": "12347",
         }
 
     @pytest.mark.asyncio
-    async def test_process_notification_fetches_user_by_email(
-        self, mock_user: User
-    ):
+    async def test_process_notification_fetches_user_by_email(self, mock_user: User):
         """Test that processing fetches user by email address."""
         from src.services.email_processor import EmailProcessorService
 
@@ -97,9 +97,11 @@ class TestEmailProcessor:
 
         processor = EmailProcessorService(mock_session)
 
-        with patch.object(processor, '_get_valid_access_token', return_value="token"):
-            with patch.object(processor, '_fetch_and_process_messages'):
-                await processor.process_notification("user@example.com", "12345")
+        with (
+            patch.object(processor, "_get_valid_access_token", return_value="token"),
+            patch.object(processor, "_fetch_and_process_messages"),
+        ):
+            await processor.process_notification("user@example.com", "12345")
 
         mock_session.execute.assert_called()
 
@@ -166,8 +168,8 @@ class TestEmailProcessor:
         ]
 
         processor = EmailProcessorService(mock_session)
-        result = await processor.process_single_message(
-            mock_user.id, mock_gmail_message, "access-token"
+        result = await processor._process_single_message(
+            mock_user.id, mock_gmail_message
         )
 
         assert result.processed is True
@@ -195,8 +197,8 @@ class TestEmailProcessor:
         mock_session.execute.return_value = mock_contact_result
 
         processor = EmailProcessorService(mock_session)
-        result = await processor.process_single_message(
-            mock_user.id, mock_gmail_message, "access-token"
+        result = await processor._process_single_message(
+            mock_user.id, mock_gmail_message
         )
 
         assert result.processed is False
@@ -229,8 +231,8 @@ class TestEmailProcessor:
         ]
 
         processor = EmailProcessorService(mock_session)
-        result = await processor.process_single_message(
-            mock_user.id, mock_gmail_message, "access-token"
+        result = await processor._process_single_message(
+            mock_user.id, mock_gmail_message
         )
 
         assert result.processed is False
@@ -261,9 +263,7 @@ class TestEmailProcessor:
         ]
 
         processor = EmailProcessorService(mock_session)
-        await processor.process_single_message(
-            mock_user.id, mock_gmail_message, "access-token"
-        )
+        await processor._process_single_message(mock_user.id, mock_gmail_message)
 
         # Check the email added to session has is_processed=False
         added_email = mock_session.add.call_args[0][0]
@@ -304,13 +304,14 @@ class TestProcessingResult:
         """Test processed message result."""
         from src.services.email_processor import MessageResult
 
+        test_email_id = uuid7()
         result = MessageResult(
             processed=True,
-            email_id=123,
+            email_id=test_email_id,
         )
 
         assert result.processed is True
-        assert result.email_id == 123
+        assert result.email_id == test_email_id
 
     def test_message_result_skipped(self):
         """Test skipped message result."""
@@ -332,11 +333,12 @@ class TestErrorHandling:
     def mock_user(self) -> User:
         """Create a mock user."""
         return User(
-            id=1,
+            id=uuid7(),
             firebase_uid="test-uid-123",
             email="user@example.com",
             gmail_refresh_token="refresh-token",
             gmail_access_token="access-token",
+            gmail_history_id="12345",
         )
 
     @pytest.mark.asyncio
@@ -352,24 +354,22 @@ class TestErrorHandling:
 
         processor = EmailProcessorService(mock_session)
 
-        with patch.object(
-            processor, '_get_valid_access_token', return_value="token"
+        with (
+            patch.object(processor, "_get_valid_access_token", return_value="token"),
+            patch("src.services.email_processor.GmailApiClient") as mock_client_class,
         ):
-            with patch(
-                'src.services.email_processor.GmailApiClient'
-            ) as mock_client_class:
-                mock_client = MagicMock()
-                mock_client.fetch_email_history = AsyncMock(
-                    side_effect=GmailApiError("API Error", status_code=500)
-                )
-                mock_client_class.return_value = mock_client
+            mock_client = MagicMock()
+            mock_client.fetch_email_history = AsyncMock(
+                side_effect=GmailApiError("API Error", status_code=500)
+            )
+            mock_client_class.return_value = mock_client
 
-                result = await processor.process_notification(
-                    "user@example.com", "12345"
-                )
+            # Use historyId greater than stored (12345) to pass the skip check
+            result = await processor.process_notification("user@example.com", "99999")
 
         # Should handle error gracefully
         assert result.skipped is True
+        assert result.reason is not None
         assert "error" in result.reason.lower()
 
     @pytest.mark.asyncio

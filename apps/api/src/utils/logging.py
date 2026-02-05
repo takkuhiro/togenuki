@@ -6,7 +6,7 @@ Import `get_logger` to create loggers in other modules.
 
 import logging
 import sys
-from functools import lru_cache
+from functools import cache
 
 
 def configure_logging() -> None:
@@ -32,7 +32,7 @@ def configure_logging() -> None:
     logging.getLogger("google").setLevel(logging.WARNING)
 
 
-@lru_cache(maxsize=None)
+@cache
 def get_logger(name: str) -> logging.Logger:
     """Get a logger instance for the given module name.
 

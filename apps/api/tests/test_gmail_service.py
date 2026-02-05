@@ -10,6 +10,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
+from uuid6 import uuid7
 
 from src.models import Contact, Email, User
 
@@ -38,9 +39,9 @@ class TestGmailService:
                     "size": 100,
                     "data": base64.urlsafe_b64encode(
                         "本日中にレポートを提出してください。".encode()
-                    ).decode()
-                }
-            }
+                    ).decode(),
+                },
+            },
         }
 
     @pytest.fixture
@@ -65,21 +66,21 @@ class TestGmailService:
                         "body": {
                             "size": 50,
                             "data": base64.urlsafe_b64encode(
-                                "Please attend the meeting tomorrow.".encode()
-                            ).decode()
-                        }
+                                b"Please attend the meeting tomorrow."
+                            ).decode(),
+                        },
                     },
                     {
                         "mimeType": "text/html",
                         "body": {
                             "size": 100,
                             "data": base64.urlsafe_b64encode(
-                                "<p>Please attend the meeting tomorrow.</p>".encode()
-                            ).decode()
-                        }
-                    }
-                ]
-            }
+                                b"<p>Please attend the meeting tomorrow.</p>"
+                            ).decode(),
+                        },
+                    },
+                ],
+            },
         }
 
     @pytest.mark.asyncio
@@ -151,18 +152,18 @@ class TestContactValidation:
     def mock_user(self) -> User:
         """Create a mock user."""
         user = User(
-            id=1,
+            id=uuid7(),
             firebase_uid="test-uid-123",
             email="user@example.com",
         )
         return user
 
     @pytest.fixture
-    def mock_contact(self) -> Contact:
+    def mock_contact(self, mock_user: User) -> Contact:
         """Create a mock registered contact."""
         contact = Contact(
-            id=1,
-            user_id=1,
+            id=uuid7(),
+            user_id=mock_user.id,
             contact_email="boss@company.com",
             contact_name="上司さん",
         )
@@ -173,7 +174,7 @@ class TestContactValidation:
         self, mock_user: User, mock_contact: Contact
     ):
         """Test that registered contact returns True."""
-        from src.services.gmail_service import is_registered_contact
+        from src.repositories.email_repository import is_registered_contact
 
         mock_session = AsyncMock(spec=AsyncSession)
         mock_result = MagicMock()
@@ -191,7 +192,7 @@ class TestContactValidation:
         self, mock_user: User
     ):
         """Test that unregistered contact returns False."""
-        from src.services.gmail_service import is_registered_contact
+        from src.repositories.email_repository import is_registered_contact
 
         mock_session = AsyncMock(spec=AsyncSession)
         mock_result = MagicMock()
@@ -209,7 +210,7 @@ class TestContactValidation:
         self, mock_user: User, mock_contact: Contact
     ):
         """Test getting contact by email when it exists."""
-        from src.services.gmail_service import get_contact_for_email
+        from src.repositories.email_repository import get_contact_for_email
 
         mock_session = AsyncMock(spec=AsyncSession)
         mock_result = MagicMock()
@@ -228,7 +229,7 @@ class TestContactValidation:
         self, mock_user: User
     ):
         """Test getting contact by email when it doesn't exist."""
-        from src.services.gmail_service import get_contact_for_email
+        from src.repositories.email_repository import get_contact_for_email
 
         mock_session = AsyncMock(spec=AsyncSession)
         mock_result = MagicMock()
@@ -257,13 +258,13 @@ class TestGmailApiClient:
                             "message": {
                                 "id": "18d1234567890abc",
                                 "threadId": "18d1234567890abc",
-                                "labelIds": ["INBOX", "UNREAD"]
+                                "labelIds": ["INBOX", "UNREAD"],
                             }
                         }
-                    ]
+                    ],
                 }
             ],
-            "historyId": "12347"
+            "historyId": "12347",
         }
 
     @pytest.mark.asyncio
@@ -282,7 +283,7 @@ class TestGmailApiClient:
             mock_client.get.return_value = mock_response
 
             client = GmailApiClient("test-access-token")
-            result = await client.fetch_email_history("12345")
+            await client.fetch_email_history("12345")
 
         mock_client.get.assert_called_once()
         call_args = mock_client.get.call_args
@@ -302,11 +303,9 @@ class TestGmailApiClient:
                     {"name": "Subject", "value": "Test Subject"},
                 ],
                 "mimeType": "text/plain",
-                "body": {
-                    "data": base64.urlsafe_b64encode(b"Test body").decode()
-                }
+                "body": {"data": base64.urlsafe_b64encode(b"Test body").decode()},
             },
-            "internalDate": "1704067200000"
+            "internalDate": "1704067200000",
         }
 
         with patch("httpx.AsyncClient") as mock_client_class:
@@ -349,10 +348,12 @@ class TestEmailStorage:
     @pytest.mark.asyncio
     async def test_create_email_record(self):
         """Test creating a new email record in database."""
-        from src.services.gmail_service import create_email_record
+        from src.repositories.email_repository import create_email_record
 
         mock_session = AsyncMock(spec=AsyncSession)
 
+        test_user_id = uuid7()
+        test_contact_id = uuid7()
         email_data = {
             "google_message_id": "18d1234567890abc",
             "sender_email": "boss@company.com",
@@ -364,8 +365,8 @@ class TestEmailStorage:
 
         await create_email_record(
             session=mock_session,
-            user_id=1,
-            contact_id=1,
+            user_id=test_user_id,
+            contact_id=test_contact_id,
             email_data=email_data,
         )
 
@@ -378,7 +379,7 @@ class TestEmailStorage:
     @pytest.mark.asyncio
     async def test_email_exists_returns_true_when_exists(self):
         """Test checking if email already exists in database."""
-        from src.services.gmail_service import email_exists
+        from src.repositories.email_repository import email_exists
 
         mock_session = AsyncMock(spec=AsyncSession)
         mock_result = MagicMock()
@@ -392,7 +393,7 @@ class TestEmailStorage:
     @pytest.mark.asyncio
     async def test_email_exists_returns_false_when_not_exists(self):
         """Test checking if email doesn't exist in database."""
-        from src.services.gmail_service import email_exists
+        from src.repositories.email_repository import email_exists
 
         mock_session = AsyncMock(spec=AsyncSession)
         mock_result = MagicMock()

@@ -1,11 +1,10 @@
 """Gmail OAuth API endpoints."""
 
 import secrets
-from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
-from sqlalchemy import select, update
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.auth.gmail_oauth import GmailOAuthService, OAuthError
@@ -84,7 +83,7 @@ async def gmail_oauth_callback(
     # Check if user exists
     stmt = select(User).where(User.firebase_uid == current_user.uid)
     result = await db.execute(stmt)
-    user: Optional[User] = result.scalar_one_or_none()
+    user: User | None = result.scalar_one_or_none()
 
     if user is None:
         # Create new user with Gmail tokens
@@ -119,7 +118,7 @@ async def get_gmail_status(
     """
     stmt = select(User).where(User.firebase_uid == current_user.uid)
     result = await db.execute(stmt)
-    user: Optional[User] = result.scalar_one_or_none()
+    user: User | None = result.scalar_one_or_none()
 
     if user is None:
         return StatusResponse(connected=False)
@@ -129,5 +128,7 @@ async def get_gmail_status(
         connected=connected,
         has_refresh_token=user.gmail_refresh_token is not None,
         has_access_token=user.gmail_access_token is not None,
-        token_expires_at=user.gmail_token_expires_at.isoformat() if user.gmail_token_expires_at else None,
+        token_expires_at=user.gmail_token_expires_at.isoformat()
+        if user.gmail_token_expires_at
+        else None,
     )

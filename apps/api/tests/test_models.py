@@ -1,10 +1,9 @@
 """Tests for SQLAlchemy ORM models."""
 
-from datetime import datetime, timezone
-
 import pytest
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
+from uuid6 import uuid7
 
 
 class TestUserModel:
@@ -89,12 +88,13 @@ class TestContactModel:
         """Contact instance should be creatable with required fields."""
         from src.models import Contact
 
+        test_user_id = uuid7()
         contact = Contact(
-            user_id=1,
+            user_id=test_user_id,
             contact_email="boss@example.com",
             contact_name="Boss Name",
         )
-        assert contact.user_id == 1
+        assert contact.user_id == test_user_id
         assert contact.contact_email == "boss@example.com"
         assert contact.contact_name == "Boss Name"
 
@@ -103,7 +103,7 @@ class TestContactModel:
         from src.models import Contact
 
         contact = Contact(
-            user_id=1,
+            user_id=uuid7(),
             contact_email="boss@example.com",
         )
         # Default value is applied when inserted to DB, not on instance creation
@@ -147,15 +147,16 @@ class TestEmailModel:
         """Email instance should be creatable with required fields."""
         from src.models import Email
 
+        test_user_id = uuid7()
         email = Email(
-            user_id=1,
+            user_id=test_user_id,
             google_message_id="msg-123",
             sender_email="boss@example.com",
             sender_name="Boss",
             subject="Important",
             original_body="Please do this.",
         )
-        assert email.user_id == 1
+        assert email.user_id == test_user_id
         assert email.google_message_id == "msg-123"
         assert email.sender_email == "boss@example.com"
 
@@ -164,7 +165,7 @@ class TestEmailModel:
         from src.models import Email
 
         email = Email(
-            user_id=1,
+            user_id=uuid7(),
             google_message_id="msg-123",
             sender_email="boss@example.com",
         )

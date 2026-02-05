@@ -7,7 +7,6 @@ asynchronously using BackgroundTasks.
 
 import base64
 import json
-from typing import Optional
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException
 from pydantic import BaseModel
@@ -29,7 +28,7 @@ _MAX_HISTORY_CACHE_SIZE = 1000
 class PubSubData(BaseModel):
     """Pub/Sub message data fields."""
 
-    data: Optional[str] = None
+    data: str | None = None
     messageId: str
     publishTime: str
 
@@ -91,26 +90,32 @@ async def process_gmail_notification(email: str, history_id: str) -> None:
         email: The user's email address
         history_id: Gmail history ID to fetch changes from
     """
-    logger.info(f"[BACKGROUND] Starting background processing for {email}, historyId={history_id}")
+    logger.info(
+        f"[BACKGROUND] Starting background processing for {email}, historyId={history_id}"
+    )
 
     # Create a new database session for background task
     async for session in get_db():
         try:
-            logger.info(f"[BACKGROUND] Created database session, initializing processor")
+            logger.info("[BACKGROUND] Created database session, initializing processor")
             processor = EmailProcessorService(session)
             result = await processor.process_notification(email, history_id)
 
             if result.skipped:
-                logger.info(f"[BACKGROUND] Notification processing skipped: {result.reason}")
+                logger.info(
+                    f"[BACKGROUND] Notification processing skipped: {result.reason}"
+                )
             else:
                 logger.info(
                     f"[BACKGROUND] Notification processed: {result.processed_count} emails processed, "
                     f"{result.skipped_count} skipped"
                 )
         except Exception as e:
-            logger.exception(f"[BACKGROUND] Error in background notification processing: {e}")
+            logger.exception(
+                f"[BACKGROUND] Error in background notification processing: {e}"
+            )
         finally:
-            logger.info(f"[BACKGROUND] Closing database session")
+            logger.info("[BACKGROUND] Closing database session")
             await session.close()
 
 
@@ -131,7 +136,7 @@ def decode_pubsub_data(encoded_data: str) -> GmailNotificationData:
         decoded_json = json.loads(decoded_bytes.decode("utf-8"))
         return GmailNotificationData(**decoded_json)
     except Exception as e:
-        raise ValueError(f"Failed to decode Pub/Sub data: {e}")
+        raise ValueError(f"Failed to decode Pub/Sub data: {e}") from e
 
 
 @router.post("/gmail")
@@ -163,36 +168,34 @@ async def handle_gmail_webhook(
     if not payload.message.data:
         logger.warning("Received Pub/Sub message without data field")
         raise HTTPException(
-            status_code=400,
-            detail="Missing data field in Pub/Sub message"
+            status_code=400, detail="Missing data field in Pub/Sub message"
         )
 
     # Decode the message data
-    logger.info(f"[WEBHOOK] Received Pub/Sub message, decoding data...")
+    logger.info("[WEBHOOK] Received Pub/Sub message, decoding data...")
     try:
         notification = decode_pubsub_data(payload.message.data)
-        logger.info(f"[WEBHOOK] Decoded: email={notification.emailAddress}, historyId={notification.historyId}")
+        logger.info(
+            f"[WEBHOOK] Decoded: email={notification.emailAddress}, historyId={notification.historyId}"
+        )
     except ValueError as e:
         logger.warning(f"[WEBHOOK] Invalid Pub/Sub message data: {e}")
-        raise HTTPException(
-            status_code=400,
-            detail=str(e)
-        )
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
     # Convert historyId to string
     history_id = str(notification.historyId)
 
     # Check for duplicate notifications
     if is_duplicate_notification(notification.emailAddress, history_id):
-        logger.info(f"[WEBHOOK] Skipping duplicate notification for {notification.emailAddress}")
+        logger.info(
+            f"[WEBHOOK] Skipping duplicate notification for {notification.emailAddress}"
+        )
         return {"status": "accepted"}
 
     # Add processing to background tasks
     logger.info(f"[WEBHOOK] Adding background task for {notification.emailAddress}")
     background_tasks.add_task(
-        process_gmail_notification,
-        notification.emailAddress,
-        history_id
+        process_gmail_notification, notification.emailAddress, history_id
     )
 
     logger.info(

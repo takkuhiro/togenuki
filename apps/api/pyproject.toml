@@ -22,6 +22,7 @@ dependencies = [
     "firebase-admin>=6.5.0",
     "google-auth>=2.0.0",
     "httpx>=0.28.0",
+    "uuid6>=2024.1.12",
 ]
 
 [project.optional-dependencies]
@@ -30,6 +31,8 @@ dev = [
     "pytest-asyncio>=0.25.0",
     "httpx>=0.28.0",
     "aiosqlite>=0.21.0",
+    "ruff>=0.8.0",
+    "mypy>=1.14.0",
 ]
 
 [tool.pytest.ini_options]
@@ -40,3 +43,23 @@ python_functions = ["test_*"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src"]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 88
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+ignore = ["E501", "B008"]
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_ignores = true
+disallow_untyped_defs = true
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+disallow_untyped_defs = false
+disable_error_code = ["union-attr", "operator", "return-value"]

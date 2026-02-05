@@ -8,20 +8,21 @@ Handles the complete email processing pipeline:
 """
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
-from typing import Optional
+from uuid import UUID
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.auth.gmail_oauth import GmailOAuthService
-from src.models import Contact, Email, User
-from src.services.gmail_service import (
-    GmailApiClient,
-    GmailApiError,
+from src.models import User
+from src.repositories.email_repository import (
     create_email_record,
     email_exists,
     get_contact_for_email,
+)
+from src.services.gmail_service import (
+    GmailApiClient,
+    GmailApiError,
     parse_gmail_message,
 )
 from src.utils.logging import get_logger
@@ -34,7 +35,7 @@ class NotificationResult:
     """Result of processing a Gmail notification."""
 
     skipped: bool = False
-    reason: Optional[str] = None
+    reason: str | None = None
     processed_count: int = 0
     skipped_count: int = 0
 
@@ -44,8 +45,8 @@ class MessageResult:
     """Result of processing a single email message."""
 
     processed: bool = False
-    reason: Optional[str] = None
-    email_id: Optional[int] = None
+    reason: str | None = None
+    email_id: UUID | None = None
 
 
 class EmailProcessorService:
@@ -76,64 +77,75 @@ class EmailProcessorService:
         Returns:
             NotificationResult with processing status
         """
-        logger.info(f"[PROCESSOR] Starting notification processing for {email_address}")
+        logger.info(f"Processing notification for {email_address}")
         try:
             # 1. Look up user by email
-            logger.info(f"[PROCESSOR] Looking up user by email: {email_address}")
             user = await self._get_user_by_email(email_address)
             if not user:
-                logger.warning(f"[PROCESSOR] User not found for email: {email_address}")
-                return NotificationResult(
-                    skipped=True,
-                    reason="User not found"
-                )
-            logger.info(f"[PROCESSOR] Found user: id={user.id}")
+                logger.warning(f"User not found for email: {email_address}")
+                return NotificationResult(skipped=True, reason="User not found")
+            logger.debug(f"Found user: id={user.id}")
 
             # 2. Check if user has Gmail connected
             if not user.gmail_refresh_token:
-                logger.warning(f"[PROCESSOR] User {user.id} has no Gmail OAuth token")
-                return NotificationResult(
-                    skipped=True,
-                    reason="Gmail not connected"
-                )
-            logger.info(f"[PROCESSOR] User has Gmail refresh token")
+                logger.warning(f"User {user.id} has no Gmail OAuth token")
+                return NotificationResult(skipped=True, reason="Gmail not connected")
 
-            # 3. Get valid access token
-            logger.info(f"[PROCESSOR] Getting valid access token for user {user.id}")
+            # 3. Check if user has stored historyId from Gmail Watch setup
+            if not user.gmail_history_id:
+                logger.warning(f"User {user.id} has no stored gmail_history_id")
+                return NotificationResult(
+                    skipped=True, reason="Gmail watch not set up (no stored historyId)"
+                )
+            stored_history_id = user.gmail_history_id
+            logger.debug(
+                f"Stored historyId: {stored_history_id}, "
+                f"notification historyId: {history_id}"
+            )
+
+            # 4. Skip if notification's historyId is older than stored (already processed)
+            try:
+                if int(history_id) <= int(stored_history_id):
+                    logger.debug(
+                        f"Notification historyId {history_id} <= stored {stored_history_id}, "
+                        "skipping (already processed)"
+                    )
+                    return NotificationResult(
+                        skipped=True,
+                        reason="Already processed (notification historyId <= stored historyId)",
+                    )
+            except ValueError:
+                logger.warning("Could not compare historyIds as integers, continuing")
+
+            # 5. Get valid access token
             access_token = await self._get_valid_access_token(user)
             if not access_token:
-                logger.error(f"[PROCESSOR] Failed to get access token for user {user.id}")
+                logger.error(f"Failed to get access token for user {user.id}")
                 return NotificationResult(
-                    skipped=True,
-                    reason="Failed to get access token"
+                    skipped=True, reason="Failed to get access token"
                 )
-            logger.info(f"[PROCESSOR] Got valid access token")
 
-            # 4. Fetch and process new messages
-            logger.info(f"[PROCESSOR] Fetching and processing messages from history {history_id}")
+            # 6. Fetch and process new messages using stored historyId
             return await self._fetch_and_process_messages(
-                user, access_token, history_id
+                user, access_token, stored_history_id
             )
 
         except Exception as e:
-            logger.exception(f"[PROCESSOR] Error processing notification: {e}")
+            logger.exception(f"Error processing notification: {e}")
             return NotificationResult(
-                skipped=True,
-                reason=f"Processing error: {str(e)}"
+                skipped=True, reason=f"Processing error: {str(e)}"
             )
 
-    async def process_single_message(
+    async def _process_single_message(
         self,
-        user_id: int,
+        user_id: UUID,
         gmail_message: dict,
-        access_token: str,
     ) -> MessageResult:
         """Process a single Gmail message.
 
         Args:
             user_id: The user's database ID
             gmail_message: Raw Gmail API message response
-            access_token: Valid Gmail access token
 
         Returns:
             MessageResult with processing status
@@ -145,25 +157,19 @@ class EmailProcessorService:
             google_message_id = email_data["google_message_id"]
 
             # 1. Check if sender is a registered contact
-            contact = await get_contact_for_email(
-                self.session, user_id, sender_email
-            )
+            contact = await get_contact_for_email(self.session, user_id, sender_email)
             if not contact:
-                logger.info(
+                logger.debug(
                     f"Skipping message from unregistered contact: {sender_email}"
                 )
                 return MessageResult(
-                    processed=False,
-                    reason="Sender not registered as contact"
+                    processed=False, reason="Sender not registered as contact"
                 )
 
             # 2. Check if email already exists
             if await email_exists(self.session, google_message_id):
-                logger.info(f"Email already exists: {google_message_id}")
-                return MessageResult(
-                    processed=False,
-                    reason="Email already exists"
-                )
+                logger.debug(f"Email already exists: {google_message_id}")
+                return MessageResult(processed=False, reason="Email already exists")
 
             # 3. Create email record with is_processed=False
             email = await create_email_record(
@@ -185,19 +191,13 @@ class EmailProcessorService:
             # - Update email.converted_body, email.audio_url
             # - Set email.is_processed = True
 
-            return MessageResult(
-                processed=True,
-                email_id=email.id,
-            )
+            return MessageResult(processed=True, email_id=email.id)
 
         except Exception as e:
             logger.exception(f"Error processing message: {e}")
-            return MessageResult(
-                processed=False,
-                reason=f"Processing error: {str(e)}"
-            )
+            return MessageResult(processed=False, reason=f"Processing error: {str(e)}")
 
-    async def _get_user_by_email(self, email_address: str) -> Optional[User]:
+    async def _get_user_by_email(self, email_address: str) -> User | None:
         """Fetch user by email address.
 
         Args:
@@ -210,7 +210,7 @@ class EmailProcessorService:
         result = await self.session.execute(query)
         return result.scalar_one_or_none()
 
-    async def _get_valid_access_token(self, user: User) -> Optional[str]:
+    async def _get_valid_access_token(self, user: User) -> str | None:
         """Get a valid Gmail access token for the user.
 
         Refreshes the token if expired.
@@ -221,31 +221,22 @@ class EmailProcessorService:
         Returns:
             Valid access token or None if refresh fails
         """
-        # Check if current token is still valid
-        if (
-            user.gmail_access_token
-            and user.gmail_token_expires_at
-            and not self.oauth_service.is_token_expired(user.gmail_token_expires_at)
-        ):
-            return user.gmail_access_token
-
-        # Need to refresh token
-        if not user.gmail_refresh_token:
-            return None
-
-        refreshed = await self.oauth_service.refresh_access_token(
-            user.gmail_refresh_token
+        result = await self.oauth_service.ensure_valid_access_token(
+            current_token=user.gmail_access_token,
+            expires_at=user.gmail_token_expires_at,
+            refresh_token=user.gmail_refresh_token,
         )
-        if not refreshed:
+
+        if not result:
             return None
 
-        # Update user's tokens in database
-        user.gmail_access_token = refreshed["access_token"]
-        user.gmail_token_expires_at = refreshed["expires_at"]
+        # Update user's tokens if they were refreshed
+        if result["access_token"] != user.gmail_access_token:
+            user.gmail_access_token = result["access_token"]
+            user.gmail_token_expires_at = result["expires_at"]
+            await self.session.commit()
 
-        await self.session.commit()
-
-        return refreshed["access_token"]
+        return result["access_token"]
 
     async def _fetch_and_process_messages(
         self,
@@ -269,25 +260,22 @@ class EmailProcessorService:
         try:
             client = GmailApiClient(access_token)
 
-            # Try history API first
-            logger.info(f"[PROCESSOR] Fetching email history from Gmail API, historyId={history_id}")
+            # Fetch history using stored historyId
+            logger.debug(f"Fetching email history, startHistoryId={history_id}")
             history = await client.fetch_email_history(history_id)
-            logger.info(f"[PROCESSOR] Got history response: {history}")
+
+            # Get the latest historyId from response for updating user record
+            latest_history_id = history.get("historyId")
 
             # Extract message IDs from history
             message_ids = self._extract_message_ids(history)
-            logger.info(f"[PROCESSOR] Extracted {len(message_ids)} message IDs from history: {message_ids}")
-
-            # If history is empty, fallback to listing recent messages
-            # This handles the case where notification's historyId is already the latest
-            if not message_ids:
-                logger.info("[PROCESSOR] History empty, falling back to messages.list API")
-                recent_messages = await client.list_recent_messages(max_results=5)
-                message_ids = [msg["id"] for msg in recent_messages]
-                logger.info(f"[PROCESSOR] Got {len(message_ids)} recent messages: {message_ids}")
+            logger.debug(f"Extracted {len(message_ids)} message IDs from history")
 
             if not message_ids:
-                logger.info("[PROCESSOR] No messages to process")
+                logger.debug("No new messages in history")
+                if latest_history_id:
+                    user.gmail_history_id = latest_history_id
+                    await self.session.commit()
                 return NotificationResult(
                     skipped=False,
                     processed_count=0,
@@ -297,29 +285,29 @@ class EmailProcessorService:
             # Process each message
             for message_id in message_ids:
                 try:
-                    # Fetch full message
-                    logger.info(f"[PROCESSOR] Fetching message {message_id}")
                     message = await client.fetch_message(message_id)
-
-                    # Process the message
-                    result = await self.process_single_message(
-                        user.id, message, access_token
-                    )
+                    result = await self._process_single_message(user.id, message)
 
                     if result.processed:
                         processed_count += 1
-                        logger.info(f"[PROCESSOR] Message {message_id} processed successfully")
                     else:
                         skipped_count += 1
-                        logger.info(f"[PROCESSOR] Message {message_id} skipped: {result.reason}")
+                        logger.debug(f"Message {message_id} skipped: {result.reason}")
 
                 except GmailApiError as e:
-                    logger.error(f"[PROCESSOR] Failed to fetch message {message_id}: {e}")
+                    logger.error(f"Failed to fetch message {message_id}: {e}")
                     skipped_count += 1
 
-            # Commit all changes
+            # Update user's gmail_history_id with the latest historyId
+            if latest_history_id:
+                user.gmail_history_id = latest_history_id
+
             await self.session.commit()
-            logger.info(f"[PROCESSOR] Committed all changes")
+
+            logger.info(
+                f"Notification processed: {processed_count} emails processed, "
+                f"{skipped_count} skipped"
+            )
 
             return NotificationResult(
                 skipped=False,
@@ -328,11 +316,8 @@ class EmailProcessorService:
             )
 
         except GmailApiError as e:
-            logger.error(f"[PROCESSOR] Gmail API error: {e}")
-            return NotificationResult(
-                skipped=True,
-                reason=f"Gmail API error: {str(e)}"
-            )
+            logger.error(f"Gmail API error: {e}")
+            return NotificationResult(skipped=True, reason=f"Gmail API error: {str(e)}")
 
     def _extract_message_ids(self, history: dict) -> list[str]:
         """Extract message IDs from Gmail history response.

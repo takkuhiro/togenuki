@@ -6,7 +6,6 @@ Gmail watch allows receiving real-time notifications when new emails arrive.
 
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Optional
 
 import httpx
 
@@ -23,7 +22,7 @@ GMAIL_API_BASE_URL = "https://gmail.googleapis.com/gmail/v1/users/me"
 class GmailWatchError(Exception):
     """Exception raised when Gmail Watch API call fails."""
 
-    def __init__(self, message: str, status_code: Optional[int] = None):
+    def __init__(self, message: str, status_code: int | None = None):
         super().__init__(message)
         self.status_code = status_code
 
@@ -33,22 +32,24 @@ class GmailWatchResult:
     """Result of Gmail watch operation."""
 
     success: bool
-    history_id: Optional[str] = None
-    expiration: Optional[datetime] = None
-    error: Optional[str] = None
+    history_id: str | None = None
+    expiration: datetime | None = None
+    error: str | None = None
 
 
 class GmailWatchService:
     """Service for managing Gmail push notification watches."""
 
-    def __init__(self, topic_name: Optional[str] = None):
+    def __init__(self, topic_name: str | None = None):
         """Initialize Gmail Watch service.
 
         Args:
             topic_name: Pub/Sub topic name for notifications.
                        If not provided, uses default from settings.
         """
-        self.topic_name = topic_name or f"projects/{settings.project_id}/topics/gmail-notifications"
+        self.topic_name = (
+            topic_name or f"projects/{settings.project_id}/topics/gmail-notifications"
+        )
 
     async def setup_watch(self, access_token: str) -> GmailWatchResult:
         """Set up Gmail push notifications.
@@ -101,7 +102,9 @@ class GmailWatchService:
                         expiration=expiration,
                     )
                 else:
-                    error_msg = f"Gmail watch failed: {response.status_code} - {response.text}"
+                    error_msg = (
+                        f"Gmail watch failed: {response.status_code} - {response.text}"
+                    )
                     logger.error(error_msg)
                     return GmailWatchResult(
                         success=False,
@@ -133,9 +136,7 @@ class GmailWatchService:
 
         try:
             async with httpx.AsyncClient() as client:
-                response = await client.post(
-                    url, headers=headers, timeout=30.0
-                )
+                response = await client.post(url, headers=headers, timeout=30.0)
 
                 if response.status_code == 204:
                     logger.info("Gmail watch stopped successfully")

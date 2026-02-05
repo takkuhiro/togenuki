@@ -1,8 +1,8 @@
 """Gmail OAuth service for managing OAuth tokens."""
 
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
 from enum import Enum
-from typing import Optional, TypedDict
+from typing import TypedDict
 from urllib.parse import urlencode
 
 import httpx
@@ -70,7 +70,7 @@ class GmailOAuthService:
         }
         return f"{GOOGLE_AUTH_URL}?{urlencode(params)}"
 
-    async def exchange_code_for_tokens(self, code: str) -> Optional[OAuthTokens]:
+    async def exchange_code_for_tokens(self, code: str) -> OAuthTokens | None:
         """
         Exchange authorization code for access and refresh tokens.
 
@@ -104,9 +104,7 @@ class GmailOAuthService:
             expires_at=expires_at,
         )
 
-    async def refresh_access_token(
-        self, refresh_token: str
-    ) -> Optional[RefreshedToken]:
+    async def refresh_access_token(self, refresh_token: str) -> RefreshedToken | None:
         """
         Refresh access token using refresh token.
 
@@ -138,7 +136,7 @@ class GmailOAuthService:
             expires_at=expires_at,
         )
 
-    def is_token_expired(self, expires_at: Optional[datetime]) -> bool:
+    def is_token_expired(self, expires_at: datetime | None) -> bool:
         """
         Check if access token is expired.
 
@@ -154,3 +152,36 @@ class GmailOAuthService:
         # Add 5 minute buffer for safety
         buffer = timedelta(minutes=5)
         return datetime.now(timezone.utc) >= (expires_at - buffer)
+
+    async def ensure_valid_access_token(
+        self,
+        current_token: str | None,
+        expires_at: datetime | None,
+        refresh_token: str | None,
+    ) -> RefreshedToken | None:
+        """
+        Ensure a valid access token is available.
+
+        Returns the current token if still valid, or refreshes it if expired.
+
+        Args:
+            current_token: Current access token (may be expired).
+            expires_at: Current token expiration datetime.
+            refresh_token: Refresh token for obtaining new access token.
+
+        Returns:
+            RefreshedToken with valid access token and expiration,
+            or None if refresh fails or no refresh token is available.
+        """
+        # Check if current token is still valid
+        if current_token and expires_at and not self.is_token_expired(expires_at):
+            return RefreshedToken(
+                access_token=current_token,
+                expires_at=expires_at,
+            )
+
+        # Need to refresh token
+        if not refresh_token:
+            return None
+
+        return await self.refresh_access_token(refresh_token)

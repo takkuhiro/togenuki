@@ -3,20 +3,16 @@
 Provides functionality to:
 - Fetch email content from Gmail API
 - Extract sender information and email body
-- Validate against registered contacts
-- Store emails in database
+- Parse Gmail message responses
 """
 
 import base64
 import re
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Any, cast
 
 import httpx
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.models import Contact, Email
 from src.utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -27,12 +23,12 @@ GMAIL_API_BASE_URL = "https://gmail.googleapis.com/gmail/v1/users/me"
 class GmailApiError(Exception):
     """Exception raised when Gmail API call fails."""
 
-    def __init__(self, message: str, status_code: Optional[int] = None):
+    def __init__(self, message: str, status_code: int | None = None):
         super().__init__(message)
         self.status_code = status_code
 
 
-def extract_sender_info(from_header: str) -> tuple[Optional[str], str]:
+def extract_sender_info(from_header: str) -> tuple[str | None, str]:
     """Extract sender name and email from From header.
 
     Handles formats:
@@ -46,7 +42,7 @@ def extract_sender_info(from_header: str) -> tuple[Optional[str], str]:
         Tuple of (name, email) where name may be None
     """
     # Pattern: "Name <email@domain.com>"
-    match = re.match(r'^(.+?)\s*<([^>]+)>$', from_header.strip())
+    match = re.match(r"^(.+?)\s*<([^>]+)>$", from_header.strip())
     if match:
         name = match.group(1).strip().strip('"')
         email = match.group(2).strip()
@@ -56,7 +52,7 @@ def extract_sender_info(from_header: str) -> tuple[Optional[str], str]:
     return None, from_header.strip()
 
 
-def get_header_value(headers: list[dict], name: str) -> Optional[str]:
+def get_header_value(headers: list[dict], name: str) -> str | None:
     """Get a specific header value from headers list.
 
     Args:
@@ -174,7 +170,7 @@ class GmailApiClient:
 
     async def fetch_email_history(
         self, start_history_id: str, label_id: str = "INBOX"
-    ) -> dict:
+    ) -> dict[str, Any]:
         """Fetch email history changes from Gmail API.
 
         Args:
@@ -205,14 +201,14 @@ class GmailApiClient:
                 )
                 raise GmailApiError(
                     f"Failed to fetch history: {response.text}",
-                    status_code=response.status_code
+                    status_code=response.status_code,
                 )
 
-            return response.json()
+            return cast(dict[str, Any], response.json())
 
     async def list_recent_messages(
         self, max_results: int = 10, label_ids: list[str] | None = None
-    ) -> list[dict]:
+    ) -> list[dict[str, Any]]:
         """List recent messages from Gmail inbox.
 
         This is an alternative to fetch_email_history that directly
@@ -233,14 +229,13 @@ class GmailApiClient:
             label_ids = ["INBOX"]
 
         url = f"{GMAIL_API_BASE_URL}/messages"
-        params = {
-            "maxResults": max_results,
-            "labelIds": label_ids,
-        }
 
         async with httpx.AsyncClient() as client:
             response = await client.get(
-                url, headers=self.headers, params=params, timeout=30.0
+                url,
+                headers=self.headers,
+                params={"maxResults": max_results, "labelIds": label_ids},
+                timeout=30.0,
             )
 
             if response.status_code != 200:
@@ -249,13 +244,13 @@ class GmailApiClient:
                 )
                 raise GmailApiError(
                     f"Failed to list messages: {response.text}",
-                    status_code=response.status_code
+                    status_code=response.status_code,
                 )
 
-            data = response.json()
-            return data.get("messages", [])
+            data = cast(dict[str, Any], response.json())
+            return cast(list[dict[str, Any]], data.get("messages", []))
 
-    async def fetch_message(self, message_id: str) -> dict:
+    async def fetch_message(self, message_id: str) -> dict[str, Any]:
         """Fetch a specific email message from Gmail API.
 
         Args:
@@ -281,92 +276,7 @@ class GmailApiClient:
                 )
                 raise GmailApiError(
                     f"Failed to fetch message: {response.text}",
-                    status_code=response.status_code
+                    status_code=response.status_code,
                 )
 
-            return response.json()
-
-
-async def is_registered_contact(
-    session: AsyncSession, user_id: int, sender_email: str
-) -> bool:
-    """Check if sender is a registered contact for the user.
-
-    Args:
-        session: Database session
-        user_id: The user's ID
-        sender_email: The sender's email address
-
-    Returns:
-        True if sender is registered, False otherwise
-    """
-    contact = await get_contact_for_email(session, user_id, sender_email)
-    return contact is not None
-
-
-async def get_contact_for_email(
-    session: AsyncSession, user_id: int, sender_email: str
-) -> Optional[Contact]:
-    """Get contact record for a sender email.
-
-    Args:
-        session: Database session
-        user_id: The user's ID
-        sender_email: The sender's email address
-
-    Returns:
-        Contact if found, None otherwise
-    """
-    query = select(Contact).where(
-        Contact.user_id == user_id,
-        Contact.contact_email == sender_email
-    )
-    result = await session.execute(query)
-    return result.scalar_one_or_none()
-
-
-async def email_exists(session: AsyncSession, google_message_id: str) -> bool:
-    """Check if an email already exists in the database.
-
-    Args:
-        session: Database session
-        google_message_id: The Gmail message ID
-
-    Returns:
-        True if email exists, False otherwise
-    """
-    query = select(Email.id).where(Email.google_message_id == google_message_id)
-    result = await session.execute(query)
-    return result.scalar_one_or_none() is not None
-
-
-async def create_email_record(
-    session: AsyncSession,
-    user_id: int,
-    contact_id: Optional[int],
-    email_data: dict,
-) -> Email:
-    """Create a new email record in the database.
-
-    Args:
-        session: Database session
-        user_id: The user's ID
-        contact_id: The contact's ID (if registered)
-        email_data: Parsed email data dict
-
-    Returns:
-        Created Email model instance
-    """
-    email = Email(
-        user_id=user_id,
-        contact_id=contact_id,
-        google_message_id=email_data["google_message_id"],
-        sender_email=email_data["sender_email"],
-        sender_name=email_data.get("sender_name"),
-        subject=email_data.get("subject"),
-        original_body=email_data.get("original_body"),
-        received_at=email_data.get("received_at"),
-        is_processed=False,
-    )
-    session.add(email)
-    return email
+            return cast(dict[str, Any], response.json())
