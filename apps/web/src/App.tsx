@@ -1,6 +1,7 @@
 import './App.css';
 import { EmailList } from './components/EmailList';
 import { useAuth } from './contexts/AuthContext';
+import { ContactsPage } from './pages/ContactsPage';
 import { GmailCallback } from './pages/GmailCallback';
 
 function App() {
@@ -19,6 +20,36 @@ function App() {
   const path = window.location.pathname;
   if (path === '/auth/gmail/callback') {
     return <GmailCallback />;
+  }
+
+  // Route to contacts management page
+  if (path === '/contacts') {
+    if (!user || !isGmailConnected) {
+      // Redirect to home if not authenticated
+      window.location.href = '/';
+      return null;
+    }
+    return (
+      <div className="app">
+        <header className="app-header">
+          <div className="header-content">
+            <div className="header-title">
+              <span className="header-icon">💖</span>
+              <h1>TogeNuki</h1>
+            </div>
+            <div className="header-actions">
+              <span className="user-email">{user.email}</span>
+              <button type="button" onClick={signOut} className="logout-button-small">
+                ログアウト
+              </button>
+            </div>
+          </div>
+        </header>
+        <main className="main-content">
+          <ContactsPage />
+        </main>
+      </div>
+    );
   }
 
   const handleCheckGmailStatus = async () => {
@@ -93,6 +124,9 @@ function App() {
             <h1>TogeNuki</h1>
           </div>
           <div className="header-actions">
+            <a href="/contacts" className="nav-link">
+              連絡先管理
+            </a>
             <span className="user-email">{user.email}</span>
             <button type="button" onClick={signOut} className="logout-button-small">
               ログアウト
