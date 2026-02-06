@@ -4,6 +4,7 @@
  */
 
 import { useCallback, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { ContactForm } from '../components/ContactForm';
 import { ContactList } from '../components/ContactList';
 
@@ -28,9 +29,9 @@ export function ContactsPage() {
     <div className="contacts-page">
       <div className="contacts-header">
         <h2>連絡先管理</h2>
-        <a href="/" className="nav-link">
+        <Link to="/emails" className="nav-link">
           ダッシュボードへ戻る
-        </a>
+        </Link>
       </div>
 
       <section>
