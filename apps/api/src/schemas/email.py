@@ -1,6 +1,5 @@
 """Email schemas for API responses."""
 
-
 from pydantic import BaseModel, ConfigDict
 
 

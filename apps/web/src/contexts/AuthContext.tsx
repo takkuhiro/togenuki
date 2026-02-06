@@ -173,6 +173,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [state.idToken]);
 
+  // Auto-check Gmail status when idToken becomes available
+  useEffect(() => {
+    if (state.idToken) {
+      checkGmailStatus();
+    }
+  }, [state.idToken, checkGmailStatus]);
+
   // Connect Gmail account
   const connectGmail = useCallback(async () => {
     if (!state.idToken) return;

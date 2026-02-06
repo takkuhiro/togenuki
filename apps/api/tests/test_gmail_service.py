@@ -403,3 +403,119 @@ class TestEmailStorage:
         result = await email_exists(mock_session, "nonexistent-id")
 
         assert result is False
+
+
+class TestGmailApiClientSearchMessages:
+    """Tests for GmailApiClient.search_messages method."""
+
+    @pytest.mark.asyncio
+    async def test_search_messages_returns_list_of_messages(self):
+        """search_messages should return a list of message metadata."""
+        from src.services.gmail_service import GmailApiClient
+
+        mock_response_data = {
+            "messages": [
+                {"id": "msg-1", "threadId": "thread-1"},
+                {"id": "msg-2", "threadId": "thread-2"},
+                {"id": "msg-3", "threadId": "thread-3"},
+            ],
+            "resultSizeEstimate": 3,
+        }
+
+        with patch("httpx.AsyncClient") as mock_client_class:
+            mock_client = AsyncMock()
+            mock_client_class.return_value.__aenter__.return_value = mock_client
+            mock_response = MagicMock()
+            mock_response.status_code = 200
+            mock_response.json.return_value = mock_response_data
+            mock_client.get.return_value = mock_response
+
+            client = GmailApiClient("test-access-token")
+            result = await client.search_messages("from:boss@example.com")
+
+        assert isinstance(result, list)
+        assert len(result) == 3
+        assert result[0]["id"] == "msg-1"
+
+    @pytest.mark.asyncio
+    async def test_search_messages_uses_query_parameter(self):
+        """search_messages should pass the query to Gmail API."""
+        from src.services.gmail_service import GmailApiClient
+
+        mock_response_data = {"messages": [], "resultSizeEstimate": 0}
+
+        with patch("httpx.AsyncClient") as mock_client_class:
+            mock_client = AsyncMock()
+            mock_client_class.return_value.__aenter__.return_value = mock_client
+            mock_response = MagicMock()
+            mock_response.status_code = 200
+            mock_response.json.return_value = mock_response_data
+            mock_client.get.return_value = mock_response
+
+            client = GmailApiClient("test-access-token")
+            await client.search_messages("from:boss@example.com")
+
+        mock_client.get.assert_called_once()
+        call_args = mock_client.get.call_args
+        assert call_args[1]["params"]["q"] == "from:boss@example.com"
+
+    @pytest.mark.asyncio
+    async def test_search_messages_respects_max_results(self):
+        """search_messages should respect max_results parameter."""
+        from src.services.gmail_service import GmailApiClient
+
+        mock_response_data = {"messages": [], "resultSizeEstimate": 0}
+
+        with patch("httpx.AsyncClient") as mock_client_class:
+            mock_client = AsyncMock()
+            mock_client_class.return_value.__aenter__.return_value = mock_client
+            mock_response = MagicMock()
+            mock_response.status_code = 200
+            mock_response.json.return_value = mock_response_data
+            mock_client.get.return_value = mock_response
+
+            client = GmailApiClient("test-access-token")
+            await client.search_messages("from:boss@example.com", max_results=50)
+
+        call_args = mock_client.get.call_args
+        assert call_args[1]["params"]["maxResults"] == 50
+
+    @pytest.mark.asyncio
+    async def test_search_messages_returns_empty_list_when_no_matches(self):
+        """search_messages should return empty list when no messages match."""
+        from src.services.gmail_service import GmailApiClient
+
+        mock_response_data = {"resultSizeEstimate": 0}  # No messages key
+
+        with patch("httpx.AsyncClient") as mock_client_class:
+            mock_client = AsyncMock()
+            mock_client_class.return_value.__aenter__.return_value = mock_client
+            mock_response = MagicMock()
+            mock_response.status_code = 200
+            mock_response.json.return_value = mock_response_data
+            mock_client.get.return_value = mock_response
+
+            client = GmailApiClient("test-access-token")
+            result = await client.search_messages("from:nobody@example.com")
+
+        assert result == []
+
+    @pytest.mark.asyncio
+    async def test_search_messages_raises_on_api_error(self):
+        """search_messages should raise GmailApiError on API failure."""
+        from src.services.gmail_service import GmailApiClient, GmailApiError
+
+        with patch("httpx.AsyncClient") as mock_client_class:
+            mock_client = AsyncMock()
+            mock_client_class.return_value.__aenter__.return_value = mock_client
+            mock_response = MagicMock()
+            mock_response.status_code = 401
+            mock_response.text = "Unauthorized"
+            mock_client.get.return_value = mock_response
+
+            client = GmailApiClient("invalid-token")
+
+            with pytest.raises(GmailApiError) as exc_info:
+                await client.search_messages("from:boss@example.com")
+
+            assert exc_info.value.status_code == 401
