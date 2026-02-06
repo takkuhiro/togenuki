@@ -3,12 +3,14 @@
  * Handles the OAuth callback and exchanges the code for tokens.
  */
 import { useEffect, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
 type CallbackStatus = 'processing' | 'success' | 'error';
 
 export function GmailCallback() {
   const { idToken, checkGmailStatus } = useAuth();
+  const navigate = useNavigate();
   const [status, setStatus] = useState<CallbackStatus>('processing');
   const [errorMessage, setErrorMessage] = useState<string>('');
 
@@ -52,9 +54,9 @@ export function GmailCallback() {
           setStatus('success');
           // Update Gmail connection status
           await checkGmailStatus();
-          // Redirect to home after 2 seconds
+          // Redirect to emails after 2 seconds
           setTimeout(() => {
-            window.location.href = '/';
+            navigate('/emails', { replace: true });
           }, 2000);
         } else {
           const data = await response.json();
@@ -70,7 +72,7 @@ export function GmailCallback() {
     if (idToken) {
       handleCallback();
     }
-  }, [idToken, checkGmailStatus]);
+  }, [idToken, checkGmailStatus, navigate]);
 
   return (
     <div className="callback-container">
@@ -79,13 +81,13 @@ export function GmailCallback() {
       {status === 'success' && (
         <div>
           <p style={{ color: 'green' }}>Gmail連携が完了しました！</p>
-          <p>ホーム画面に戻ります...</p>
+          <p>メール一覧に移動します...</p>
         </div>
       )}
       {status === 'error' && (
         <div>
           <p style={{ color: 'red' }}>エラー: {errorMessage}</p>
-          <a href="/">ホームに戻る</a>
+          <Link to="/">ホームに戻る</Link>
         </div>
       )}
     </div>

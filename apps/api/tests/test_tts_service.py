@@ -74,9 +74,7 @@ class TestSynthesizeAudio:
             mock_tts.TextToSpeechClient.return_value = mock_client
 
             service = TTSService()
-            result = await service._synthesize(
-                "やっほー先輩💖 ウチだよ〜！"
-            )
+            result = await service._synthesize("やっほー先輩💖 ウチだよ〜！")
 
             assert result is not None
             assert len(result) > 0
@@ -130,16 +128,16 @@ class TestGCSUpload:
             mock_storage_client = MagicMock()
             mock_bucket = MagicMock()
             mock_blob = MagicMock()
-            mock_blob.public_url = "https://storage.googleapis.com/test-bucket/audio/test.mp3"
+            mock_blob.public_url = (
+                "https://storage.googleapis.com/test-bucket/audio/test.mp3"
+            )
             mock_bucket.blob.return_value = mock_blob
             mock_storage_client.bucket.return_value = mock_bucket
             mock_storage.return_value = mock_storage_client
 
             service = TTSService()
             email_id = uuid7()
-            result = await service.synthesize_and_upload(
-                "テスト音声", email_id
-            )
+            result = await service.synthesize_and_upload("テスト音声", email_id)
 
             assert result.is_ok()
             url = result.unwrap()

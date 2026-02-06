@@ -116,9 +116,7 @@ async def get_user_by_firebase_uid(
     return result.scalar_one_or_none()
 
 
-async def get_emails_by_user_id(
-    session: AsyncSession, user_id: UUID
-) -> list[Email]:
+async def get_emails_by_user_id(session: AsyncSession, user_id: UUID) -> list[Email]:
     """Get all emails for a user sorted by received_at descending.
 
     Args:
@@ -129,9 +127,7 @@ async def get_emails_by_user_id(
         List of Email objects sorted by received_at descending
     """
     query = (
-        select(Email)
-        .where(Email.user_id == user_id)
-        .order_by(desc(Email.received_at))
+        select(Email).where(Email.user_id == user_id).order_by(desc(Email.received_at))
     )
     result = await session.execute(query)
     return list(result.scalars().all())

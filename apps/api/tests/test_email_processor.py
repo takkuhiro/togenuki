@@ -620,9 +620,7 @@ class TestAIProcessingIntegration:
             mock_tts_class.return_value = mock_tts
 
             processor = EmailProcessorService(mock_session)
-            await processor._process_single_message(
-                mock_user.id, mock_gmail_message
-            )
+            await processor._process_single_message(mock_user.id, mock_gmail_message)
 
             # Email should still be created but without conversion
             mock_session.add.assert_called_once()
@@ -672,9 +670,7 @@ class TestAIProcessingIntegration:
             mock_tts_class.return_value = mock_tts
 
             processor = EmailProcessorService(mock_session)
-            await processor._process_single_message(
-                mock_user.id, mock_gmail_message
-            )
+            await processor._process_single_message(mock_user.id, mock_gmail_message)
 
             # Email should be created with converted_body but without audio_url
             mock_session.add.assert_called_once()

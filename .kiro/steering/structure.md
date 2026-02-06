@@ -14,16 +14,38 @@
 ### Frontend Application
 **Location**: `apps/web/`
 **Purpose**: React + TypeScript フロントエンド
-**Pattern**: Create React App標準構成
+**Pattern**: Vite + 機能別ディレクトリ構成
 
 ```
-apps/web/
-├── src/
-│   ├── App.tsx          # ルートコンポーネント
-│   ├── index.tsx        # エントリーポイント
-│   ├── [Feature].tsx    # 機能コンポーネント
-│   └── *.css            # スタイル
-└── package.json
+apps/web/src/
+├── main.tsx           # エントリーポイント
+├── App.tsx            # ルートコンポーネント
+├── components/        # 再利用可能なUIコンポーネント
+├── pages/             # ページコンポーネント
+├── contexts/          # React Context (認証等)
+├── api/               # API呼び出しモジュール
+├── types/             # 型定義
+├── firebase/          # Firebase設定
+└── __tests__/         # テストファイル
+```
+
+### Backend Application
+**Location**: `apps/api/`
+**Purpose**: FastAPI バックエンド
+**Pattern**: レイヤードアーキテクチャ（Router → Service → Repository）
+
+```
+apps/api/src/
+├── main.py            # FastAPIアプリケーション
+├── config.py          # 設定管理
+├── database.py        # DB接続設定
+├── models.py          # SQLAlchemy ORMモデル
+├── routers/           # APIエンドポイント
+├── services/          # ビジネスロジック
+├── repositories/      # データアクセス層
+├── schemas/           # Pydanticスキーマ
+├── auth/              # 認証関連（Firebase、OAuth）
+└── utils/             # ユーティリティ
 ```
 
 ### Documentation

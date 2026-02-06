@@ -10,7 +10,8 @@ Google Cloud を中心としたサーバーレスアーキテクチャ。フロ�
 - **Language**: TypeScript
 - **Framework**: React 19 (Vite)
 - **Runtime**: ブラウザ (Web Speech API for 音声入力)
-- **UI**: shadcn/ui (推奨)
+- **Linter/Formatter**: Biome (ESLint + Prettierの代替)
+- **Testing**: Vitest + Testing Library
 
 ### Backend
 - **Language**: Python 3.10+
@@ -38,12 +39,12 @@ Google Cloud を中心としたサーバーレスアーキテクチャ。フロ�
 - Python: 型ヒント推奨
 
 ### Code Quality
-- ESLint: `react-app` + `react-app/jest` 設定
-- Python: FastAPIの標準的なコーディング規約に従う
+- Frontend: Biome（lint + format）
+- Python: Ruff（lint）、mypy（型チェック）
 
 ### Testing
-- Frontend: Jest + React Testing Library
-- Backend: pytest (推奨)
+- Frontend: Vitest + Testing Library
+- Backend: pytest + pytest-asyncio
 
 ## Development Environment
 
@@ -58,10 +59,13 @@ Google Cloud を中心としたサーバーレスアーキテクチャ。フロ�
 # Frontend (apps/web/)
 npm run dev    # 開発サーバー起動 (Vite)
 npm run build  # プロダクションビルド
-npm run test   # テスト実行
+npm run test   # テスト実行 (Vitest)
+npm run check  # lint + format チェック (Biome)
 
-# Backend (apps/api/ - 未実装)
-# uvicorn main:app --reload
+# Backend (apps/api/)
+uvicorn src.main:app --reload   # 開発サーバー起動
+pytest                          # テスト実行
+ruff check src/                 # lint
 ```
 
 ## Key Technical Decisions
@@ -69,6 +73,8 @@ npm run test   # テスト実行
 - **非同期処理優先**: Pub/Sub Webhook受信後、即座に200 OK返却し、BackgroundTasksで処理
 - **音声変換ローカル化**: Web Speech APIでブラウザ側STT処理（サーバー負荷軽減）
 - **学習データ永続化**: contact_contextテーブルで相手パターンを保持
+- **Result型パターン**: 外部API呼び出しは`result`ライブラリでエラーハンドリング
+- **UUID v7採用**: 時系列ソート可能なUUIDをPKに使用
 
 ---
 _Document standards and patterns, not every dependency_
