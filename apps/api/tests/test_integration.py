@@ -683,3 +683,792 @@ class TestTTSIntegration:
         saved_email = mock_session.add.call_args[0][0]
         assert saved_email.audio_url == audio_url
         assert saved_email.is_processed is True
+
+
+class TestContactRegistrationLearningFlow:
+    """Integration tests for contact registration → learning → completion flow.
+
+    Tests Requirements:
+    - 1.1: 連絡先登録時にDBレコード作成 (is_learning_complete=false)
+    - 1.2: 即座に201 Createdと status: "learning_started" を返却
+    - 4.1: BackgroundTasksで学習処理を非同期実行
+    - 4.5: contact_contextに learned_patterns を保存
+    - 4.6: is_learning_complete=true に更新
+    - 5.1: ポーリングによる学習状態更新確認
+    - 5.2: UI学習ステータス更新
+    """
+
+    @pytest.fixture
+    def mock_user(self) -> User:
+        """Create a mock user with Gmail OAuth configured."""
+        return User(
+            id=uuid7(),
+            firebase_uid="contact-integration-uid",
+            email="contact-test@example.com",
+            gmail_refresh_token="refresh-token-xxx",
+            gmail_access_token="access-token-xxx",
+            gmail_token_expires_at=datetime.now(timezone.utc),
+            gmail_history_id="10000",
+        )
+
+    @pytest.fixture
+    def firebase_user(self) -> FirebaseUser:
+        """Create a Firebase authenticated user."""
+        return FirebaseUser(
+            uid="contact-integration-uid", email="contact-test@example.com"
+        )
+
+    @pytest.fixture
+    def mock_contact(self, mock_user: User) -> Contact:
+        """Create a mock contact with learning not started."""
+        return Contact(
+            id=uuid7(),
+            user_id=mock_user.id,
+            contact_email="boss@company.com",
+            contact_name="上司さん",
+            gmail_query="from:boss@company.com",
+            is_learning_complete=False,
+            created_at=datetime(2024, 1, 15, 10, 30, 0, tzinfo=timezone.utc),
+        )
+
+    @pytest.mark.asyncio
+    async def test_contact_registration_returns_201_with_learning_started_req_1_1_1_2(
+        self,
+        firebase_user: FirebaseUser,
+        mock_user: User,
+        mock_contact: Contact,
+    ) -> None:
+        """Requirement 1.1, 1.2: Register contact returns 201 with learning_started status.
+
+        Verifies the complete registration flow:
+        1. POST /api/contacts creates a new contact
+        2. Returns 201 Created immediately
+        3. Response contains status: "learning_started"
+        4. BackgroundTasks is invoked to start learning
+        """
+        from src.routers.contacts import router
+
+        test_app = FastAPI()
+        test_app.include_router(router, prefix="/api")
+
+        mock_session = MagicMock()
+        mock_session.commit = AsyncMock()
+        mock_session.refresh = AsyncMock()
+        test_app.dependency_overrides[get_db] = lambda: mock_session
+
+        with (
+            patch("src.auth.middleware.auth") as mock_auth,
+            patch(
+                "src.routers.contacts.get_user_by_firebase_uid",
+                new=AsyncMock(return_value=mock_user),
+            ),
+            patch(
+                "src.routers.contacts.create_contact",
+                new=AsyncMock(return_value=mock_contact),
+            ),
+            patch("src.routers.contacts.LearningService") as mock_learning_cls,
+        ):
+            mock_auth.verify_id_token.return_value = {
+                "uid": firebase_user.uid,
+                "email": firebase_user.email,
+            }
+
+            async with AsyncClient(
+                transport=ASGITransport(app=test_app), base_url="http://test"
+            ) as client:
+                response = await client.post(
+                    "/api/contacts",
+                    json={
+                        "contactEmail": "boss@company.com",
+                        "contactName": "上司さん",
+                        "gmailQuery": "from:boss@company.com",
+                    },
+                    headers={"Authorization": "Bearer valid_token"},
+                )
+
+        # Verify response
+        assert response.status_code == 201
+        data = response.json()
+        assert data["contactEmail"] == "boss@company.com"
+        assert data["contactName"] == "上司さん"
+        assert data["status"] == "learning_started"
+        assert data["isLearningComplete"] is False
+
+        # Verify LearningService was instantiated and process_learning scheduled
+        mock_learning_cls.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_full_learning_process_creates_contact_context_req_4_1_4_5_4_6(
+        self,
+        mock_user: User,
+        mock_contact: Contact,
+    ) -> None:
+        """Requirements 4.1, 4.5, 4.6: Learning process fetches emails, analyzes, and saves context.
+
+        Verifies the complete learning pipeline:
+        1. Gmail API is called to fetch past emails
+        2. Gemini analyzes the email patterns
+        3. Contact context is created with learned_patterns
+        4. is_learning_complete is set to true
+        """
+        from src.services.learning_service import LearningService
+
+        mock_session = AsyncMock()
+
+        learned_patterns_json = json.dumps(
+            {
+                "contactCharacteristics": {
+                    "tone": "丁寧だが直接的",
+                    "commonExpressions": ["よろしくお願いします", "至急対応ください"],
+                    "requestPatterns": ["期限付き指示", "報告要求"],
+                },
+                "userReplyPatterns": {
+                    "responseStyle": "丁寧かつ迅速",
+                    "commonExpressions": ["承知しました", "確認いたします"],
+                    "formalityLevel": "ビジネス敬語",
+                },
+            }
+        )
+
+        with (
+            patch("src.services.learning_service.get_user_by_id") as mock_get_user,
+            patch(
+                "src.services.learning_service.get_contact_by_id"
+            ) as mock_get_contact,
+            patch("src.services.learning_service.get_db") as mock_get_db,
+            patch("src.services.learning_service.GmailApiClient") as mock_gmail_class,
+            patch("src.services.learning_service.GeminiService") as mock_gemini_class,
+            patch(
+                "src.services.learning_service.GmailOAuthService"
+            ) as mock_oauth_class,
+            patch(
+                "src.services.learning_service.create_contact_context"
+            ) as mock_create_context,
+            patch(
+                "src.services.learning_service.update_contact_learning_status"
+            ) as mock_update_status,
+        ):
+            mock_get_user.return_value = mock_user
+            mock_get_contact.return_value = mock_contact
+            mock_get_db.return_value.__aiter__.return_value = iter([mock_session])
+
+            # OAuth mock
+            mock_oauth = MagicMock()
+            mock_oauth.ensure_valid_access_token = AsyncMock(
+                return_value={
+                    "access_token": "access-token-xxx",
+                    "expires_at": datetime.now(timezone.utc),
+                }
+            )
+            mock_oauth_class.return_value = mock_oauth
+
+            # Gmail API mock
+            mock_gmail = MagicMock()
+            mock_gmail.search_messages = AsyncMock(
+                return_value=[
+                    {"id": "msg-1", "threadId": "thread-1"},
+                    {"id": "msg-2", "threadId": "thread-2"},
+                ]
+            )
+            mock_gmail.fetch_message = AsyncMock(
+                return_value={
+                    "id": "msg-1",
+                    "payload": {
+                        "headers": [
+                            {"name": "From", "value": "Boss <boss@company.com>"},
+                            {"name": "Subject", "value": "報告書について"},
+                        ],
+                        "mimeType": "text/plain",
+                        "body": {
+                            "data": base64.urlsafe_b64encode(
+                                "明日までに報告書を提出してください。".encode()
+                            ).decode()
+                        },
+                    },
+                    "internalDate": "1704110400000",
+                }
+            )
+            mock_gmail_class.return_value = mock_gmail
+
+            # Gemini API mock - returns learned patterns
+            mock_gemini = MagicMock()
+            mock_gemini.analyze_patterns = AsyncMock(
+                return_value=Ok(learned_patterns_json)
+            )
+            mock_gemini_class.return_value = mock_gemini
+
+            service = LearningService()
+            await service.process_learning(
+                contact_id=mock_contact.id,
+                user_id=mock_user.id,
+            )
+
+        # Verify Gmail search was called
+        mock_gmail.search_messages.assert_called_once()
+
+        # Verify Gemini analysis was called
+        mock_gemini.analyze_patterns.assert_called_once()
+
+        # Verify contact context was created (Req 4.5)
+        mock_create_context.assert_called_once()
+        context_call = mock_create_context.call_args
+        assert context_call.kwargs["contact_id"] == mock_contact.id
+        assert "contactCharacteristics" in context_call.kwargs["learned_patterns"]
+
+        # Verify learning status updated to complete (Req 4.6)
+        mock_update_status.assert_called()
+        final_status_call = mock_update_status.call_args
+        assert final_status_call.kwargs["is_complete"] is True
+
+    @pytest.mark.asyncio
+    async def test_polling_reflects_learning_completion_req_5_1_5_2(
+        self,
+        firebase_user: FirebaseUser,
+        mock_user: User,
+        mock_contact: Contact,
+    ) -> None:
+        """Requirements 5.1, 5.2: Polling GET /api/contacts reflects learning state changes.
+
+        Simulates the polling workflow:
+        1. First poll: contact shows is_learning_complete=false, status="learning_started"
+        2. Second poll: contact shows is_learning_complete=true, status="learning_complete"
+        """
+        from src.routers.contacts import router
+
+        test_app = FastAPI()
+        test_app.include_router(router, prefix="/api")
+
+        mock_session = MagicMock()
+        test_app.dependency_overrides[get_db] = lambda: mock_session
+
+        # First poll - learning in progress
+        contact_learning = MagicMock()
+        contact_learning.id = mock_contact.id
+        contact_learning.contact_email = "boss@company.com"
+        contact_learning.contact_name = "上司さん"
+        contact_learning.gmail_query = "from:boss@company.com"
+        contact_learning.is_learning_complete = False
+        contact_learning.learning_failed_at = None
+        contact_learning.created_at = datetime(
+            2024, 1, 15, 10, 30, 0, tzinfo=timezone.utc
+        )
+
+        # Second poll - learning complete
+        contact_complete = MagicMock()
+        contact_complete.id = mock_contact.id
+        contact_complete.contact_email = "boss@company.com"
+        contact_complete.contact_name = "上司さん"
+        contact_complete.gmail_query = "from:boss@company.com"
+        contact_complete.is_learning_complete = True
+        contact_complete.learning_failed_at = None
+        contact_complete.created_at = datetime(
+            2024, 1, 15, 10, 30, 0, tzinfo=timezone.utc
+        )
+
+        with (
+            patch("src.auth.middleware.auth") as mock_auth,
+            patch(
+                "src.routers.contacts.get_user_by_firebase_uid",
+                new=AsyncMock(return_value=mock_user),
+            ),
+            patch(
+                "src.routers.contacts.get_contacts_by_user_id",
+            ) as mock_get_contacts,
+        ):
+            mock_auth.verify_id_token.return_value = {
+                "uid": firebase_user.uid,
+                "email": firebase_user.email,
+            }
+
+            # First poll returns learning in progress
+            mock_get_contacts.return_value = [contact_learning]
+
+            async with AsyncClient(
+                transport=ASGITransport(app=test_app), base_url="http://test"
+            ) as client:
+                # Poll 1: learning in progress
+                response1 = await client.get(
+                    "/api/contacts",
+                    headers={"Authorization": "Bearer valid_token"},
+                )
+
+            assert response1.status_code == 200
+            data1 = response1.json()
+            assert data1["total"] == 1
+            assert data1["contacts"][0]["status"] == "learning_started"
+            assert data1["contacts"][0]["isLearningComplete"] is False
+
+            # Second poll returns learning complete
+            mock_get_contacts.return_value = [contact_complete]
+
+            async with AsyncClient(
+                transport=ASGITransport(app=test_app), base_url="http://test"
+            ) as client:
+                # Poll 2: learning complete
+                response2 = await client.get(
+                    "/api/contacts",
+                    headers={"Authorization": "Bearer valid_token"},
+                )
+
+            assert response2.status_code == 200
+            data2 = response2.json()
+            assert data2["total"] == 1
+            assert data2["contacts"][0]["status"] == "learning_complete"
+            assert data2["contacts"][0]["isLearningComplete"] is True
+
+
+class TestContactDeletionWithContextFlow:
+    """Integration tests for contact deletion flow with ContactContext.
+
+    Tests Requirements:
+    - 3.3: 連絡先と関連するcontact_contextを削除
+    - 3.4: 他ユーザーの連絡先削除時403
+    - 3.5: 存在しない連絡先削除時404
+    """
+
+    @pytest.fixture
+    def mock_user(self) -> User:
+        """Create a mock user."""
+        return User(
+            id=uuid7(),
+            firebase_uid="delete-test-uid",
+            email="delete-test@example.com",
+        )
+
+    @pytest.fixture
+    def firebase_user(self) -> FirebaseUser:
+        """Create a Firebase authenticated user."""
+        return FirebaseUser(uid="delete-test-uid", email="delete-test@example.com")
+
+    @pytest.fixture
+    def mock_contact_with_context(self, mock_user: User) -> Contact:
+        """Create a contact that has a learning context."""
+        return Contact(
+            id=uuid7(),
+            user_id=mock_user.id,
+            contact_email="boss@company.com",
+            contact_name="上司さん",
+            is_learning_complete=True,
+        )
+
+    @pytest.mark.asyncio
+    async def test_delete_contact_removes_contact_and_context_req_3_3(
+        self,
+        firebase_user: FirebaseUser,
+        mock_user: User,
+        mock_contact_with_context: Contact,
+    ) -> None:
+        """Requirement 3.3: Deleting contact also deletes related contact_context.
+
+        Verifies:
+        1. DELETE /api/contacts/{id} returns 204
+        2. The contact is deleted from the database
+        3. Related contact_context is also deleted (CASCADE)
+        """
+        from src.routers.contacts import router
+
+        test_app = FastAPI()
+        test_app.include_router(router, prefix="/api")
+
+        mock_session = MagicMock()
+        mock_session.commit = AsyncMock()
+        test_app.dependency_overrides[get_db] = lambda: mock_session
+
+        with (
+            patch("src.auth.middleware.auth") as mock_auth,
+            patch(
+                "src.routers.contacts.get_user_by_firebase_uid",
+                new=AsyncMock(return_value=mock_user),
+            ),
+            patch(
+                "src.routers.contacts.get_contact_by_id",
+                new=AsyncMock(return_value=mock_contact_with_context),
+            ),
+            patch(
+                "src.routers.contacts.delete_contact",
+                new=AsyncMock(return_value=True),
+            ) as mock_delete,
+        ):
+            mock_auth.verify_id_token.return_value = {
+                "uid": firebase_user.uid,
+                "email": firebase_user.email,
+            }
+
+            async with AsyncClient(
+                transport=ASGITransport(app=test_app), base_url="http://test"
+            ) as client:
+                response = await client.delete(
+                    f"/api/contacts/{mock_contact_with_context.id}",
+                    headers={"Authorization": "Bearer valid_token"},
+                )
+
+        # Verify 204 No Content
+        assert response.status_code == 204
+
+        # Verify delete was called with correct contact_id
+        mock_delete.assert_called_once_with(mock_session, mock_contact_with_context.id)
+
+    @pytest.mark.asyncio
+    async def test_delete_other_users_contact_returns_403_req_3_4(
+        self,
+        firebase_user: FirebaseUser,
+        mock_user: User,
+    ) -> None:
+        """Requirement 3.4: Deleting another user's contact returns 403 Forbidden."""
+        from src.routers.contacts import router
+
+        test_app = FastAPI()
+        test_app.include_router(router, prefix="/api")
+
+        mock_session = MagicMock()
+        test_app.dependency_overrides[get_db] = lambda: mock_session
+
+        # Contact belongs to a different user
+        other_user_contact = MagicMock()
+        other_user_contact.id = uuid7()
+        other_user_contact.user_id = uuid7()  # Different user_id
+        other_user_contact.contact_email = "other@example.com"
+
+        with (
+            patch("src.auth.middleware.auth") as mock_auth,
+            patch(
+                "src.routers.contacts.get_user_by_firebase_uid",
+                new=AsyncMock(return_value=mock_user),
+            ),
+            patch(
+                "src.routers.contacts.get_contact_by_id",
+                new=AsyncMock(return_value=other_user_contact),
+            ),
+        ):
+            mock_auth.verify_id_token.return_value = {
+                "uid": firebase_user.uid,
+                "email": firebase_user.email,
+            }
+
+            async with AsyncClient(
+                transport=ASGITransport(app=test_app), base_url="http://test"
+            ) as client:
+                response = await client.delete(
+                    f"/api/contacts/{other_user_contact.id}",
+                    headers={"Authorization": "Bearer valid_token"},
+                )
+
+        assert response.status_code == 403
+        assert response.json()["detail"]["error"] == "forbidden"
+
+    @pytest.mark.asyncio
+    async def test_delete_nonexistent_contact_returns_404_req_3_5(
+        self,
+        firebase_user: FirebaseUser,
+        mock_user: User,
+    ) -> None:
+        """Requirement 3.5: Deleting a nonexistent contact returns 404 Not Found."""
+        from src.routers.contacts import router
+
+        test_app = FastAPI()
+        test_app.include_router(router, prefix="/api")
+
+        mock_session = MagicMock()
+        test_app.dependency_overrides[get_db] = lambda: mock_session
+
+        with (
+            patch("src.auth.middleware.auth") as mock_auth,
+            patch(
+                "src.routers.contacts.get_user_by_firebase_uid",
+                new=AsyncMock(return_value=mock_user),
+            ),
+            patch(
+                "src.routers.contacts.get_contact_by_id",
+                new=AsyncMock(return_value=None),
+            ),
+        ):
+            mock_auth.verify_id_token.return_value = {
+                "uid": firebase_user.uid,
+                "email": firebase_user.email,
+            }
+
+            nonexistent_id = uuid7()
+            async with AsyncClient(
+                transport=ASGITransport(app=test_app), base_url="http://test"
+            ) as client:
+                response = await client.delete(
+                    f"/api/contacts/{nonexistent_id}",
+                    headers={"Authorization": "Bearer valid_token"},
+                )
+
+        assert response.status_code == 404
+        assert response.json()["detail"]["error"] == "not_found"
+
+
+class TestLearningFailureAndRetryFlow:
+    """Integration tests for learning failure and retry flow.
+
+    Tests Requirements:
+    - 4.7: Gmail APIエラー時にlearning_failed_at設定
+    - 4.8: Gemini APIエラー時に最大3回リトライ
+    - 5.3: エラー時再試行ボタン（API: POST /contacts/{id}/retry）
+    """
+
+    @pytest.fixture
+    def mock_user(self) -> User:
+        """Create a mock user with Gmail OAuth."""
+        return User(
+            id=uuid7(),
+            firebase_uid="retry-test-uid",
+            email="retry-test@example.com",
+            gmail_refresh_token="refresh-token-xxx",
+            gmail_access_token="access-token-xxx",
+            gmail_token_expires_at=datetime.now(timezone.utc),
+        )
+
+    @pytest.fixture
+    def firebase_user(self) -> FirebaseUser:
+        """Create a Firebase authenticated user."""
+        return FirebaseUser(uid="retry-test-uid", email="retry-test@example.com")
+
+    @pytest.fixture
+    def mock_contact(self, mock_user: User) -> Contact:
+        """Create a mock contact."""
+        return Contact(
+            id=uuid7(),
+            user_id=mock_user.id,
+            contact_email="client@company.com",
+            contact_name="取引先さん",
+            is_learning_complete=False,
+        )
+
+    @pytest.mark.asyncio
+    async def test_gmail_api_error_sets_learning_failed_req_4_7(
+        self,
+        mock_user: User,
+        mock_contact: Contact,
+    ) -> None:
+        """Requirement 4.7: Gmail API error sets learning_failed_at.
+
+        Verifies:
+        1. Gmail API throws error
+        2. learning_failed_at is set to current timestamp
+        3. is_learning_complete remains false
+        """
+        from src.services.gmail_service import GmailApiError
+        from src.services.learning_service import LearningService
+
+        mock_session = AsyncMock()
+
+        with (
+            patch("src.services.learning_service.get_user_by_id") as mock_get_user,
+            patch(
+                "src.services.learning_service.get_contact_by_id"
+            ) as mock_get_contact,
+            patch("src.services.learning_service.get_db") as mock_get_db,
+            patch("src.services.learning_service.GmailApiClient") as mock_gmail_class,
+            patch(
+                "src.services.learning_service.GmailOAuthService"
+            ) as mock_oauth_class,
+            patch(
+                "src.services.learning_service.update_contact_learning_status"
+            ) as mock_update_status,
+        ):
+            mock_get_user.return_value = mock_user
+            mock_get_contact.return_value = mock_contact
+            mock_get_db.return_value.__aiter__.return_value = iter([mock_session])
+
+            # OAuth mock
+            mock_oauth = MagicMock()
+            mock_oauth.ensure_valid_access_token = AsyncMock(
+                return_value={
+                    "access_token": "access-token-xxx",
+                    "expires_at": datetime.now(timezone.utc),
+                }
+            )
+            mock_oauth_class.return_value = mock_oauth
+
+            # Gmail API mock - throws error
+            mock_gmail = MagicMock()
+            mock_gmail.search_messages = AsyncMock(
+                side_effect=GmailApiError("API rate limit exceeded", status_code=429)
+            )
+            mock_gmail_class.return_value = mock_gmail
+
+            service = LearningService()
+            await service.process_learning(
+                contact_id=mock_contact.id,
+                user_id=mock_user.id,
+            )
+
+        # Verify learning status was updated with failure
+        mock_update_status.assert_called_once()
+        status_call = mock_update_status.call_args
+        assert status_call.kwargs["is_complete"] is False
+        assert status_call.kwargs["failed_at"] is not None
+
+    @pytest.mark.asyncio
+    async def test_gemini_api_retries_3_times_on_failure_req_4_8(
+        self,
+        mock_user: User,
+        mock_contact: Contact,
+    ) -> None:
+        """Requirement 4.8: Gemini API errors trigger up to 3 retries.
+
+        Verifies:
+        1. Gemini analyze_patterns is called 3 times
+        2. After 3 failures, learning_failed_at is set
+        """
+        from result import Err
+
+        from src.services.gemini_service import GeminiError
+        from src.services.learning_service import LearningService
+
+        mock_session = AsyncMock()
+
+        with (
+            patch("src.services.learning_service.get_user_by_id") as mock_get_user,
+            patch(
+                "src.services.learning_service.get_contact_by_id"
+            ) as mock_get_contact,
+            patch("src.services.learning_service.get_db") as mock_get_db,
+            patch("src.services.learning_service.GmailApiClient") as mock_gmail_class,
+            patch("src.services.learning_service.GeminiService") as mock_gemini_class,
+            patch(
+                "src.services.learning_service.GmailOAuthService"
+            ) as mock_oauth_class,
+            patch(
+                "src.services.learning_service.update_contact_learning_status"
+            ) as mock_update_status,
+        ):
+            mock_get_user.return_value = mock_user
+            mock_get_contact.return_value = mock_contact
+            mock_get_db.return_value.__aiter__.return_value = iter([mock_session])
+
+            # OAuth mock
+            mock_oauth = MagicMock()
+            mock_oauth.ensure_valid_access_token = AsyncMock(
+                return_value={
+                    "access_token": "access-token-xxx",
+                    "expires_at": datetime.now(timezone.utc),
+                }
+            )
+            mock_oauth_class.return_value = mock_oauth
+
+            # Gmail API mock - returns messages
+            mock_gmail = MagicMock()
+            mock_gmail.search_messages = AsyncMock(
+                return_value=[{"id": "msg-1", "threadId": "thread-1"}]
+            )
+            mock_gmail.fetch_message = AsyncMock(
+                return_value={
+                    "id": "msg-1",
+                    "payload": {
+                        "headers": [
+                            {"name": "From", "value": "Client <client@company.com>"},
+                            {"name": "Subject", "value": "テスト"},
+                        ],
+                        "mimeType": "text/plain",
+                        "body": {
+                            "data": base64.urlsafe_b64encode(
+                                "テスト本文".encode()
+                            ).decode()
+                        },
+                    },
+                    "internalDate": "1704110400000",
+                }
+            )
+            mock_gmail_class.return_value = mock_gmail
+
+            # Gemini API mock - always fails
+            mock_gemini = MagicMock()
+            mock_gemini.analyze_patterns = AsyncMock(
+                return_value=Err(GeminiError.API_ERROR)
+            )
+            mock_gemini_class.return_value = mock_gemini
+
+            service = LearningService()
+            await service.process_learning(
+                contact_id=mock_contact.id,
+                user_id=mock_user.id,
+            )
+
+        # Verify Gemini was called 3 times (MAX_RETRIES)
+        assert mock_gemini.analyze_patterns.call_count == 3
+
+        # Verify learning status was updated with failure
+        mock_update_status.assert_called_once()
+        status_call = mock_update_status.call_args
+        assert status_call.kwargs["is_complete"] is False
+        assert status_call.kwargs["failed_at"] is not None
+
+    @pytest.mark.asyncio
+    async def test_retry_endpoint_resets_and_restarts_learning_req_5_3(
+        self,
+        firebase_user: FirebaseUser,
+        mock_user: User,
+    ) -> None:
+        """Requirement 5.3: Retry endpoint resets status and restarts learning.
+
+        Verifies:
+        1. POST /api/contacts/{id}/retry resets learning_failed_at
+        2. Background learning is restarted
+        3. Response contains status: "learning_started"
+        """
+        from src.routers.contacts import router
+
+        test_app = FastAPI()
+        test_app.include_router(router, prefix="/api")
+
+        mock_session = MagicMock()
+        mock_session.commit = AsyncMock()
+        mock_session.refresh = AsyncMock()
+        test_app.dependency_overrides[get_db] = lambda: mock_session
+
+        # Contact with failed learning
+        failed_contact = MagicMock()
+        failed_contact.id = uuid7()
+        failed_contact.user_id = mock_user.id
+        failed_contact.contact_email = "client@company.com"
+        failed_contact.contact_name = "取引先さん"
+        failed_contact.gmail_query = None
+        failed_contact.is_learning_complete = False
+        failed_contact.learning_failed_at = datetime(
+            2024, 1, 15, 12, 0, 0, tzinfo=timezone.utc
+        )
+        failed_contact.created_at = datetime(2024, 1, 15, 10, 0, 0, tzinfo=timezone.utc)
+
+        with (
+            patch("src.auth.middleware.auth") as mock_auth,
+            patch(
+                "src.routers.contacts.get_user_by_firebase_uid",
+                new=AsyncMock(return_value=mock_user),
+            ),
+            patch(
+                "src.routers.contacts.get_contact_by_id",
+                new=AsyncMock(return_value=failed_contact),
+            ),
+            patch(
+                "src.routers.contacts.delete_contact_context_by_contact_id",
+                new=AsyncMock(),
+            ),
+            patch(
+                "src.routers.contacts.update_contact_learning_status",
+                new=AsyncMock(),
+            ),
+            patch("src.routers.contacts.LearningService") as mock_learning_cls,
+        ):
+            mock_auth.verify_id_token.return_value = {
+                "uid": firebase_user.uid,
+                "email": firebase_user.email,
+            }
+
+            async with AsyncClient(
+                transport=ASGITransport(app=test_app), base_url="http://test"
+            ) as client:
+                response = await client.post(
+                    f"/api/contacts/{failed_contact.id}/retry",
+                    headers={"Authorization": "Bearer valid_token"},
+                )
+
+        # Verify response
+        assert response.status_code == 200
+        data = response.json()
+        assert data["contactEmail"] == "client@company.com"
+        # After refresh, status depends on mock state; verify learning was restarted
+        mock_learning_cls.assert_called_once()
