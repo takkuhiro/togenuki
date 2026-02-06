@@ -10,6 +10,7 @@ This service orchestrates the learning process:
 from datetime import datetime, timezone
 from uuid import UUID
 
+from src.auth.gmail_oauth import GmailOAuthService
 from src.database import get_db
 from src.repositories.contact_repository import (
     create_contact_context,
@@ -60,9 +61,16 @@ class LearningService:
                     logger.warning(f"Contact not found: {contact_id}")
                     return
 
-                # Check if user has Gmail OAuth
-                if not user.gmail_access_token:
-                    logger.warning(f"User {user_id} has no Gmail access token")
+                # Ensure valid access token (refresh if expired)
+                oauth_service = GmailOAuthService()
+                token_result = await oauth_service.ensure_valid_access_token(
+                    current_token=user.gmail_access_token,
+                    expires_at=user.gmail_token_expires_at,
+                    refresh_token=user.gmail_refresh_token,
+                )
+
+                if token_result is None:
+                    logger.warning(f"User {user_id} has no valid Gmail access token")
                     await update_contact_learning_status(
                         session=session,
                         contact_id=contact_id,
@@ -72,10 +80,18 @@ class LearningService:
                     await session.commit()
                     return
 
+                access_token = token_result["access_token"]
+
+                # Update stored token if it was refreshed
+                if access_token != user.gmail_access_token:
+                    user.gmail_access_token = access_token
+                    user.gmail_token_expires_at = token_result["expires_at"]
+                    await session.commit()
+
                 # Fetch emails from Gmail
                 try:
                     email_history = await self._fetch_email_history(
-                        access_token=user.gmail_access_token,
+                        access_token=access_token,
                         gmail_query=contact.gmail_query or f"from:{contact.contact_email}",
                     )
                 except GmailApiError as e:

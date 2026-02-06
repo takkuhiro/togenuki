@@ -170,6 +170,23 @@ async def update_contact_learning_status(
     contact.learning_failed_at = failed_at
 
 
+async def delete_contact_context_by_contact_id(
+    session: AsyncSession,
+    contact_id: UUID,
+) -> None:
+    """Delete contact context for a given contact.
+
+    Args:
+        session: Database session
+        contact_id: The contact's ID
+    """
+    query = select(ContactContext).where(ContactContext.contact_id == contact_id)
+    result = await session.execute(query)
+    context = result.scalar_one_or_none()
+    if context is not None:
+        await session.delete(context)
+
+
 async def get_user_by_id(
     session: AsyncSession,
     user_id: UUID,

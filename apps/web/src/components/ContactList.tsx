@@ -4,7 +4,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { deleteContact, fetchContacts } from '../api/contacts';
+import { deleteContact, fetchContacts, retryLearning } from '../api/contacts';
 import { useAuth } from '../contexts/AuthContext';
 import type { Contact } from '../types/contact';
 import { ContactCard } from './ContactCard';
@@ -139,9 +139,18 @@ export function ContactList() {
   }, []);
 
   const handleRetry = useCallback(async (contactId: string) => {
-    // TODO: Implement retry API call
-    console.log('Retry learning for contact:', contactId);
-  }, []);
+    if (!idToken) return;
+
+    try {
+      const updated = await retryLearning(idToken, contactId);
+      setContacts((prev) =>
+        prev.map((c) => (c.id === contactId ? updated : c))
+      );
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '再試行に失敗しました');
+    }
+  }, [idToken]);
 
   if (isLoading) {
     return (

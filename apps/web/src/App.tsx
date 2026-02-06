@@ -1,4 +1,5 @@
 import './App.css';
+import { IoSettingsOutline } from 'react-icons/io5';
 import { BrowserRouter, Link, Navigate, Route, Routes } from 'react-router-dom';
 import { EmailList } from './components/EmailList';
 import { useAuth } from './contexts/AuthContext';
@@ -20,8 +21,8 @@ function AppLayout({ children }: { children: React.ReactNode }) {
             <h1>TogeNuki</h1>
           </div>
           <div className="header-actions">
-            <Link to="/contacts" className="nav-link">
-              連絡先管理
+            <Link to="/contacts" className="nav-icon-link" aria-label="設定">
+              <IoSettingsOutline size={20} />
             </Link>
             <span className="user-email">{user?.email}</span>
             <button type="button" onClick={signOut} className="logout-button-small">

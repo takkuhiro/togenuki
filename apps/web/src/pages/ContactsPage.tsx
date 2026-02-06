@@ -4,6 +4,7 @@
  */
 
 import { useCallback, useState } from 'react';
+import { IoArrowBackOutline } from 'react-icons/io5';
 import { Link } from 'react-router-dom';
 import { ContactForm } from '../components/ContactForm';
 import { ContactList } from '../components/ContactList';
@@ -29,8 +30,8 @@ export function ContactsPage() {
     <div className="contacts-page">
       <div className="contacts-header">
         <h2>連絡先管理</h2>
-        <Link to="/emails" className="nav-link">
-          ダッシュボードへ戻る
+        <Link to="/emails" className="nav-icon-link" aria-label="ダッシュボードへ戻る">
+          <IoArrowBackOutline size={20} />
         </Link>
       </div>
 

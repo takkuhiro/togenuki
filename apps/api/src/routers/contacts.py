@@ -18,8 +18,10 @@ from src.repositories.contact_repository import (
     DuplicateContactError,
     create_contact,
     delete_contact,
+    delete_contact_context_by_contact_id,
     get_contact_by_id,
     get_contacts_by_user_id,
+    update_contact_learning_status,
 )
 from src.repositories.email_repository import get_user_by_firebase_uid
 from src.schemas.contact import (
@@ -216,3 +218,80 @@ async def delete_contact_endpoint(
     await session.commit()
 
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post("/contacts/{contact_id}/retry", response_model=ContactResponse)
+async def retry_learning_endpoint(
+    contact_id: UUID,
+    background_tasks: BackgroundTasks,
+    user: FirebaseUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> ContactResponse:
+    """Retry learning for a failed contact.
+
+    Resets learning status, deletes existing contact context,
+    and restarts the background learning process.
+
+    Args:
+        contact_id: The contact's UUID
+        background_tasks: FastAPI BackgroundTasks for async processing
+        user: Authenticated Firebase user
+        session: Database session
+
+    Returns:
+        ContactResponse with status "learning_started"
+
+    Raises:
+        HTTPException 401: If not authenticated
+        HTTPException 403: If trying to retry another user's contact
+        HTTPException 404: If contact not found
+        HTTPException 409: If contact learning has not failed
+    """
+    db_user = await get_user_by_firebase_uid(session, user.uid)
+    if db_user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={"error": "unauthorized"},
+        )
+
+    contact = await get_contact_by_id(session, contact_id)
+    if contact is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"error": "not_found"},
+        )
+
+    if contact.user_id != db_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"error": "forbidden"},
+        )
+
+    if contact.learning_failed_at is None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={"error": "not_failed"},
+        )
+
+    # Delete existing contact context
+    await delete_contact_context_by_contact_id(session, contact_id)
+
+    # Reset learning status
+    await update_contact_learning_status(
+        session=session,
+        contact_id=contact_id,
+        is_complete=False,
+        failed_at=None,
+    )
+    await session.commit()
+    await session.refresh(contact)
+
+    # Start learning in background
+    learning_service = LearningService()
+    background_tasks.add_task(
+        learning_service.process_learning,
+        contact_id=contact.id,
+        user_id=db_user.id,
+    )
+
+    return contact_to_response(contact)

@@ -119,7 +119,15 @@ export function ContactForm({ onSuccess }: ContactFormProps) {
       </div>
 
       <div className="form-field">
-        <label htmlFor="gmailQuery">Gmail検索クエリ</label>
+        <label htmlFor="gmailQuery">
+          Gmail検索クエリ
+          <span className="tooltip-wrapper">
+            <span className="tooltip-icon" aria-hidden="true">?</span>
+            <span className="tooltip-text" role="tooltip">
+              学習対象とするメールを絞り込むためのGmail検索クエリ（省略可）
+            </span>
+          </span>
+        </label>
         <input
           type="text"
           id="gmailQuery"
@@ -128,7 +136,6 @@ export function ContactForm({ onSuccess }: ContactFormProps) {
           placeholder="from:example@company.com"
           disabled={isSubmitting}
         />
-        <p className="form-hint">学習対象とするメールを絞り込むためのGmail検索クエリ（省略可）</p>
       </div>
 
       {validationError && (

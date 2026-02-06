@@ -19,6 +19,16 @@ from src.models import Contact, ContactContext, User
 from src.services.gemini_service import GeminiError
 
 
+def _make_oauth_mock(access_token: str = "access-token-xxx") -> MagicMock:
+    """Create a mock GmailOAuthService that returns a valid token."""
+    mock_oauth = MagicMock()
+    mock_oauth.ensure_valid_access_token = AsyncMock(return_value={
+        "access_token": access_token,
+        "expires_at": datetime.now(timezone.utc),
+    })
+    return mock_oauth
+
+
 class TestProcessLearning:
     """Tests for process_learning function."""
 
@@ -64,10 +74,13 @@ class TestProcessLearning:
             patch("src.services.learning_service.create_contact_context"),
             patch("src.services.learning_service.update_contact_learning_status"),
             patch("src.services.learning_service.get_db") as mock_get_db,
+            patch("src.services.learning_service.GmailOAuthService") as mock_oauth_class,
         ):
             mock_get_user.return_value = mock_user
             mock_get_contact.return_value = mock_contact
             mock_get_db.return_value.__aiter__.return_value = iter([mock_session])
+
+            mock_oauth_class.return_value = _make_oauth_mock()
 
             # Mock Gmail API
             mock_gmail = MagicMock()
@@ -113,10 +126,13 @@ class TestProcessLearning:
             patch("src.services.learning_service.create_contact_context"),
             patch("src.services.learning_service.update_contact_learning_status"),
             patch("src.services.learning_service.get_db") as mock_get_db,
+            patch("src.services.learning_service.GmailOAuthService") as mock_oauth_class,
         ):
             mock_get_user.return_value = mock_user
             mock_get_contact.return_value = mock_contact
             mock_get_db.return_value.__aiter__.return_value = iter([mock_session])
+
+            mock_oauth_class.return_value = _make_oauth_mock()
 
             mock_gmail = MagicMock()
             mock_gmail.search_messages = AsyncMock(return_value=[{"id": "msg-1"}])
@@ -158,10 +174,13 @@ class TestProcessLearning:
             patch("src.services.learning_service.create_contact_context") as mock_create_context,
             patch("src.services.learning_service.update_contact_learning_status"),
             patch("src.services.learning_service.get_db") as mock_get_db,
+            patch("src.services.learning_service.GmailOAuthService") as mock_oauth_class,
         ):
             mock_get_user.return_value = mock_user
             mock_get_contact.return_value = mock_contact
             mock_get_db.return_value.__aiter__.return_value = iter([mock_session])
+
+            mock_oauth_class.return_value = _make_oauth_mock()
 
             mock_gmail = MagicMock()
             mock_gmail.search_messages = AsyncMock(return_value=[{"id": "msg-1"}])
@@ -205,10 +224,13 @@ class TestProcessLearning:
             patch("src.services.learning_service.create_contact_context"),
             patch("src.services.learning_service.update_contact_learning_status") as mock_update_status,
             patch("src.services.learning_service.get_db") as mock_get_db,
+            patch("src.services.learning_service.GmailOAuthService") as mock_oauth_class,
         ):
             mock_get_user.return_value = mock_user
             mock_get_contact.return_value = mock_contact
             mock_get_db.return_value.__aiter__.return_value = iter([mock_session])
+
+            mock_oauth_class.return_value = _make_oauth_mock()
 
             mock_gmail = MagicMock()
             mock_gmail.search_messages = AsyncMock(return_value=[{"id": "msg-1"}])
@@ -250,10 +272,13 @@ class TestProcessLearning:
             patch("src.services.learning_service.GmailApiClient") as mock_gmail_class,
             patch("src.services.learning_service.update_contact_learning_status") as mock_update_status,
             patch("src.services.learning_service.get_db") as mock_get_db,
+            patch("src.services.learning_service.GmailOAuthService") as mock_oauth_class,
         ):
             mock_get_user.return_value = mock_user
             mock_get_contact.return_value = mock_contact
             mock_get_db.return_value.__aiter__.return_value = iter([mock_session])
+
+            mock_oauth_class.return_value = _make_oauth_mock()
 
             mock_gmail = MagicMock()
             mock_gmail.search_messages = AsyncMock(side_effect=GmailApiError("API Error", 500))
@@ -284,10 +309,13 @@ class TestProcessLearning:
             patch("src.services.learning_service.create_contact_context"),
             patch("src.services.learning_service.update_contact_learning_status") as mock_update_status,
             patch("src.services.learning_service.get_db") as mock_get_db,
+            patch("src.services.learning_service.GmailOAuthService") as mock_oauth_class,
         ):
             mock_get_user.return_value = mock_user
             mock_get_contact.return_value = mock_contact
             mock_get_db.return_value.__aiter__.return_value = iter([mock_session])
+
+            mock_oauth_class.return_value = _make_oauth_mock()
 
             mock_gmail = MagicMock()
             mock_gmail.search_messages = AsyncMock(return_value=[{"id": "msg-1"}])
@@ -336,10 +364,13 @@ class TestProcessLearning:
             patch("src.services.learning_service.GeminiService") as mock_gemini_class,
             patch("src.services.learning_service.update_contact_learning_status") as mock_update_status,
             patch("src.services.learning_service.get_db") as mock_get_db,
+            patch("src.services.learning_service.GmailOAuthService") as mock_oauth_class,
         ):
             mock_get_user.return_value = mock_user
             mock_get_contact.return_value = mock_contact
             mock_get_db.return_value.__aiter__.return_value = iter([mock_session])
+
+            mock_oauth_class.return_value = _make_oauth_mock()
 
             mock_gmail = MagicMock()
             mock_gmail.search_messages = AsyncMock(return_value=[{"id": "msg-1"}])
@@ -365,6 +396,105 @@ class TestProcessLearning:
             # Should have been called 3 times (max retries)
             assert mock_gemini.analyze_patterns.call_count == 3
             # Should update status to failed
+            call_args = mock_update_status.call_args
+            assert call_args[1]["is_complete"] is False
+            assert call_args[1]["failed_at"] is not None
+
+    @pytest.mark.asyncio
+    async def test_process_learning_refreshes_expired_access_token(
+        self, mock_user: User, mock_contact: Contact
+    ):
+        """process_learning should refresh expired access token before calling Gmail API."""
+        from src.services.learning_service import LearningService
+
+        mock_session = AsyncMock()
+
+        with (
+            patch("src.services.learning_service.get_user_by_id") as mock_get_user,
+            patch("src.services.learning_service.get_contact_by_id") as mock_get_contact,
+            patch("src.services.learning_service.GmailApiClient") as mock_gmail_class,
+            patch("src.services.learning_service.GeminiService") as mock_gemini_class,
+            patch("src.services.learning_service.create_contact_context"),
+            patch("src.services.learning_service.update_contact_learning_status"),
+            patch("src.services.learning_service.get_db") as mock_get_db,
+            patch("src.services.learning_service.GmailOAuthService") as mock_oauth_class,
+        ):
+            mock_get_user.return_value = mock_user
+            mock_get_contact.return_value = mock_contact
+            mock_get_db.return_value.__aiter__.return_value = iter([mock_session])
+
+            # Mock OAuth service - token is refreshed to a new value
+            mock_oauth = _make_oauth_mock("new-refreshed-token")
+            mock_oauth_class.return_value = mock_oauth
+
+            # Mock Gmail API
+            mock_gmail = MagicMock()
+            mock_gmail.search_messages = AsyncMock(return_value=[{"id": "msg-1"}])
+            mock_gmail.fetch_message = AsyncMock(return_value={
+                "id": "msg-1",
+                "payload": {
+                    "headers": [{"name": "From", "value": "boss@example.com"}],
+                    "mimeType": "text/plain",
+                    "body": {"data": "dGVzdA=="},
+                },
+                "internalDate": "1704067200000",
+            })
+            mock_gmail_class.return_value = mock_gmail
+
+            # Mock Gemini API
+            mock_gemini = MagicMock()
+            mock_gemini.analyze_patterns = AsyncMock(return_value=Ok('{"contactCharacteristics": {}}'))
+            mock_gemini_class.return_value = mock_gemini
+
+            service = LearningService()
+            await service.process_learning(mock_contact.id, mock_user.id)
+
+            # Should call ensure_valid_access_token with original token values
+            mock_oauth.ensure_valid_access_token.assert_called_once()
+            call_args = mock_oauth.ensure_valid_access_token.call_args
+            assert call_args[1]["current_token"] == "access-token-xxx"
+            assert call_args[1]["refresh_token"] == "refresh-token-xxx"
+
+            # Gmail client should be created with refreshed token
+            mock_gmail_class.assert_called_once_with("new-refreshed-token")
+
+    @pytest.mark.asyncio
+    async def test_process_learning_fails_when_token_refresh_fails(
+        self, mock_user: User, mock_contact: Contact
+    ):
+        """process_learning should set learning_failed_at when token refresh fails."""
+        from src.services.learning_service import LearningService
+
+        mock_session = AsyncMock()
+
+        with (
+            patch("src.services.learning_service.get_user_by_id") as mock_get_user,
+            patch("src.services.learning_service.get_contact_by_id") as mock_get_contact,
+            patch("src.services.learning_service.GmailApiClient") as mock_gmail_class,
+            patch("src.services.learning_service.update_contact_learning_status") as mock_update_status,
+            patch("src.services.learning_service.get_db") as mock_get_db,
+            patch("src.services.learning_service.GmailOAuthService") as mock_oauth_class,
+        ):
+            mock_get_user.return_value = mock_user
+            mock_get_contact.return_value = mock_contact
+            mock_get_db.return_value.__aiter__.return_value = iter([mock_session])
+
+            # Mock OAuth service - refresh fails
+            mock_oauth = MagicMock()
+            mock_oauth.ensure_valid_access_token = AsyncMock(return_value=None)
+            mock_oauth_class.return_value = mock_oauth
+
+            mock_gmail = MagicMock()
+            mock_gmail_class.return_value = mock_gmail
+
+            service = LearningService()
+            await service.process_learning(mock_contact.id, mock_user.id)
+
+            # Gmail should not be called
+            mock_gmail.search_messages.assert_not_called()
+
+            # Should mark as failed
+            mock_update_status.assert_called()
             call_args = mock_update_status.call_args
             assert call_args[1]["is_complete"] is False
             assert call_args[1]["failed_at"] is not None

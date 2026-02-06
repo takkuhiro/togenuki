@@ -7,6 +7,7 @@ Kiro-style Spec Driven Development implementation on AI-DLC (AI Development Life
 - Google Cloud や Firebase のコンソール上での作業が必要になる場合、開発者に作業を依頼してください
 - Terraformコマンドは開発者が実行する責任を持ちます。必要となれば開発者に作業を依頼してください
 - ハッカソンプロジェクトのため最小構成、低コストなインフラで構築してください
+- Pythonは`uv`を使ってください
 
 ## Project Context
 

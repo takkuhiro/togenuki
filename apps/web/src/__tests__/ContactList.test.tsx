@@ -12,6 +12,7 @@ import { ContactList } from '../components/ContactList';
 vi.mock('../api/contacts', () => ({
   fetchContacts: vi.fn(),
   deleteContact: vi.fn(),
+  retryLearning: vi.fn(),
 }));
 
 // Mock AuthContext
@@ -296,6 +297,95 @@ describe('ContactList', () => {
           .getByText('suzuki@example.com')
           .closest('[data-testid="contact-card"]');
         expect(suzukiCard?.querySelector('[data-testid="retry-button"]')).toBeInTheDocument();
+      });
+    });
+
+    it('should call retryLearning API when retry button clicked', async () => {
+      vi.mocked(contactApi.fetchContacts).mockResolvedValue({
+        contacts: mockContacts,
+        total: 3,
+      });
+      vi.mocked(contactApi.retryLearning).mockResolvedValue({
+        id: '3',
+        contactEmail: 'suzuki@example.com',
+        contactName: null,
+        gmailQuery: null,
+        isLearningComplete: false,
+        learningFailedAt: null,
+        createdAt: '2024-01-13T09:00:00+00:00',
+        status: 'learning_started' as const,
+      });
+
+      const user = userEvent.setup();
+      render(<ContactList />);
+
+      await waitFor(() => {
+        expect(screen.getByText('suzuki@example.com')).toBeInTheDocument();
+      });
+
+      const retryButton = screen.getByTestId('retry-button');
+      await user.click(retryButton);
+
+      await waitFor(() => {
+        expect(contactApi.retryLearning).toHaveBeenCalledWith('mock-token', '3');
+      });
+    });
+
+    it('should update contact status to learning after retry', async () => {
+      vi.mocked(contactApi.fetchContacts).mockResolvedValue({
+        contacts: mockContacts,
+        total: 3,
+      });
+      vi.mocked(contactApi.retryLearning).mockResolvedValue({
+        id: '3',
+        contactEmail: 'suzuki@example.com',
+        contactName: null,
+        gmailQuery: null,
+        isLearningComplete: false,
+        learningFailedAt: null,
+        createdAt: '2024-01-13T09:00:00+00:00',
+        status: 'learning_started' as const,
+      });
+
+      const user = userEvent.setup();
+      render(<ContactList />);
+
+      await waitFor(() => {
+        expect(screen.getByText('suzuki@example.com')).toBeInTheDocument();
+      });
+
+      const retryButton = screen.getByTestId('retry-button');
+      await user.click(retryButton);
+
+      await waitFor(() => {
+        const suzukiCard = screen
+          .getByText('suzuki@example.com')
+          .closest('[data-testid="contact-card"]');
+        expect(suzukiCard).toHaveTextContent('学習中');
+      });
+    });
+
+    it('should show error when retry fails', async () => {
+      vi.mocked(contactApi.fetchContacts).mockResolvedValue({
+        contacts: mockContacts,
+        total: 3,
+      });
+      vi.mocked(contactApi.retryLearning).mockRejectedValue(
+        new Error('再試行に失敗しました')
+      );
+
+      const user = userEvent.setup();
+      render(<ContactList />);
+
+      await waitFor(() => {
+        expect(screen.getByText('suzuki@example.com')).toBeInTheDocument();
+      });
+
+      const retryButton = screen.getByTestId('retry-button');
+      await user.click(retryButton);
+
+      await waitFor(() => {
+        expect(screen.getByText(/エラー/)).toBeInTheDocument();
       });
     });
   });
