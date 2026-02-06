@@ -82,11 +82,14 @@ class TestEmailsEndpoint:
         app.include_router(router, prefix="/api")
         app.dependency_overrides[get_db] = lambda: mock_session
 
-        with patch("src.auth.middleware.auth") as mock_auth, patch.object(
-            # Use a different patching approach
-            __import__("src.routers.emails", fromlist=["get_user_emails"]),
-            "get_user_emails",
-            new=AsyncMock(return_value=mock_emails_data),
+        with (
+            patch("src.auth.middleware.auth") as mock_auth,
+            patch.object(
+                # Use a different patching approach
+                __import__("src.routers.emails", fromlist=["get_user_emails"]),
+                "get_user_emails",
+                new=AsyncMock(return_value=mock_emails_data),
+            ),
         ):
             mock_auth.verify_id_token.return_value = {
                 "uid": mock_user.uid,
@@ -128,8 +131,9 @@ class TestEmailsEndpoint:
         app.include_router(router, prefix="/api")
         app.dependency_overrides[get_db] = lambda: mock_session
 
-        with patch("src.auth.middleware.auth") as mock_auth, patch(
-            "src.routers.emails.get_user_emails", new=AsyncMock(return_value=[])
+        with (
+            patch("src.auth.middleware.auth") as mock_auth,
+            patch("src.routers.emails.get_user_emails", new=AsyncMock(return_value=[])),
         ):
             mock_auth.verify_id_token.return_value = {
                 "uid": mock_user.uid,
@@ -162,8 +166,9 @@ class TestEmailsEndpoint:
 
         mock_get_emails = AsyncMock(return_value=[])
 
-        with patch("src.auth.middleware.auth") as mock_auth, patch(
-            "src.routers.emails.get_user_emails", mock_get_emails
+        with (
+            patch("src.auth.middleware.auth") as mock_auth,
+            patch("src.routers.emails.get_user_emails", mock_get_emails),
         ):
             mock_auth.verify_id_token.return_value = {
                 "uid": mock_user.uid,
@@ -198,9 +203,12 @@ class TestEmailsEndpoint:
         app.include_router(router, prefix="/api")
         app.dependency_overrides[get_db] = lambda: mock_session
 
-        with patch("src.auth.middleware.auth") as mock_auth, patch(
-            "src.routers.emails.get_user_emails",
-            new=AsyncMock(return_value=mock_emails_data[:1]),
+        with (
+            patch("src.auth.middleware.auth") as mock_auth,
+            patch(
+                "src.routers.emails.get_user_emails",
+                new=AsyncMock(return_value=mock_emails_data[:1]),
+            ),
         ):
             mock_auth.verify_id_token.return_value = {
                 "uid": mock_user.uid,

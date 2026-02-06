@@ -11,7 +11,6 @@ Tests for the contact repository that handles:
 
 from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock
-from uuid import UUID
 
 import pytest
 from uuid6 import uuid7
@@ -28,7 +27,9 @@ class TestCreateContact:
         from src.repositories.contact_repository import create_contact
 
         mock_session = AsyncMock()
-        mock_session.execute = AsyncMock(return_value=MagicMock(scalar_one_or_none=MagicMock(return_value=None)))
+        mock_session.execute = AsyncMock(
+            return_value=MagicMock(scalar_one_or_none=MagicMock(return_value=None))
+        )
 
         user_id = uuid7()
         result = await create_contact(
@@ -52,7 +53,9 @@ class TestCreateContact:
         from src.repositories.contact_repository import create_contact
 
         mock_session = AsyncMock()
-        mock_session.execute = AsyncMock(return_value=MagicMock(scalar_one_or_none=MagicMock(return_value=None)))
+        mock_session.execute = AsyncMock(
+            return_value=MagicMock(scalar_one_or_none=MagicMock(return_value=None))
+        )
 
         user_id = uuid7()
         result = await create_contact(
@@ -72,7 +75,9 @@ class TestCreateContact:
         from src.repositories.contact_repository import create_contact
 
         mock_session = AsyncMock()
-        mock_session.execute = AsyncMock(return_value=MagicMock(scalar_one_or_none=MagicMock(return_value=None)))
+        mock_session.execute = AsyncMock(
+            return_value=MagicMock(scalar_one_or_none=MagicMock(return_value=None))
+        )
 
         user_id = uuid7()
         await create_contact(
@@ -102,7 +107,11 @@ class TestCreateContact:
             user_id=uuid7(),
             contact_email="boss@example.com",
         )
-        mock_session.execute = AsyncMock(return_value=MagicMock(scalar_one_or_none=MagicMock(return_value=existing_contact)))
+        mock_session.execute = AsyncMock(
+            return_value=MagicMock(
+                scalar_one_or_none=MagicMock(return_value=existing_contact)
+            )
+        )
 
         user_id = uuid7()
         with pytest.raises(DuplicateContactError):
@@ -124,8 +133,12 @@ class TestGetContactsByUserId:
         from src.repositories.contact_repository import get_contacts_by_user_id
 
         user_id = uuid7()
-        contact1 = Contact(id=uuid7(), user_id=user_id, contact_email="boss1@example.com")
-        contact2 = Contact(id=uuid7(), user_id=user_id, contact_email="boss2@example.com")
+        contact1 = Contact(
+            id=uuid7(), user_id=user_id, contact_email="boss1@example.com"
+        )
+        contact2 = Contact(
+            id=uuid7(), user_id=user_id, contact_email="boss2@example.com"
+        )
 
         mock_session = AsyncMock()
         mock_result = MagicMock()
@@ -162,7 +175,9 @@ class TestGetContactById:
         from src.repositories.contact_repository import get_contact_by_id
 
         contact_id = uuid7()
-        contact = Contact(id=contact_id, user_id=uuid7(), contact_email="boss@example.com")
+        contact = Contact(
+            id=contact_id, user_id=uuid7(), contact_email="boss@example.com"
+        )
 
         mock_session = AsyncMock()
         mock_result = MagicMock()
@@ -197,7 +212,9 @@ class TestDeleteContact:
         from src.repositories.contact_repository import delete_contact
 
         contact_id = uuid7()
-        contact = Contact(id=contact_id, user_id=uuid7(), contact_email="boss@example.com")
+        contact = Contact(
+            id=contact_id, user_id=uuid7(), contact_email="boss@example.com"
+        )
 
         mock_session = AsyncMock()
         mock_result = MagicMock()

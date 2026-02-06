@@ -19,7 +19,11 @@ from src.repositories.contact_repository import (
     update_contact_learning_status,
 )
 from src.services.gemini_service import GeminiService
-from src.services.gmail_service import GmailApiClient, GmailApiError, parse_gmail_message
+from src.services.gmail_service import (
+    GmailApiClient,
+    GmailApiError,
+    parse_gmail_message,
+)
 from src.utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -92,7 +96,8 @@ class LearningService:
                 try:
                     email_history = await self._fetch_email_history(
                         access_token=access_token,
-                        gmail_query=contact.gmail_query or f"from:{contact.contact_email}",
+                        gmail_query=contact.gmail_query
+                        or f"from:{contact.contact_email}",
                     )
                 except GmailApiError as e:
                     logger.error(f"Gmail API error for contact {contact_id}: {e}")
@@ -141,7 +146,9 @@ class LearningService:
                         )
 
                 if learned_patterns is None:
-                    logger.error(f"Gemini analysis failed after {MAX_RETRIES} retries for contact {contact_id}")
+                    logger.error(
+                        f"Gemini analysis failed after {MAX_RETRIES} retries for contact {contact_id}"
+                    )
                     await update_contact_learning_status(
                         session=session,
                         contact_id=contact_id,
@@ -169,7 +176,9 @@ class LearningService:
                 logger.info(f"Learning completed for contact {contact_id}")
 
             except Exception as e:
-                logger.exception(f"Unexpected error in learning process for contact {contact_id}: {e}")
+                logger.exception(
+                    f"Unexpected error in learning process for contact {contact_id}: {e}"
+                )
                 try:
                     await update_contact_learning_status(
                         session=session,
@@ -216,11 +225,13 @@ class LearningService:
             try:
                 message = await gmail_client.fetch_message(msg_meta["id"])
                 parsed = parse_gmail_message(message)
-                email_history.append({
-                    "sender": parsed["sender_email"],
-                    "body": parsed["original_body"],
-                    "user_reply": None,  # TODO: Fetch user's reply if available
-                })
+                email_history.append(
+                    {
+                        "sender": parsed["sender_email"],
+                        "body": parsed["original_body"],
+                        "user_reply": None,  # TODO: Fetch user's reply if available
+                    }
+                )
             except GmailApiError as e:
                 logger.warning(f"Failed to fetch message {msg_meta['id']}: {e}")
                 continue

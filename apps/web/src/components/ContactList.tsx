@@ -138,19 +138,20 @@ export function ContactList() {
     setDeleteTarget(null);
   }, []);
 
-  const handleRetry = useCallback(async (contactId: string) => {
-    if (!idToken) return;
+  const handleRetry = useCallback(
+    async (contactId: string) => {
+      if (!idToken) return;
 
-    try {
-      const updated = await retryLearning(idToken, contactId);
-      setContacts((prev) =>
-        prev.map((c) => (c.id === contactId ? updated : c))
-      );
-      setError(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : '再試行に失敗しました');
-    }
-  }, [idToken]);
+      try {
+        const updated = await retryLearning(idToken, contactId);
+        setContacts((prev) => prev.map((c) => (c.id === contactId ? updated : c)));
+        setError(null);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : '再試行に失敗しました');
+      }
+    },
+    [idToken]
+  );
 
   if (isLoading) {
     return (

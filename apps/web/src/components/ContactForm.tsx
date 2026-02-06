@@ -122,7 +122,9 @@ export function ContactForm({ onSuccess }: ContactFormProps) {
         <label htmlFor="gmailQuery">
           Gmail検索クエリ
           <span className="tooltip-wrapper">
-            <span className="tooltip-icon" aria-hidden="true">?</span>
+            <span className="tooltip-icon" aria-hidden="true">
+              ?
+            </span>
             <span className="tooltip-text" role="tooltip">
               学習対象とするメールを絞り込むためのGmail検索クエリ（省略可）
             </span>

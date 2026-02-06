@@ -83,7 +83,7 @@ variable "cloud_run_service_name" {
 variable "cloud_run_image" {
   description = "Docker image for API Cloud Run (initial placeholder, updated via docker push)"
   type        = string
-  default     = "us-docker.pkg.dev/cloudrun/container/hello"  # Public hello image as placeholder
+  default     = "us-docker.pkg.dev/cloudrun/container/hello" # Public hello image as placeholder
 }
 
 variable "cloud_run_web_service_name" {
@@ -95,7 +95,7 @@ variable "cloud_run_web_service_name" {
 variable "cloud_run_web_image" {
   description = "Docker image for Web Cloud Run (initial placeholder, updated via docker push)"
   type        = string
-  default     = "us-docker.pkg.dev/cloudrun/container/hello"  # Public hello image as placeholder
+  default     = "us-docker.pkg.dev/cloudrun/container/hello" # Public hello image as placeholder
 }
 
 # ============================================

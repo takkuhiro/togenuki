@@ -370,9 +370,7 @@ describe('ContactList', () => {
         contacts: mockContacts,
         total: 3,
       });
-      vi.mocked(contactApi.retryLearning).mockRejectedValue(
-        new Error('再試行に失敗しました')
-      );
+      vi.mocked(contactApi.retryLearning).mockRejectedValue(new Error('再試行に失敗しました'));
 
       const user = userEvent.setup();
       render(<ContactList />);

@@ -67,14 +67,20 @@ def contact_to_response(contact) -> ContactResponse:
         gmailQuery=contact.gmail_query,
         isLearningComplete=contact.is_learning_complete,
         learningFailedAt=(
-            contact.learning_failed_at.isoformat() if contact.learning_failed_at else None
+            contact.learning_failed_at.isoformat()
+            if contact.learning_failed_at
+            else None
         ),
         createdAt=contact.created_at.isoformat(),
-        status=get_contact_status(contact.is_learning_complete, contact.learning_failed_at),
+        status=get_contact_status(
+            contact.is_learning_complete, contact.learning_failed_at
+        ),
     )
 
 
-@router.post("/contacts", response_model=ContactResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/contacts", response_model=ContactResponse, status_code=status.HTTP_201_CREATED
+)
 async def create_contact_endpoint(
     request: ContactCreateRequest,
     background_tasks: BackgroundTasks,
@@ -164,7 +170,9 @@ async def get_contacts_endpoint(
 
     contact_responses = [contact_to_response(contact) for contact in contacts]
 
-    return ContactsListResponse(contacts=contact_responses, total=len(contact_responses))
+    return ContactsListResponse(
+        contacts=contact_responses, total=len(contact_responses)
+    )
 
 
 @router.delete("/contacts/{contact_id}", status_code=status.HTTP_204_NO_CONTENT)

@@ -210,7 +210,9 @@ class EmailProcessorService:
             email_data: Parsed email data dict
         """
 
-        sender_name = email_data.get("sender_name") or email_data.get("sender_email", "")
+        sender_name = email_data.get("sender_name") or email_data.get(
+            "sender_email", ""
+        )
         original_body = email_data.get("original_body") or ""
 
         # Skip AI processing if no body

@@ -9,23 +9,24 @@ Tests for the learning service that orchestrates:
 
 from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
-from uuid import UUID
 
 import pytest
 from result import Err, Ok
 from uuid6 import uuid7
 
-from src.models import Contact, ContactContext, User
+from src.models import Contact, User
 from src.services.gemini_service import GeminiError
 
 
 def _make_oauth_mock(access_token: str = "access-token-xxx") -> MagicMock:
     """Create a mock GmailOAuthService that returns a valid token."""
     mock_oauth = MagicMock()
-    mock_oauth.ensure_valid_access_token = AsyncMock(return_value={
-        "access_token": access_token,
-        "expires_at": datetime.now(timezone.utc),
-    })
+    mock_oauth.ensure_valid_access_token = AsyncMock(
+        return_value={
+            "access_token": access_token,
+            "expires_at": datetime.now(timezone.utc),
+        }
+    )
     return mock_oauth
 
 
@@ -68,13 +69,17 @@ class TestProcessLearning:
         # Mock repository calls
         with (
             patch("src.services.learning_service.get_user_by_id") as mock_get_user,
-            patch("src.services.learning_service.get_contact_by_id") as mock_get_contact,
+            patch(
+                "src.services.learning_service.get_contact_by_id"
+            ) as mock_get_contact,
             patch("src.services.learning_service.GmailApiClient") as mock_gmail_class,
             patch("src.services.learning_service.GeminiService") as mock_gemini_class,
             patch("src.services.learning_service.create_contact_context"),
             patch("src.services.learning_service.update_contact_learning_status"),
             patch("src.services.learning_service.get_db") as mock_get_db,
-            patch("src.services.learning_service.GmailOAuthService") as mock_oauth_class,
+            patch(
+                "src.services.learning_service.GmailOAuthService"
+            ) as mock_oauth_class,
         ):
             mock_get_user.return_value = mock_user
             mock_get_contact.return_value = mock_contact
@@ -84,24 +89,30 @@ class TestProcessLearning:
 
             # Mock Gmail API
             mock_gmail = MagicMock()
-            mock_gmail.search_messages = AsyncMock(return_value=[
-                {"id": "msg-1", "threadId": "thread-1"},
-                {"id": "msg-2", "threadId": "thread-2"},
-            ])
-            mock_gmail.fetch_message = AsyncMock(return_value={
-                "id": "msg-1",
-                "payload": {
-                    "headers": [{"name": "From", "value": "boss@example.com"}],
-                    "mimeType": "text/plain",
-                    "body": {"data": "dGVzdA=="},  # base64 "test"
-                },
-                "internalDate": "1704067200000",
-            })
+            mock_gmail.search_messages = AsyncMock(
+                return_value=[
+                    {"id": "msg-1", "threadId": "thread-1"},
+                    {"id": "msg-2", "threadId": "thread-2"},
+                ]
+            )
+            mock_gmail.fetch_message = AsyncMock(
+                return_value={
+                    "id": "msg-1",
+                    "payload": {
+                        "headers": [{"name": "From", "value": "boss@example.com"}],
+                        "mimeType": "text/plain",
+                        "body": {"data": "dGVzdA=="},  # base64 "test"
+                    },
+                    "internalDate": "1704067200000",
+                }
+            )
             mock_gmail_class.return_value = mock_gmail
 
             # Mock Gemini API
             mock_gemini = MagicMock()
-            mock_gemini.analyze_patterns = AsyncMock(return_value=Ok('{"contactCharacteristics": {}}'))
+            mock_gemini.analyze_patterns = AsyncMock(
+                return_value=Ok('{"contactCharacteristics": {}}')
+            )
             mock_gemini_class.return_value = mock_gemini
 
             service = LearningService()
@@ -120,13 +131,17 @@ class TestProcessLearning:
 
         with (
             patch("src.services.learning_service.get_user_by_id") as mock_get_user,
-            patch("src.services.learning_service.get_contact_by_id") as mock_get_contact,
+            patch(
+                "src.services.learning_service.get_contact_by_id"
+            ) as mock_get_contact,
             patch("src.services.learning_service.GmailApiClient") as mock_gmail_class,
             patch("src.services.learning_service.GeminiService") as mock_gemini_class,
             patch("src.services.learning_service.create_contact_context"),
             patch("src.services.learning_service.update_contact_learning_status"),
             patch("src.services.learning_service.get_db") as mock_get_db,
-            patch("src.services.learning_service.GmailOAuthService") as mock_oauth_class,
+            patch(
+                "src.services.learning_service.GmailOAuthService"
+            ) as mock_oauth_class,
         ):
             mock_get_user.return_value = mock_user
             mock_get_contact.return_value = mock_contact
@@ -136,19 +151,23 @@ class TestProcessLearning:
 
             mock_gmail = MagicMock()
             mock_gmail.search_messages = AsyncMock(return_value=[{"id": "msg-1"}])
-            mock_gmail.fetch_message = AsyncMock(return_value={
-                "id": "msg-1",
-                "payload": {
-                    "headers": [{"name": "From", "value": "boss@example.com"}],
-                    "mimeType": "text/plain",
-                    "body": {"data": "dGVzdA=="},
-                },
-                "internalDate": "1704067200000",
-            })
+            mock_gmail.fetch_message = AsyncMock(
+                return_value={
+                    "id": "msg-1",
+                    "payload": {
+                        "headers": [{"name": "From", "value": "boss@example.com"}],
+                        "mimeType": "text/plain",
+                        "body": {"data": "dGVzdA=="},
+                    },
+                    "internalDate": "1704067200000",
+                }
+            )
             mock_gmail_class.return_value = mock_gmail
 
             mock_gemini = MagicMock()
-            mock_gemini.analyze_patterns = AsyncMock(return_value=Ok('{"contactCharacteristics": {}}'))
+            mock_gemini.analyze_patterns = AsyncMock(
+                return_value=Ok('{"contactCharacteristics": {}}')
+            )
             mock_gemini_class.return_value = mock_gemini
 
             service = LearningService()
@@ -168,13 +187,19 @@ class TestProcessLearning:
 
         with (
             patch("src.services.learning_service.get_user_by_id") as mock_get_user,
-            patch("src.services.learning_service.get_contact_by_id") as mock_get_contact,
+            patch(
+                "src.services.learning_service.get_contact_by_id"
+            ) as mock_get_contact,
             patch("src.services.learning_service.GmailApiClient") as mock_gmail_class,
             patch("src.services.learning_service.GeminiService") as mock_gemini_class,
-            patch("src.services.learning_service.create_contact_context") as mock_create_context,
+            patch(
+                "src.services.learning_service.create_contact_context"
+            ) as mock_create_context,
             patch("src.services.learning_service.update_contact_learning_status"),
             patch("src.services.learning_service.get_db") as mock_get_db,
-            patch("src.services.learning_service.GmailOAuthService") as mock_oauth_class,
+            patch(
+                "src.services.learning_service.GmailOAuthService"
+            ) as mock_oauth_class,
         ):
             mock_get_user.return_value = mock_user
             mock_get_contact.return_value = mock_contact
@@ -184,15 +209,17 @@ class TestProcessLearning:
 
             mock_gmail = MagicMock()
             mock_gmail.search_messages = AsyncMock(return_value=[{"id": "msg-1"}])
-            mock_gmail.fetch_message = AsyncMock(return_value={
-                "id": "msg-1",
-                "payload": {
-                    "headers": [{"name": "From", "value": "boss@example.com"}],
-                    "mimeType": "text/plain",
-                    "body": {"data": "dGVzdA=="},
-                },
-                "internalDate": "1704067200000",
-            })
+            mock_gmail.fetch_message = AsyncMock(
+                return_value={
+                    "id": "msg-1",
+                    "payload": {
+                        "headers": [{"name": "From", "value": "boss@example.com"}],
+                        "mimeType": "text/plain",
+                        "body": {"data": "dGVzdA=="},
+                    },
+                    "internalDate": "1704067200000",
+                }
+            )
             mock_gmail_class.return_value = mock_gmail
 
             mock_gemini = MagicMock()
@@ -218,13 +245,19 @@ class TestProcessLearning:
 
         with (
             patch("src.services.learning_service.get_user_by_id") as mock_get_user,
-            patch("src.services.learning_service.get_contact_by_id") as mock_get_contact,
+            patch(
+                "src.services.learning_service.get_contact_by_id"
+            ) as mock_get_contact,
             patch("src.services.learning_service.GmailApiClient") as mock_gmail_class,
             patch("src.services.learning_service.GeminiService") as mock_gemini_class,
             patch("src.services.learning_service.create_contact_context"),
-            patch("src.services.learning_service.update_contact_learning_status") as mock_update_status,
+            patch(
+                "src.services.learning_service.update_contact_learning_status"
+            ) as mock_update_status,
             patch("src.services.learning_service.get_db") as mock_get_db,
-            patch("src.services.learning_service.GmailOAuthService") as mock_oauth_class,
+            patch(
+                "src.services.learning_service.GmailOAuthService"
+            ) as mock_oauth_class,
         ):
             mock_get_user.return_value = mock_user
             mock_get_contact.return_value = mock_contact
@@ -234,19 +267,21 @@ class TestProcessLearning:
 
             mock_gmail = MagicMock()
             mock_gmail.search_messages = AsyncMock(return_value=[{"id": "msg-1"}])
-            mock_gmail.fetch_message = AsyncMock(return_value={
-                "id": "msg-1",
-                "payload": {
-                    "headers": [{"name": "From", "value": "boss@example.com"}],
-                    "mimeType": "text/plain",
-                    "body": {"data": "dGVzdA=="},
-                },
-                "internalDate": "1704067200000",
-            })
+            mock_gmail.fetch_message = AsyncMock(
+                return_value={
+                    "id": "msg-1",
+                    "payload": {
+                        "headers": [{"name": "From", "value": "boss@example.com"}],
+                        "mimeType": "text/plain",
+                        "body": {"data": "dGVzdA=="},
+                    },
+                    "internalDate": "1704067200000",
+                }
+            )
             mock_gmail_class.return_value = mock_gmail
 
             mock_gemini = MagicMock()
-            mock_gemini.analyze_patterns = AsyncMock(return_value=Ok('{}'))
+            mock_gemini.analyze_patterns = AsyncMock(return_value=Ok("{}"))
             mock_gemini_class.return_value = mock_gemini
 
             service = LearningService()
@@ -268,11 +303,17 @@ class TestProcessLearning:
 
         with (
             patch("src.services.learning_service.get_user_by_id") as mock_get_user,
-            patch("src.services.learning_service.get_contact_by_id") as mock_get_contact,
+            patch(
+                "src.services.learning_service.get_contact_by_id"
+            ) as mock_get_contact,
             patch("src.services.learning_service.GmailApiClient") as mock_gmail_class,
-            patch("src.services.learning_service.update_contact_learning_status") as mock_update_status,
+            patch(
+                "src.services.learning_service.update_contact_learning_status"
+            ) as mock_update_status,
             patch("src.services.learning_service.get_db") as mock_get_db,
-            patch("src.services.learning_service.GmailOAuthService") as mock_oauth_class,
+            patch(
+                "src.services.learning_service.GmailOAuthService"
+            ) as mock_oauth_class,
         ):
             mock_get_user.return_value = mock_user
             mock_get_contact.return_value = mock_contact
@@ -281,7 +322,9 @@ class TestProcessLearning:
             mock_oauth_class.return_value = _make_oauth_mock()
 
             mock_gmail = MagicMock()
-            mock_gmail.search_messages = AsyncMock(side_effect=GmailApiError("API Error", 500))
+            mock_gmail.search_messages = AsyncMock(
+                side_effect=GmailApiError("API Error", 500)
+            )
             mock_gmail_class.return_value = mock_gmail
 
             service = LearningService()
@@ -303,13 +346,19 @@ class TestProcessLearning:
 
         with (
             patch("src.services.learning_service.get_user_by_id") as mock_get_user,
-            patch("src.services.learning_service.get_contact_by_id") as mock_get_contact,
+            patch(
+                "src.services.learning_service.get_contact_by_id"
+            ) as mock_get_contact,
             patch("src.services.learning_service.GmailApiClient") as mock_gmail_class,
             patch("src.services.learning_service.GeminiService") as mock_gemini_class,
             patch("src.services.learning_service.create_contact_context"),
-            patch("src.services.learning_service.update_contact_learning_status") as mock_update_status,
+            patch(
+                "src.services.learning_service.update_contact_learning_status"
+            ) as mock_update_status,
             patch("src.services.learning_service.get_db") as mock_get_db,
-            patch("src.services.learning_service.GmailOAuthService") as mock_oauth_class,
+            patch(
+                "src.services.learning_service.GmailOAuthService"
+            ) as mock_oauth_class,
         ):
             mock_get_user.return_value = mock_user
             mock_get_contact.return_value = mock_contact
@@ -319,24 +368,28 @@ class TestProcessLearning:
 
             mock_gmail = MagicMock()
             mock_gmail.search_messages = AsyncMock(return_value=[{"id": "msg-1"}])
-            mock_gmail.fetch_message = AsyncMock(return_value={
-                "id": "msg-1",
-                "payload": {
-                    "headers": [{"name": "From", "value": "boss@example.com"}],
-                    "mimeType": "text/plain",
-                    "body": {"data": "dGVzdA=="},
-                },
-                "internalDate": "1704067200000",
-            })
+            mock_gmail.fetch_message = AsyncMock(
+                return_value={
+                    "id": "msg-1",
+                    "payload": {
+                        "headers": [{"name": "From", "value": "boss@example.com"}],
+                        "mimeType": "text/plain",
+                        "body": {"data": "dGVzdA=="},
+                    },
+                    "internalDate": "1704067200000",
+                }
+            )
             mock_gmail_class.return_value = mock_gmail
 
             mock_gemini = MagicMock()
             # Fail twice, succeed on third try
-            mock_gemini.analyze_patterns = AsyncMock(side_effect=[
-                Err(GeminiError.API_ERROR),
-                Err(GeminiError.API_ERROR),
-                Ok('{"contactCharacteristics": {}}'),
-            ])
+            mock_gemini.analyze_patterns = AsyncMock(
+                side_effect=[
+                    Err(GeminiError.API_ERROR),
+                    Err(GeminiError.API_ERROR),
+                    Ok('{"contactCharacteristics": {}}'),
+                ]
+            )
             mock_gemini_class.return_value = mock_gemini
 
             service = LearningService()
@@ -359,12 +412,18 @@ class TestProcessLearning:
 
         with (
             patch("src.services.learning_service.get_user_by_id") as mock_get_user,
-            patch("src.services.learning_service.get_contact_by_id") as mock_get_contact,
+            patch(
+                "src.services.learning_service.get_contact_by_id"
+            ) as mock_get_contact,
             patch("src.services.learning_service.GmailApiClient") as mock_gmail_class,
             patch("src.services.learning_service.GeminiService") as mock_gemini_class,
-            patch("src.services.learning_service.update_contact_learning_status") as mock_update_status,
+            patch(
+                "src.services.learning_service.update_contact_learning_status"
+            ) as mock_update_status,
             patch("src.services.learning_service.get_db") as mock_get_db,
-            patch("src.services.learning_service.GmailOAuthService") as mock_oauth_class,
+            patch(
+                "src.services.learning_service.GmailOAuthService"
+            ) as mock_oauth_class,
         ):
             mock_get_user.return_value = mock_user
             mock_get_contact.return_value = mock_contact
@@ -374,20 +433,24 @@ class TestProcessLearning:
 
             mock_gmail = MagicMock()
             mock_gmail.search_messages = AsyncMock(return_value=[{"id": "msg-1"}])
-            mock_gmail.fetch_message = AsyncMock(return_value={
-                "id": "msg-1",
-                "payload": {
-                    "headers": [{"name": "From", "value": "boss@example.com"}],
-                    "mimeType": "text/plain",
-                    "body": {"data": "dGVzdA=="},
-                },
-                "internalDate": "1704067200000",
-            })
+            mock_gmail.fetch_message = AsyncMock(
+                return_value={
+                    "id": "msg-1",
+                    "payload": {
+                        "headers": [{"name": "From", "value": "boss@example.com"}],
+                        "mimeType": "text/plain",
+                        "body": {"data": "dGVzdA=="},
+                    },
+                    "internalDate": "1704067200000",
+                }
+            )
             mock_gmail_class.return_value = mock_gmail
 
             mock_gemini = MagicMock()
             # Always fail
-            mock_gemini.analyze_patterns = AsyncMock(return_value=Err(GeminiError.API_ERROR))
+            mock_gemini.analyze_patterns = AsyncMock(
+                return_value=Err(GeminiError.API_ERROR)
+            )
             mock_gemini_class.return_value = mock_gemini
 
             service = LearningService()
@@ -411,13 +474,17 @@ class TestProcessLearning:
 
         with (
             patch("src.services.learning_service.get_user_by_id") as mock_get_user,
-            patch("src.services.learning_service.get_contact_by_id") as mock_get_contact,
+            patch(
+                "src.services.learning_service.get_contact_by_id"
+            ) as mock_get_contact,
             patch("src.services.learning_service.GmailApiClient") as mock_gmail_class,
             patch("src.services.learning_service.GeminiService") as mock_gemini_class,
             patch("src.services.learning_service.create_contact_context"),
             patch("src.services.learning_service.update_contact_learning_status"),
             patch("src.services.learning_service.get_db") as mock_get_db,
-            patch("src.services.learning_service.GmailOAuthService") as mock_oauth_class,
+            patch(
+                "src.services.learning_service.GmailOAuthService"
+            ) as mock_oauth_class,
         ):
             mock_get_user.return_value = mock_user
             mock_get_contact.return_value = mock_contact
@@ -430,20 +497,24 @@ class TestProcessLearning:
             # Mock Gmail API
             mock_gmail = MagicMock()
             mock_gmail.search_messages = AsyncMock(return_value=[{"id": "msg-1"}])
-            mock_gmail.fetch_message = AsyncMock(return_value={
-                "id": "msg-1",
-                "payload": {
-                    "headers": [{"name": "From", "value": "boss@example.com"}],
-                    "mimeType": "text/plain",
-                    "body": {"data": "dGVzdA=="},
-                },
-                "internalDate": "1704067200000",
-            })
+            mock_gmail.fetch_message = AsyncMock(
+                return_value={
+                    "id": "msg-1",
+                    "payload": {
+                        "headers": [{"name": "From", "value": "boss@example.com"}],
+                        "mimeType": "text/plain",
+                        "body": {"data": "dGVzdA=="},
+                    },
+                    "internalDate": "1704067200000",
+                }
+            )
             mock_gmail_class.return_value = mock_gmail
 
             # Mock Gemini API
             mock_gemini = MagicMock()
-            mock_gemini.analyze_patterns = AsyncMock(return_value=Ok('{"contactCharacteristics": {}}'))
+            mock_gemini.analyze_patterns = AsyncMock(
+                return_value=Ok('{"contactCharacteristics": {}}')
+            )
             mock_gemini_class.return_value = mock_gemini
 
             service = LearningService()
@@ -469,11 +540,17 @@ class TestProcessLearning:
 
         with (
             patch("src.services.learning_service.get_user_by_id") as mock_get_user,
-            patch("src.services.learning_service.get_contact_by_id") as mock_get_contact,
+            patch(
+                "src.services.learning_service.get_contact_by_id"
+            ) as mock_get_contact,
             patch("src.services.learning_service.GmailApiClient") as mock_gmail_class,
-            patch("src.services.learning_service.update_contact_learning_status") as mock_update_status,
+            patch(
+                "src.services.learning_service.update_contact_learning_status"
+            ) as mock_update_status,
             patch("src.services.learning_service.get_db") as mock_get_db,
-            patch("src.services.learning_service.GmailOAuthService") as mock_oauth_class,
+            patch(
+                "src.services.learning_service.GmailOAuthService"
+            ) as mock_oauth_class,
         ):
             mock_get_user.return_value = mock_user
             mock_get_contact.return_value = mock_contact
@@ -510,7 +587,9 @@ class TestProcessLearning:
 
         with (
             patch("src.services.learning_service.get_user_by_id") as mock_get_user,
-            patch("src.services.learning_service.get_contact_by_id") as mock_get_contact,
+            patch(
+                "src.services.learning_service.get_contact_by_id"
+            ) as mock_get_contact,
             patch("src.services.learning_service.GmailApiClient") as mock_gmail_class,
             patch("src.services.learning_service.get_db") as mock_get_db,
         ):
@@ -528,9 +607,7 @@ class TestProcessLearning:
             mock_gmail.search_messages.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_process_learning_skips_when_contact_not_found(
-        self, mock_user: User
-    ):
+    async def test_process_learning_skips_when_contact_not_found(self, mock_user: User):
         """process_learning should skip when contact is not found."""
         from src.services.learning_service import LearningService
 
@@ -538,7 +615,9 @@ class TestProcessLearning:
 
         with (
             patch("src.services.learning_service.get_user_by_id") as mock_get_user,
-            patch("src.services.learning_service.get_contact_by_id") as mock_get_contact,
+            patch(
+                "src.services.learning_service.get_contact_by_id"
+            ) as mock_get_contact,
             patch("src.services.learning_service.GmailApiClient") as mock_gmail_class,
             patch("src.services.learning_service.get_db") as mock_get_db,
         ):

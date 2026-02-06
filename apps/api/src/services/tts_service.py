@@ -83,7 +83,9 @@ class TTSService:
             # 2. Upload to GCS
             url = await self._upload_to_gcs(audio_content, email_id)
 
-            logger.info(f"Successfully synthesized and uploaded audio for email {email_id}")
+            logger.info(
+                f"Successfully synthesized and uploaded audio for email {email_id}"
+            )
             return Ok(url)
 
         except asyncio.TimeoutError:

@@ -357,7 +357,9 @@ class TestDatabaseIntegration:
         session.add(contact)
         session.commit()
 
-        learned_patterns = '{"contactCharacteristics": {"tone": "formal"}, "userReplyPatterns": {}}'
+        learned_patterns = (
+            '{"contactCharacteristics": {"tone": "formal"}, "userReplyPatterns": {}}'
+        )
         context = ContactContext(
             contact_id=contact.id,
             learned_patterns=learned_patterns,

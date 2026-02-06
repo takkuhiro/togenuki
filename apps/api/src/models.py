@@ -74,7 +74,10 @@ class Contact(Base):
     user: Mapped["User"] = relationship("User", back_populates="contacts")
     emails: Mapped[list["Email"]] = relationship("Email", back_populates="contact")
     context: Mapped[Optional["ContactContext"]] = relationship(
-        "ContactContext", back_populates="contact", uselist=False, cascade="all, delete-orphan"
+        "ContactContext",
+        back_populates="contact",
+        uselist=False,
+        cascade="all, delete-orphan",
     )
 
     __table_args__ = (

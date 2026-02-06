@@ -94,15 +94,18 @@ class TestContactsEndpoint:
         app.include_router(router, prefix="/api")
         app.dependency_overrides[get_db] = lambda: mock_session
 
-        with patch("src.auth.middleware.auth") as mock_auth, patch(
-            "src.routers.contacts.get_user_by_firebase_uid",
-            new=AsyncMock(return_value=mock_user_model),
-        ), patch(
-            "src.routers.contacts.create_contact",
-            new=AsyncMock(return_value=mock_contact_model),
-        ), patch(
-            "src.routers.contacts.LearningService"
-        ) as mock_learning_service:
+        with (
+            patch("src.auth.middleware.auth") as mock_auth,
+            patch(
+                "src.routers.contacts.get_user_by_firebase_uid",
+                new=AsyncMock(return_value=mock_user_model),
+            ),
+            patch(
+                "src.routers.contacts.create_contact",
+                new=AsyncMock(return_value=mock_contact_model),
+            ),
+            patch("src.routers.contacts.LearningService"),
+        ):
             mock_auth.verify_id_token.return_value = {
                 "uid": mock_user.uid,
                 "email": mock_user.email,
@@ -145,14 +148,17 @@ class TestContactsEndpoint:
 
         mock_bg_tasks = MagicMock()
 
-        with patch("src.auth.middleware.auth") as mock_auth, patch(
-            "src.routers.contacts.get_user_by_firebase_uid",
-            new=AsyncMock(return_value=mock_user_model),
-        ), patch(
-            "src.routers.contacts.create_contact",
-            new=AsyncMock(return_value=mock_contact_model),
-        ), patch(
-            "src.routers.contacts.BackgroundTasks", return_value=mock_bg_tasks
+        with (
+            patch("src.auth.middleware.auth") as mock_auth,
+            patch(
+                "src.routers.contacts.get_user_by_firebase_uid",
+                new=AsyncMock(return_value=mock_user_model),
+            ),
+            patch(
+                "src.routers.contacts.create_contact",
+                new=AsyncMock(return_value=mock_contact_model),
+            ),
+            patch("src.routers.contacts.BackgroundTasks", return_value=mock_bg_tasks),
         ):
             mock_auth.verify_id_token.return_value = {
                 "uid": mock_user.uid,
@@ -183,13 +189,17 @@ class TestContactsEndpoint:
         app.include_router(router, prefix="/api")
         app.dependency_overrides[get_db] = lambda: mock_session
 
-        with patch("src.auth.middleware.auth") as mock_auth, patch(
-            "src.routers.contacts.get_user_by_firebase_uid",
-            new=AsyncMock(return_value=mock_user_model),
-        ), patch(
-            "src.routers.contacts.create_contact",
-            new=AsyncMock(
-                side_effect=DuplicateContactError("Contact already exists")
+        with (
+            patch("src.auth.middleware.auth") as mock_auth,
+            patch(
+                "src.routers.contacts.get_user_by_firebase_uid",
+                new=AsyncMock(return_value=mock_user_model),
+            ),
+            patch(
+                "src.routers.contacts.create_contact",
+                new=AsyncMock(
+                    side_effect=DuplicateContactError("Contact already exists")
+                ),
             ),
         ):
             mock_auth.verify_id_token.return_value = {
@@ -276,12 +286,16 @@ class TestContactsEndpoint:
         app.include_router(router, prefix="/api")
         app.dependency_overrides[get_db] = lambda: mock_session
 
-        with patch("src.auth.middleware.auth") as mock_auth, patch(
-            "src.routers.contacts.get_user_by_firebase_uid",
-            new=AsyncMock(return_value=mock_user_model),
-        ), patch(
-            "src.routers.contacts.get_contacts_by_user_id",
-            new=AsyncMock(return_value=[mock_contact_model]),
+        with (
+            patch("src.auth.middleware.auth") as mock_auth,
+            patch(
+                "src.routers.contacts.get_user_by_firebase_uid",
+                new=AsyncMock(return_value=mock_user_model),
+            ),
+            patch(
+                "src.routers.contacts.get_contacts_by_user_id",
+                new=AsyncMock(return_value=[mock_contact_model]),
+            ),
         ):
             mock_auth.verify_id_token.return_value = {
                 "uid": mock_user.uid,
@@ -318,12 +332,16 @@ class TestContactsEndpoint:
         app.include_router(router, prefix="/api")
         app.dependency_overrides[get_db] = lambda: mock_session
 
-        with patch("src.auth.middleware.auth") as mock_auth, patch(
-            "src.routers.contacts.get_user_by_firebase_uid",
-            new=AsyncMock(return_value=mock_user_model),
-        ), patch(
-            "src.routers.contacts.get_contacts_by_user_id",
-            new=AsyncMock(return_value=[]),
+        with (
+            patch("src.auth.middleware.auth") as mock_auth,
+            patch(
+                "src.routers.contacts.get_user_by_firebase_uid",
+                new=AsyncMock(return_value=mock_user_model),
+            ),
+            patch(
+                "src.routers.contacts.get_contacts_by_user_id",
+                new=AsyncMock(return_value=[]),
+            ),
         ):
             mock_auth.verify_id_token.return_value = {
                 "uid": mock_user.uid,
@@ -368,7 +386,9 @@ class TestContactsEndpoint:
         learning_contact.gmail_query = None
         learning_contact.is_learning_complete = False
         learning_contact.learning_failed_at = None
-        learning_contact.created_at = datetime(2024, 1, 15, 10, 30, 0, tzinfo=timezone.utc)
+        learning_contact.created_at = datetime(
+            2024, 1, 15, 10, 30, 0, tzinfo=timezone.utc
+        )
 
         complete_contact = MagicMock()
         complete_contact.id = UUID("019494a5-eb1c-7000-8000-000000000003")
@@ -378,7 +398,9 @@ class TestContactsEndpoint:
         complete_contact.gmail_query = None
         complete_contact.is_learning_complete = True
         complete_contact.learning_failed_at = None
-        complete_contact.created_at = datetime(2024, 1, 14, 9, 0, 0, tzinfo=timezone.utc)
+        complete_contact.created_at = datetime(
+            2024, 1, 14, 9, 0, 0, tzinfo=timezone.utc
+        )
 
         failed_contact = MagicMock()
         failed_contact.id = UUID("019494a5-eb1c-7000-8000-000000000004")
@@ -387,15 +409,23 @@ class TestContactsEndpoint:
         failed_contact.contact_name = None
         failed_contact.gmail_query = None
         failed_contact.is_learning_complete = False
-        failed_contact.learning_failed_at = datetime(2024, 1, 15, 11, 0, 0, tzinfo=timezone.utc)
+        failed_contact.learning_failed_at = datetime(
+            2024, 1, 15, 11, 0, 0, tzinfo=timezone.utc
+        )
         failed_contact.created_at = datetime(2024, 1, 15, 10, 0, 0, tzinfo=timezone.utc)
 
-        with patch("src.auth.middleware.auth") as mock_auth, patch(
-            "src.routers.contacts.get_user_by_firebase_uid",
-            new=AsyncMock(return_value=mock_user_model),
-        ), patch(
-            "src.routers.contacts.get_contacts_by_user_id",
-            new=AsyncMock(return_value=[learning_contact, complete_contact, failed_contact]),
+        with (
+            patch("src.auth.middleware.auth") as mock_auth,
+            patch(
+                "src.routers.contacts.get_user_by_firebase_uid",
+                new=AsyncMock(return_value=mock_user_model),
+            ),
+            patch(
+                "src.routers.contacts.get_contacts_by_user_id",
+                new=AsyncMock(
+                    return_value=[learning_contact, complete_contact, failed_contact]
+                ),
+            ),
         ):
             mock_auth.verify_id_token.return_value = {
                 "uid": mock_user.uid,
@@ -414,17 +444,23 @@ class TestContactsEndpoint:
         data = response.json()
 
         # Check learning_started status
-        learning = next(c for c in data["contacts"] if c["contactEmail"] == "learning@example.com")
+        learning = next(
+            c for c in data["contacts"] if c["contactEmail"] == "learning@example.com"
+        )
         assert learning["status"] == "learning_started"
         assert learning["isLearningComplete"] is False
 
         # Check learning_complete status
-        complete = next(c for c in data["contacts"] if c["contactEmail"] == "complete@example.com")
+        complete = next(
+            c for c in data["contacts"] if c["contactEmail"] == "complete@example.com"
+        )
         assert complete["status"] == "learning_complete"
         assert complete["isLearningComplete"] is True
 
         # Check learning_failed status
-        failed = next(c for c in data["contacts"] if c["contactEmail"] == "failed@example.com")
+        failed = next(
+            c for c in data["contacts"] if c["contactEmail"] == "failed@example.com"
+        )
         assert failed["status"] == "learning_failed"
         assert failed["isLearningComplete"] is False
         assert failed["learningFailedAt"] is not None
@@ -468,15 +504,20 @@ class TestContactsEndpoint:
         app.include_router(router, prefix="/api")
         app.dependency_overrides[get_db] = lambda: mock_session
 
-        with patch("src.auth.middleware.auth") as mock_auth, patch(
-            "src.routers.contacts.get_user_by_firebase_uid",
-            new=AsyncMock(return_value=mock_user_model),
-        ), patch(
-            "src.routers.contacts.get_contact_by_id",
-            new=AsyncMock(return_value=mock_contact_model),
-        ), patch(
-            "src.routers.contacts.delete_contact",
-            new=AsyncMock(return_value=True),
+        with (
+            patch("src.auth.middleware.auth") as mock_auth,
+            patch(
+                "src.routers.contacts.get_user_by_firebase_uid",
+                new=AsyncMock(return_value=mock_user_model),
+            ),
+            patch(
+                "src.routers.contacts.get_contact_by_id",
+                new=AsyncMock(return_value=mock_contact_model),
+            ),
+            patch(
+                "src.routers.contacts.delete_contact",
+                new=AsyncMock(return_value=True),
+            ),
         ):
             mock_auth.verify_id_token.return_value = {
                 "uid": mock_user.uid,
@@ -507,12 +548,16 @@ class TestContactsEndpoint:
         app.include_router(router, prefix="/api")
         app.dependency_overrides[get_db] = lambda: mock_session
 
-        with patch("src.auth.middleware.auth") as mock_auth, patch(
-            "src.routers.contacts.get_user_by_firebase_uid",
-            new=AsyncMock(return_value=mock_user_model),
-        ), patch(
-            "src.routers.contacts.get_contact_by_id",
-            new=AsyncMock(return_value=None),
+        with (
+            patch("src.auth.middleware.auth") as mock_auth,
+            patch(
+                "src.routers.contacts.get_user_by_firebase_uid",
+                new=AsyncMock(return_value=mock_user_model),
+            ),
+            patch(
+                "src.routers.contacts.get_contact_by_id",
+                new=AsyncMock(return_value=None),
+            ),
         ):
             mock_auth.verify_id_token.return_value = {
                 "uid": mock_user.uid,
@@ -547,14 +592,20 @@ class TestContactsEndpoint:
         # Create a contact belonging to a different user
         other_user_contact = MagicMock()
         other_user_contact.id = UUID("019494a5-eb1c-7000-8000-000000000099")
-        other_user_contact.user_id = UUID("019494a5-eb1c-7000-8000-000000000999")  # Different user
+        other_user_contact.user_id = UUID(
+            "019494a5-eb1c-7000-8000-000000000999"
+        )  # Different user
 
-        with patch("src.auth.middleware.auth") as mock_auth, patch(
-            "src.routers.contacts.get_user_by_firebase_uid",
-            new=AsyncMock(return_value=mock_user_model),
-        ), patch(
-            "src.routers.contacts.get_contact_by_id",
-            new=AsyncMock(return_value=other_user_contact),
+        with (
+            patch("src.auth.middleware.auth") as mock_auth,
+            patch(
+                "src.routers.contacts.get_user_by_firebase_uid",
+                new=AsyncMock(return_value=mock_user_model),
+            ),
+            patch(
+                "src.routers.contacts.get_contact_by_id",
+                new=AsyncMock(return_value=other_user_contact),
+            ),
         ):
             mock_auth.verify_id_token.return_value = {
                 "uid": mock_user.uid,
@@ -620,8 +671,12 @@ class TestContactsEndpoint:
         failed_contact.contact_name = "上司太郎"
         failed_contact.gmail_query = "from:boss@example.com"
         failed_contact.is_learning_complete = False
-        failed_contact.learning_failed_at = datetime(2024, 1, 15, 11, 0, 0, tzinfo=timezone.utc)
-        failed_contact.created_at = datetime(2024, 1, 15, 10, 30, 0, tzinfo=timezone.utc)
+        failed_contact.learning_failed_at = datetime(
+            2024, 1, 15, 11, 0, 0, tzinfo=timezone.utc
+        )
+        failed_contact.created_at = datetime(
+            2024, 1, 15, 10, 30, 0, tzinfo=timezone.utc
+        )
 
         def simulate_refresh(obj):
             """Simulate DB refresh after status reset."""
@@ -630,20 +685,25 @@ class TestContactsEndpoint:
 
         mock_session.refresh = AsyncMock(side_effect=simulate_refresh)
 
-        with patch("src.auth.middleware.auth") as mock_auth, patch(
-            "src.routers.contacts.get_user_by_firebase_uid",
-            new=AsyncMock(return_value=mock_user_model),
-        ), patch(
-            "src.routers.contacts.get_contact_by_id",
-            new=AsyncMock(return_value=failed_contact),
-        ), patch(
-            "src.routers.contacts.update_contact_learning_status",
-            new=AsyncMock(),
-        ), patch(
-            "src.routers.contacts.delete_contact_context_by_contact_id",
-            new=AsyncMock(),
-        ), patch(
-            "src.routers.contacts.LearningService"
+        with (
+            patch("src.auth.middleware.auth") as mock_auth,
+            patch(
+                "src.routers.contacts.get_user_by_firebase_uid",
+                new=AsyncMock(return_value=mock_user_model),
+            ),
+            patch(
+                "src.routers.contacts.get_contact_by_id",
+                new=AsyncMock(return_value=failed_contact),
+            ),
+            patch(
+                "src.routers.contacts.update_contact_learning_status",
+                new=AsyncMock(),
+            ),
+            patch(
+                "src.routers.contacts.delete_contact_context_by_contact_id",
+                new=AsyncMock(),
+            ),
+            patch("src.routers.contacts.LearningService"),
         ):
             mock_auth.verify_id_token.return_value = {
                 "uid": mock_user.uid,
@@ -679,12 +739,16 @@ class TestContactsEndpoint:
         app.include_router(router, prefix="/api")
         app.dependency_overrides[get_db] = lambda: mock_session
 
-        with patch("src.auth.middleware.auth") as mock_auth, patch(
-            "src.routers.contacts.get_user_by_firebase_uid",
-            new=AsyncMock(return_value=mock_user_model),
-        ), patch(
-            "src.routers.contacts.get_contact_by_id",
-            new=AsyncMock(return_value=None),
+        with (
+            patch("src.auth.middleware.auth") as mock_auth,
+            patch(
+                "src.routers.contacts.get_user_by_firebase_uid",
+                new=AsyncMock(return_value=mock_user_model),
+            ),
+            patch(
+                "src.routers.contacts.get_contact_by_id",
+                new=AsyncMock(return_value=None),
+            ),
         ):
             mock_auth.verify_id_token.return_value = {
                 "uid": mock_user.uid,
@@ -720,12 +784,16 @@ class TestContactsEndpoint:
         other_user_contact.id = UUID("019494a5-eb1c-7000-8000-000000000099")
         other_user_contact.user_id = UUID("019494a5-eb1c-7000-8000-000000000999")
 
-        with patch("src.auth.middleware.auth") as mock_auth, patch(
-            "src.routers.contacts.get_user_by_firebase_uid",
-            new=AsyncMock(return_value=mock_user_model),
-        ), patch(
-            "src.routers.contacts.get_contact_by_id",
-            new=AsyncMock(return_value=other_user_contact),
+        with (
+            patch("src.auth.middleware.auth") as mock_auth,
+            patch(
+                "src.routers.contacts.get_user_by_firebase_uid",
+                new=AsyncMock(return_value=mock_user_model),
+            ),
+            patch(
+                "src.routers.contacts.get_contact_by_id",
+                new=AsyncMock(return_value=other_user_contact),
+            ),
         ):
             mock_auth.verify_id_token.return_value = {
                 "uid": mock_user.uid,
@@ -768,14 +836,20 @@ class TestContactsEndpoint:
         learning_contact.gmail_query = None
         learning_contact.is_learning_complete = False
         learning_contact.learning_failed_at = None
-        learning_contact.created_at = datetime(2024, 1, 15, 10, 30, 0, tzinfo=timezone.utc)
+        learning_contact.created_at = datetime(
+            2024, 1, 15, 10, 30, 0, tzinfo=timezone.utc
+        )
 
-        with patch("src.auth.middleware.auth") as mock_auth, patch(
-            "src.routers.contacts.get_user_by_firebase_uid",
-            new=AsyncMock(return_value=mock_user_model),
-        ), patch(
-            "src.routers.contacts.get_contact_by_id",
-            new=AsyncMock(return_value=learning_contact),
+        with (
+            patch("src.auth.middleware.auth") as mock_auth,
+            patch(
+                "src.routers.contacts.get_user_by_firebase_uid",
+                new=AsyncMock(return_value=mock_user_model),
+            ),
+            patch(
+                "src.routers.contacts.get_contact_by_id",
+                new=AsyncMock(return_value=learning_contact),
+            ),
         ):
             mock_auth.verify_id_token.return_value = {
                 "uid": mock_user.uid,

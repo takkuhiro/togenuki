@@ -133,9 +133,7 @@ class TestEmailProcessingPipeline:
                 "src.routers.webhook.process_gmail_notification",
                 new_callable=AsyncMock,
             ):
-                response = await client.post(
-                    "/api/webhook/gmail", json=pubsub_message
-                )
+                response = await client.post("/api/webhook/gmail", json=pubsub_message)
 
         assert response.status_code == 200
         assert response.json() == {"status": "accepted"}
@@ -332,7 +330,10 @@ class TestDashboardAndAudioPlayback:
 
         with (
             patch("src.auth.middleware.auth") as mock_auth,
-            patch("src.routers.emails.get_user_emails", new=AsyncMock(return_value=mock_emails)),
+            patch(
+                "src.routers.emails.get_user_emails",
+                new=AsyncMock(return_value=mock_emails),
+            ),
         ):
             mock_auth.verify_id_token.return_value = {
                 "uid": mock_user.uid,
@@ -402,7 +403,10 @@ class TestDashboardAndAudioPlayback:
 
         with (
             patch("src.auth.middleware.auth") as mock_auth,
-            patch("src.routers.emails.get_user_emails", new=AsyncMock(return_value=mock_emails)),
+            patch(
+                "src.routers.emails.get_user_emails",
+                new=AsyncMock(return_value=mock_emails),
+            ),
         ):
             mock_auth.verify_id_token.return_value = {
                 "uid": mock_user.uid,
@@ -564,7 +568,9 @@ class TestGyaruConversionIntegration:
         mock_email_exists.scalar_one_or_none.return_value = None
         mock_session.execute.side_effect = [mock_contact_result, mock_email_exists]
 
-        converted = "やっほー先輩💖 送信者さんからメール来てるし！明日の会議よろしくね〜✨"
+        converted = (
+            "やっほー先輩💖 送信者さんからメール来てるし！明日の会議よろしくね〜✨"
+        )
         audio_url = "https://storage.example.com/audio.mp3"
 
         with (
@@ -572,11 +578,15 @@ class TestGyaruConversionIntegration:
             patch("src.services.email_processor.TTSService") as mock_tts,
         ):
             mock_gemini_instance = MagicMock()
-            mock_gemini_instance.convert_to_gyaru = AsyncMock(return_value=Ok(converted))
+            mock_gemini_instance.convert_to_gyaru = AsyncMock(
+                return_value=Ok(converted)
+            )
             mock_gemini.return_value = mock_gemini_instance
 
             mock_tts_instance = MagicMock()
-            mock_tts_instance.synthesize_and_upload = AsyncMock(return_value=Ok(audio_url))
+            mock_tts_instance.synthesize_and_upload = AsyncMock(
+                return_value=Ok(audio_url)
+            )
             mock_tts.return_value = mock_tts_instance
 
             processor = EmailProcessorService(mock_session)
@@ -655,11 +665,15 @@ class TestTTSIntegration:
             patch("src.services.email_processor.TTSService") as mock_tts,
         ):
             mock_gemini_instance = MagicMock()
-            mock_gemini_instance.convert_to_gyaru = AsyncMock(return_value=Ok(converted))
+            mock_gemini_instance.convert_to_gyaru = AsyncMock(
+                return_value=Ok(converted)
+            )
             mock_gemini.return_value = mock_gemini_instance
 
             mock_tts_instance = MagicMock()
-            mock_tts_instance.synthesize_and_upload = AsyncMock(return_value=Ok(audio_url))
+            mock_tts_instance.synthesize_and_upload = AsyncMock(
+                return_value=Ok(audio_url)
+            )
             mock_tts.return_value = mock_tts_instance
 
             processor = EmailProcessorService(mock_session)

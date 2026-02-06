@@ -155,8 +155,8 @@ class GeminiService:
             for i, email in enumerate(email_history, 1):
                 emails_text += f"""
 ### メール {i}
-**送信者メール**: {email.get('body', '')}
-**ユーザーの返信**: {email.get('user_reply', '（返信なし）')}
+**送信者メール**: {email.get("body", "")}
+**ユーザーの返信**: {email.get("user_reply", "（返信なし）")}
 """
 
             user_prompt = f"""以下は「{contact_name}」との過去のメールやり取りです。

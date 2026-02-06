@@ -66,8 +66,16 @@ function RequireGmail({ children }: { children: React.ReactNode }) {
  * Redirects to /emails if already fully connected.
  */
 function LandingPage() {
-  const { user, isLoading, error, isGmailConnected, signInWithGoogle, signOut, connectGmail, checkGmailStatus } =
-    useAuth();
+  const {
+    user,
+    isLoading,
+    error,
+    isGmailConnected,
+    signInWithGoogle,
+    signOut,
+    connectGmail,
+    checkGmailStatus,
+  } = useAuth();
 
   if (isLoading) {
     return (

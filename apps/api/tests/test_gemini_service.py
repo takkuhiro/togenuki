@@ -40,7 +40,9 @@ class TestGeminiService:
 
         # Should include emoji guidelines
         emoji_count = sum(
-            1 for emoji in ["💖", "✨", "🥺", "🎉", "🔥"] if emoji in GYARU_SYSTEM_PROMPT
+            1
+            for emoji in ["💖", "✨", "🥺", "🎉", "🔥"]
+            if emoji in GYARU_SYSTEM_PROMPT
         )
         assert emoji_count >= 3, "System prompt should include at least 3 gyaru emojis"
 
@@ -63,12 +65,15 @@ class TestGyaruConversion:
 
             # Mock the generate_content response
             mock_response = MagicMock()
-            mock_response.text = "やっほー！先輩！💖 報告書の件だけど、明日までにお願いだし！✨"
+            mock_response.text = (
+                "やっほー！先輩！💖 報告書の件だけど、明日までにお願いだし！✨"
+            )
             mock_client.models.generate_content = MagicMock(return_value=mock_response)
 
             service = GeminiService()
             result = await service.convert_to_gyaru(
-                sender_name="上司さん", original_body="明日までに報告書を提出してください。"
+                sender_name="上司さん",
+                original_body="明日までに報告書を提出してください。",
             )
 
             assert result.is_ok()
@@ -114,7 +119,9 @@ class TestGyaruConversion:
         ):
             mock_settings.return_value.gemini_api_key = "test-api-key"
             service = GeminiService()
-            result = await service.convert_to_gyaru(sender_name="田中さん", original_body="")
+            result = await service.convert_to_gyaru(
+                sender_name="田中さん", original_body=""
+            )
 
             assert result.is_err()
             assert result.unwrap_err() == GeminiError.INVALID_INPUT
@@ -162,7 +169,9 @@ class TestGeminiErrorHandling:
 
             # Simulate rate limit error
             rate_limit_error = Exception("429 Resource has been exhausted")
-            mock_client.models.generate_content = MagicMock(side_effect=rate_limit_error)
+            mock_client.models.generate_content = MagicMock(
+                side_effect=rate_limit_error
+            )
 
             service = GeminiService()
             result = await service.convert_to_gyaru(
@@ -248,8 +257,16 @@ class TestAnalyzePatterns:
 
             service = GeminiService()
             email_history = [
-                {"sender": "boss@example.com", "body": "報告書を提出してください。", "user_reply": "承知いたしました。"},
-                {"sender": "boss@example.com", "body": "会議の件、確認お願いします。", "user_reply": "はい、確認いたします。"},
+                {
+                    "sender": "boss@example.com",
+                    "body": "報告書を提出してください。",
+                    "user_reply": "承知いたしました。",
+                },
+                {
+                    "sender": "boss@example.com",
+                    "body": "会議の件、確認お願いします。",
+                    "user_reply": "はい、確認いたします。",
+                },
             ]
             result = await service.analyze_patterns(
                 contact_name="上司さん",
@@ -276,12 +293,18 @@ class TestAnalyzePatterns:
             mock_genai.Client.return_value = mock_client
 
             mock_response = MagicMock()
-            mock_response.text = '{"contactCharacteristics": {}, "userReplyPatterns": {}}'
+            mock_response.text = (
+                '{"contactCharacteristics": {}, "userReplyPatterns": {}}'
+            )
             mock_client.models.generate_content = MagicMock(return_value=mock_response)
 
             service = GeminiService()
             email_history = [
-                {"sender": "boss@example.com", "body": "テスト", "user_reply": "テスト返信"},
+                {
+                    "sender": "boss@example.com",
+                    "body": "テスト",
+                    "user_reply": "テスト返信",
+                },
             ]
             await service.analyze_patterns(
                 contact_name="田中部長",
@@ -332,7 +355,11 @@ class TestAnalyzePatterns:
 
             service = GeminiService()
             email_history = [
-                {"sender": "boss@example.com", "body": "テスト", "user_reply": "テスト返信"},
+                {
+                    "sender": "boss@example.com",
+                    "body": "テスト",
+                    "user_reply": "テスト返信",
+                },
             ]
             result = await service.analyze_patterns(
                 contact_name="上司さん",
@@ -357,11 +384,17 @@ class TestAnalyzePatterns:
             mock_genai.Client.return_value = mock_client
 
             rate_limit_error = Exception("429 Resource has been exhausted")
-            mock_client.models.generate_content = MagicMock(side_effect=rate_limit_error)
+            mock_client.models.generate_content = MagicMock(
+                side_effect=rate_limit_error
+            )
 
             service = GeminiService()
             email_history = [
-                {"sender": "boss@example.com", "body": "テスト", "user_reply": "テスト返信"},
+                {
+                    "sender": "boss@example.com",
+                    "body": "テスト",
+                    "user_reply": "テスト返信",
+                },
             ]
             result = await service.analyze_patterns(
                 contact_name="上司さん",
