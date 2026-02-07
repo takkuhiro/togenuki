@@ -11,6 +11,7 @@ from uuid import UUID
 
 from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from src.models import Contact, Email, User
 
@@ -45,8 +46,10 @@ async def get_contact_for_email(
     Returns:
         Contact if found, None otherwise
     """
-    query = select(Contact).where(
-        Contact.user_id == user_id, Contact.contact_email == sender_email
+    query = (
+        select(Contact)
+        .options(selectinload(Contact.context))
+        .where(Contact.user_id == user_id, Contact.contact_email == sender_email)
     )
     result = await session.execute(query)
     return result.scalar_one_or_none()

@@ -63,8 +63,8 @@
   - 送信：Gmail API失敗時のエラーハンドリング
   - _Requirements: 2.1, 2.2, 2.3, 3.1, 3.2, 3.4, 5.3, 5.4_
 
-- [ ] 5. ReplyRouter（APIエンドポイント）とPydanticスキーマを実装する
-- [ ] 5.1 Pydanticスキーマを定義する
+- [x] 5. ReplyRouter（APIエンドポイント）とPydanticスキーマを実装する
+- [x] 5.1 Pydanticスキーマを定義する
   - ComposeReplyRequest（rawText, min_length=1）
   - ComposeReplyResponse（composedBody, composedSubject）
   - SendReplyRequest（composedBody, composedSubject, min_length=1）
@@ -72,23 +72,23 @@
   - camelCase変換のためのConfigDict設定
   - _Requirements: 2.1, 3.1_
 
-- [ ] 5.2 清書エンドポイント（POST /api/emails/{email_id}/compose-reply）を実装する
+- [x] 5.2 清書エンドポイント（POST /api/emails/{email_id}/compose-reply）を実装する
   - Firebase認証ミドルウェアによるユーザー検証
   - リクエストボディのバリデーション
   - ReplyServiceの清書メソッドを呼び出し、結果に応じたHTTPステータスを返却する（400, 404, 500, 503）
   - _Requirements: 2.1, 5.3_
 
-- [ ] 5.3 送信エンドポイント（POST /api/emails/{email_id}/send-reply）を実装する
+- [x] 5.3 送信エンドポイント（POST /api/emails/{email_id}/send-reply）を実装する
   - Firebase認証ミドルウェアによるユーザー検証
   - リクエストボディのバリデーション
   - ReplyServiceの送信メソッドを呼び出し、結果に応じたHTTPステータスを返却する（400, 404, 409, 500, 503）
   - _Requirements: 3.1, 3.5, 5.4_
 
-- [ ] 5.4 ルーターをFastAPIアプリに登録する
+- [x] 5.4 ルーターをFastAPIアプリに登録する
   - main.pyにReplyRouterを/apiプレフィックスで登録する
   - _Requirements: 2.1, 3.1_
 
-- [ ] 5.5 エンドポイントの統合テストを作成する
+- [x] 5.5 エンドポイントの統合テストを作成する
   - 清書エンドポイント：認証成功→清書成功→200レスポンス
   - 清書エンドポイント：認証なし→401レスポンス
   - 清書エンドポイント：空テキスト→422レスポンス
