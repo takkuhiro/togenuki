@@ -197,7 +197,7 @@
 > - [x] `infrastructures/terraform.tfvars` に `gemini_api_key` を設定する
 > - [x] `terraform plan` で変更内容を確認する
 > - [x] `terraform apply` でCloud Storageバケットを作成する
->   - バケット名: `aitech-good-s15112-togenuki-audio`
+>   - バケット名: `your-gcp-project-id-togenuki-audio`
 >   - 公開設定: `allUsers` に `Storage Object Viewer` 権限（Terraform管理）
 >   - ※ 本番環境では署名付き URL を使用してください
 

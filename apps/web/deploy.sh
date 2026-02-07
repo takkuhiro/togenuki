@@ -22,7 +22,7 @@ if [ -f ".env" ]; then
 fi
 
 # Configuration
-PROJECT_ID="${PROJECT_ID:-aitech-good-s15112}"
+PROJECT_ID="${PROJECT_ID:-your-gcp-project-id}"
 REGION="${REGION:-asia-northeast1}"
 SERVICE_NAME="${SERVICE_NAME:-togenuki-web}"
 REPOSITORY="${REPOSITORY:-togenuki}"

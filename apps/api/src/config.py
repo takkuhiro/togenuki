@@ -28,7 +28,7 @@ class Settings(BaseSettings):
     firebase_credentials_path: str = "secrets/firebase-service-account.json"
 
     # GCP Project
-    project_id: str = "aitech-good-s15112"
+    project_id: str = ""
 
     # Gemini API settings
     gemini_api_key: str = ""

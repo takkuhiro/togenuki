@@ -12,7 +12,7 @@
 set -e
 
 # Configuration
-PROJECT_ID="${PROJECT_ID:-aitech-good-s15112}"
+PROJECT_ID="${PROJECT_ID:-your-gcp-project-id}"
 TOPIC_NAME="projects/${PROJECT_ID}/topics/gmail-notifications"
 
 # Colors
