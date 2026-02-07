@@ -34,17 +34,28 @@ class TestGeminiService:
         assert "〜だし" in GYARU_SYSTEM_PROMPT or "だし" in GYARU_SYSTEM_PROMPT
         assert "草" in GYARU_SYSTEM_PROMPT or "ｗ" in GYARU_SYSTEM_PROMPT
 
-    def test_system_prompt_includes_emoji_usage(self):
-        """Test that system prompt includes emoji usage guidelines."""
+    def test_system_prompt_prohibits_emoji_usage(self):
+        """Test that system prompt prohibits emoji usage for TTS readability."""
         from src.services.gemini_service import GYARU_SYSTEM_PROMPT
 
-        # Should include emoji guidelines
-        emoji_count = sum(
-            1
-            for emoji in ["💖", "✨", "🥺", "🎉", "🔥"]
-            if emoji in GYARU_SYSTEM_PROMPT
+        # Should prohibit emojis for voice readout
+        assert "絵文字" in GYARU_SYSTEM_PROMPT, "System prompt should mention emoji policy"
+        assert "使用しない" in GYARU_SYSTEM_PROMPT or "禁止" in GYARU_SYSTEM_PROMPT, (
+            "System prompt should prohibit emoji usage"
         )
-        assert emoji_count >= 3, "System prompt should include at least 3 gyaru emojis"
+        # Conversion example should not contain emojis
+        for emoji in ["💖", "✨", "🥺", "🎉", "🔥"]:
+            assert emoji not in GYARU_SYSTEM_PROMPT, (
+                f"System prompt should not contain emoji {emoji}"
+            )
+
+    def test_system_prompt_requires_concise_output(self):
+        """Test that system prompt requires concise output for TTS."""
+        from src.services.gemini_service import GYARU_SYSTEM_PROMPT
+
+        assert "端的" in GYARU_SYSTEM_PROMPT or "簡潔" in GYARU_SYSTEM_PROMPT, (
+            "System prompt should require concise output"
+        )
 
 
 class TestGyaruConversion:

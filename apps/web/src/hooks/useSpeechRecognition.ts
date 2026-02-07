@@ -48,6 +48,14 @@ export function useSpeechRecognition(lang = 'ja-JP'): UseSpeechRecognitionReturn
   const startListening = useCallback(() => {
     if (!SpeechRecognitionCtor) return;
 
+    // Cleanup previous recognition to prevent stale callbacks
+    if (recognitionRef.current) {
+      recognitionRef.current.onresult = null;
+      recognitionRef.current.onerror = null;
+      recognitionRef.current.onend = null;
+      recognitionRef.current = null;
+    }
+
     setError(null);
     const recognition = new SpeechRecognitionCtor();
     recognition.lang = lang;
@@ -92,7 +100,7 @@ export function useSpeechRecognition(lang = 'ja-JP'): UseSpeechRecognitionReturn
   const stopListening = useCallback(() => {
     if (recognitionRef.current) {
       recognitionRef.current.stop();
-      setIsListening(false);
+      // isListeningはonendイベントで設定する（onresultで確定テキストを受け取った後）
     }
   }, []);
 

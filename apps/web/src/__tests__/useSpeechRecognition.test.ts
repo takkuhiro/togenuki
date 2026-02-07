@@ -116,7 +116,7 @@ describe('useSpeechRecognition', () => {
       expect(mockRecognition.lang).toBe('en-US');
     });
 
-    it('stopListeningでisListening=falseになる', () => {
+    it('stopListeningでrecognition.stopが呼ばれ、onend後にisListeningがfalseになる', () => {
       const { result } = renderHook(() => useSpeechRecognition());
 
       act(() => {
@@ -128,8 +128,15 @@ describe('useSpeechRecognition', () => {
         result.current.stopListening();
       });
 
-      expect(result.current.isListening).toBe(false);
+      // stop()は呼ばれるが、isListeningはonendまでtrueのまま
       expect(mockRecognition.stop).toHaveBeenCalled();
+      expect(result.current.isListening).toBe(true);
+
+      // onend発火でisListeningがfalseになる
+      act(() => {
+        mockRecognition.onend?.();
+      });
+      expect(result.current.isListening).toBe(false);
     });
   });
 
@@ -296,6 +303,46 @@ describe('useSpeechRecognition', () => {
       });
 
       expect(result.current.isListening).toBe(false);
+    });
+  });
+
+  describe('再開時の古いインスタンスのクリーンアップ', () => {
+    it('startListeningを再度呼んだ後、古いrecognitionのonendが発火してもisListeningがfalseにならない', () => {
+      const { result } = renderHook(() => useSpeechRecognition());
+
+      // 1回目の録音開始
+      act(() => {
+        result.current.startListening();
+      });
+      const oldRecognition = mockRecognition;
+
+      // 1回目の録音停止
+      act(() => {
+        result.current.stopListening();
+      });
+      // stopListeningではisListeningはまだtrue（onendを待つ）
+      expect(result.current.isListening).toBe(true);
+
+      // onend発火でisListeningがfalseになる
+      act(() => {
+        oldRecognition.onend?.();
+      });
+      expect(result.current.isListening).toBe(false);
+
+      // 2回目の録音開始
+      act(() => {
+        result.current.resetTranscript();
+        result.current.startListening();
+      });
+      expect(result.current.isListening).toBe(true);
+
+      // 古いrecognitionのonendが遅延発火（callbackはnull化済み）
+      act(() => {
+        oldRecognition.onend?.();
+      });
+
+      // 新しい録音のisListeningはtrueのまま
+      expect(result.current.isListening).toBe(true);
     });
   });
 });
