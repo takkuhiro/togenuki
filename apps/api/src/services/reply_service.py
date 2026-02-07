@@ -214,6 +214,7 @@ class ReplyService:
         email.reply_subject = composed_subject
         email.replied_at = datetime.now(timezone.utc)
         email.reply_google_message_id = google_message_id
+        await session.commit()
 
         return Ok(SendReplyResult(google_message_id=google_message_id))
 
