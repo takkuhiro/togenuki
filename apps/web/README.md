@@ -1,46 +1,134 @@
-# Getting Started with Create React App
+<p align="center">
+  <img src="../../assets/icon_square_transparent.png" alt="TogeNuki" width="120" />
+</p>
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+# TogeNuki Web
 
-## Available Scripts
+TogeNuki のフロントエンドアプリケーションです。React + TypeScript で構築された SPA で、メールダッシュボード・音声再生・音声入力返信・連絡先管理の機能を提供します。
 
-In the project directory, you can run:
+## 技術スタック
 
-### `npm start`
+| 項目 | 技術 |
+|------|------|
+| **フレームワーク** | React 19 |
+| **言語** | TypeScript 5.7 |
+| **ビルドツール** | Vite 6 |
+| **ルーティング** | React Router v7 |
+| **認証** | Firebase Authentication (Google Sign-In) |
+| **Linter / Formatter** | Biome |
+| **テスト** | Vitest + Testing Library |
+| **音声入力** | Web Speech API (ブラウザネイティブ) |
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
+## ディレクトリ構成
 
-The page will reload if you make edits.\
-You will also see any lint errors in the console.
+```
+src/
+├── main.tsx           # エントリーポイント
+├── App.tsx            # ルートコンポーネント・ルーティング
+├── components/        # UIコンポーネント
+│   ├── AudioPlayer.tsx      # 音声再生プレーヤー
+│   ├── EmailCard.tsx        # メールカード表示
+│   ├── EmailList.tsx        # メール一覧 (ダッシュボード)
+│   ├── ContactCard.tsx      # 連絡先カード表示
+│   ├── ContactForm.tsx      # 連絡先登録フォーム
+│   └── ContactList.tsx      # 連絡先一覧
+├── pages/             # ページコンポーネント
+│   ├── ContactsPage.tsx     # 連絡先管理ページ
+│   └── GmailCallback.tsx    # Gmail OAuth コールバック
+├── contexts/          # React Context
+│   └── AuthContext.tsx       # 認証状態管理
+├── api/               # API呼び出しモジュール
+│   ├── emails.ts            # メール取得API
+│   ├── reply.ts             # 返信API
+│   └── contacts.ts          # 連絡先API
+├── hooks/             # カスタムフック
+│   └── useSpeechRecognition.ts  # Web Speech API ラッパー
+├── types/             # 型定義
+├── firebase/          # Firebase 設定
+└── __tests__/         # テストファイル
+```
 
-### `npm test`
+## セットアップ
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+### 前提条件
 
-### `npm run build`
+- Node.js 18+
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+### インストール
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+```bash
+npm install
+```
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+### 環境変数
 
-### `npm run eject`
+`.env` ファイルを作成し、以下の値を設定してください。
 
-**Note: this is a one-way operation. Once you `eject`, you can’t go back!**
+```env
+VITE_API_URL=http://localhost:8000
+VITE_FIREBASE_API_KEY=your-api-key
+VITE_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
+VITE_FIREBASE_PROJECT_ID=your-project-id
+VITE_FIREBASE_STORAGE_BUCKET=your-project.appspot.com
+VITE_FIREBASE_MESSAGING_SENDER_ID=your-sender-id
+VITE_FIREBASE_APP_ID=your-app-id
+```
 
-If you aren’t satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+## 開発
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you’re on your own.
+```bash
+# 開発サーバー起動 (http://localhost:5173)
+npm run dev
 
-You don’t have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn’t feel obligated to use this feature. However we understand that this tool wouldn’t be useful if you couldn’t customize it when you are ready for it.
+# プロダクションビルド
+npm run build
 
-## Learn More
+# ビルドプレビュー
+npm run preview
+```
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+## テスト
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+```bash
+# ウォッチモード
+npm run test
+
+# 単発実行
+npm run test:run
+```
+
+## コード品質
+
+```bash
+# lint + format チェック
+npm run check
+
+# lint + format 自動修正
+npm run check:fix
+
+# lint のみ
+npm run lint
+
+# format のみ
+npm run format
+```
+
+## ページ構成
+
+| パス | コンポーネント | 説明 |
+|------|---------------|------|
+| `/` | LandingPage | ログイン・Gmail連携フロー |
+| `/emails` | EmailList | メールダッシュボード (認証必須) |
+| `/contacts` | ContactsPage | 連絡先管理 (認証必須) |
+| `/auth/gmail/callback` | GmailCallback | Gmail OAuth コールバック |
+
+## デザインカラー
+
+| 役割 | カラーコード | 説明 |
+|------|-------------|------|
+| 背景 | `#F2F0EB` | 和紙のような温かみのある白 |
+| プライマリ | `#4A6C74` | 深い青緑（知性と落ち着き） |
+| アクセント | `#D6A884` | 落ち着いたオレンジベージュ |
+| カード背景 | `#FFFFFF` | ピュアホワイト |
+| 本文テキスト | `#464646` | ソフトチャコール |
+| 補足テキスト | `#8C8C8C` | ストーングレー |
