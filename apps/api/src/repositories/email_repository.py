@@ -116,6 +116,21 @@ async def get_user_by_firebase_uid(
     return result.scalar_one_or_none()
 
 
+async def get_email_by_id(session: AsyncSession, email_id: UUID) -> Email | None:
+    """Get email by ID.
+
+    Args:
+        session: Database session
+        email_id: The email's ID
+
+    Returns:
+        Email if found, None otherwise
+    """
+    query = select(Email).where(Email.id == email_id)
+    result = await session.execute(query)
+    return result.scalar_one_or_none()
+
+
 async def get_emails_by_user_id(session: AsyncSession, user_id: UUID) -> list[Email]:
     """Get all emails for a user sorted by received_at descending.
 

@@ -38,8 +38,8 @@
   - _Requirements: 3.1, 3.2_
   - **ユーザー確認**: タスク2・3の完了後、Gmail APIの`gmail.send`スコープがOAuth同意画面に追加されているか確認を依頼する。必要であればGoogle Cloud Consoleでスコープの追加設定を行ってもらう
 
-- [ ] 4. ReplyService（清書・送信オーケストレーション）を実装する
-- [ ] 4.1 清書オーケストレーションメソッドを実装する
+- [x] 4. ReplyService（清書・送信オーケストレーション）を実装する
+- [x] 4.1 清書オーケストレーションメソッドを実装する
   - メールIDからEmailとContactContext（存在すれば）を取得する
   - ユーザーの所有権を検証する
   - GeminiServiceのビジネスメール清書メソッドを呼び出す
@@ -47,14 +47,14 @@
   - 結果をResult型で返却する
   - _Requirements: 2.1, 2.2, 2.3, 4.4, 5.4_
 
-- [ ] 4.2 送信オーケストレーションメソッドを実装する
+- [x] 4.2 送信オーケストレーションメソッドを実装する
   - OAuthトークンの有効性を確認し、期限切れ時は自動リフレッシュする
   - GmailApiClientのメール送信メソッドを呼び出す
   - 送信成功時、Emailモデルのreply_body、reply_subject、replied_at、reply_google_message_idを更新する
   - 結果をResult型で返却する
   - _Requirements: 3.1, 3.2, 3.4, 5.4_
 
-- [ ] 4.3 ReplyServiceのユニットテストを作成する
+- [x] 4.3 ReplyServiceのユニットテストを作成する
   - 清書：メール取得→contact_context取得→Gemini呼び出し→件名生成の一連のフロー
   - 清書：存在しないメールIDでEMAIL_NOT_FOUNDが返ること
   - 清書：他ユーザーのメールでUNAUTHORIZEDが返ること
