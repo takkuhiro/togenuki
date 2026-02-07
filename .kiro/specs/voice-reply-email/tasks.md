@@ -115,8 +115,8 @@
   - API非対応時のフォールバック動作（startListeningがno-op）
   - _Requirements: 1.3, 1.4, 1.5, 5.1, 5.2_
 
-- [ ] 7. フロントエンドAPI関数を実装する
-- [ ] 7.1 (P) 清書・送信APIへのHTTPリクエスト関数を実装する
+- [x] 7. フロントエンドAPI関数を実装する
+- [x] 7.1 (P) 清書・送信APIへのHTTPリクエスト関数を実装する
   - composeReply：idToken, emailId, rawTextを受け取り、POST /api/emails/{emailId}/compose-replyを呼び出す
   - sendReply：idToken, emailId, composedBody, composedSubjectを受け取り、POST /api/emails/{emailId}/send-replyを呼び出す
   - 既存のfetchEmails関数と同じパターン（Authorizationヘッダー、エラーハンドリング）を使用する
