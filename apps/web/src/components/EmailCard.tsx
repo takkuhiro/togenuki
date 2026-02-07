@@ -1,10 +1,12 @@
 /**
  * Email card component for displaying individual email items.
- * Requirements: 4.4, 4.5
+ * Requirements: 1.1, 1.2, 4.4, 4.5
  */
 
+import { useState } from 'react';
 import type { Email } from '../types/email';
 import { AudioPlayer } from './AudioPlayer';
+import { VoiceReplyPanel } from './VoiceReplyPanel';
 
 interface EmailCardProps {
   email: Email;
@@ -22,6 +24,7 @@ interface EmailCardProps {
  * - Includes audio player for processed emails (when expanded)
  */
 export function EmailCard({ email, isExpanded, onToggle }: EmailCardProps) {
+  const [showVoiceReply, setShowVoiceReply] = useState(false);
   const formatDate = (dateString: string | null) => {
     if (!dateString) return '';
 
@@ -74,7 +77,22 @@ export function EmailCard({ email, isExpanded, onToggle }: EmailCardProps) {
               {email.convertedBody && <p className="email-card-body">{email.convertedBody}</p>}
               <div className="email-card-actions">
                 <AudioPlayer audioUrl={email.audioUrl} emailId={email.id} />
+                <button
+                  type="button"
+                  className="voice-reply-toggle-button"
+                  onClick={() => setShowVoiceReply((prev) => !prev)}
+                >
+                  {showVoiceReply ? '返信を閉じる' : '音声入力で返信'}
+                </button>
               </div>
+              {showVoiceReply && (
+                <VoiceReplyPanel
+                  emailId={email.id}
+                  senderEmail={email.senderEmail}
+                  senderName={email.senderName}
+                  subject={email.subject}
+                />
+              )}
             </>
           ) : (
             <div className="email-card-processing">
