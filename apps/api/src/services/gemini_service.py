@@ -49,6 +49,24 @@ GYARU_SYSTEM_PROMPT = """あなたは「全肯定ギャル」として、メー�
 """
 
 
+# System prompt for business email composition
+BUSINESS_REPLY_SYSTEM_PROMPT = """あなたはビジネスメールの清書アシスタントです。
+ユーザーが口語的に伝えた返信内容を、適切なビジネスメール文体に変換してください。
+
+## 清書ルール
+
+1. **敬語**: 相手との関係性に合わせた適切な敬語を使用する
+2. **構成**: 挨拶→本文→締めの構成にする
+3. **正確性**: ユーザーが伝えたい内容を正確に反映する。情報を追加・削除しない
+4. **簡潔さ**: 冗長にならず、必要十分な文量にする
+5. **文脈考慮**: 元メールの内容を踏まえた自然な返信にする
+
+## 出力形式
+
+清書されたメール本文のみを出力してください。件名や宛先は不要です。説明や前置きも不要です。
+"""
+
+
 class GeminiError(Enum):
     """Error types for Gemini API."""
 
@@ -129,6 +147,77 @@ class GeminiService:
                 logger.warning(f"Gemini API rate limited: {e}")
                 return Err(GeminiError.RATE_LIMIT)
             logger.exception(f"Gemini API error: {e}")
+            return Err(GeminiError.API_ERROR)
+
+    async def compose_business_reply(
+        self,
+        raw_text: str,
+        original_email_body: str,
+        sender_name: str,
+        contact_context: str | None = None,
+    ) -> Result[str, GeminiError]:
+        """Compose a business email reply from casual text.
+
+        Args:
+            raw_text: Casual/spoken text from the user
+            original_email_body: The original email being replied to
+            sender_name: Name of the original email sender
+            contact_context: Optional past communication patterns
+
+        Returns:
+            Result containing composed business email text or error
+        """
+        if not raw_text or not raw_text.strip():
+            logger.warning("Empty raw_text provided for business reply composition")
+            return Err(GeminiError.INVALID_INPUT)
+
+        try:
+            user_prompt = f"""送信者: {sender_name}
+
+元メール本文:
+{original_email_body}
+
+"""
+            if contact_context:
+                user_prompt += f"""過去のやり取りパターン:
+{contact_context}
+
+"""
+
+            user_prompt += f"""以下の口語テキストをビジネスメールに清書してください:
+
+{raw_text}"""
+
+            response = await asyncio.to_thread(
+                self.client.models.generate_content,
+                model=self.model,
+                contents=user_prompt,
+                config=genai.types.GenerateContentConfig(
+                    system_instruction=BUSINESS_REPLY_SYSTEM_PROMPT,
+                    temperature=0.3,
+                    max_output_tokens=1024,
+                ),
+            )
+
+            composed_text = response.text
+            if composed_text is None:
+                logger.error("Gemini returned empty response for business reply")
+                return Err(GeminiError.API_ERROR)
+
+            logger.info(
+                f"Successfully composed business reply for email from {sender_name}"
+            )
+            return Ok(composed_text)
+
+        except asyncio.TimeoutError:
+            logger.error("Gemini API request timed out during business reply")
+            return Err(GeminiError.TIMEOUT)
+        except Exception as e:
+            error_str = str(e).lower()
+            if "429" in error_str or "exhausted" in error_str or "rate" in error_str:
+                logger.warning(f"Gemini API rate limited during business reply: {e}")
+                return Err(GeminiError.RATE_LIMIT)
+            logger.exception(f"Gemini API error during business reply: {e}")
             return Err(GeminiError.API_ERROR)
 
     async def analyze_patterns(

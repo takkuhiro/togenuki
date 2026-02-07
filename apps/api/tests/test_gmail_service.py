@@ -519,3 +519,168 @@ class TestGmailApiClientSearchMessages:
                 await client.search_messages("from:boss@example.com")
 
             assert exc_info.value.status_code == 401
+
+
+class TestGetMessageId:
+    """Tests for get_message_id helper function."""
+
+    def test_get_message_id_extracts_from_headers(self):
+        """get_message_id should extract Message-ID from Gmail message headers."""
+        from src.services.gmail_service import get_message_id
+
+        message = {
+            "payload": {
+                "headers": [
+                    {"name": "From", "value": "boss@company.com"},
+                    {
+                        "name": "Message-ID",
+                        "value": "<abc123@mail.gmail.com>",
+                    },
+                    {"name": "Subject", "value": "Test"},
+                ],
+            },
+        }
+        result = get_message_id(message)
+        assert result == "<abc123@mail.gmail.com>"
+
+    def test_get_message_id_returns_none_when_missing(self):
+        """get_message_id should return None when Message-ID header is absent."""
+        from src.services.gmail_service import get_message_id
+
+        message = {
+            "payload": {
+                "headers": [
+                    {"name": "From", "value": "boss@company.com"},
+                    {"name": "Subject", "value": "Test"},
+                ],
+            },
+        }
+        result = get_message_id(message)
+        assert result is None
+
+
+class TestGmailApiClientSendMessage:
+    """Tests for GmailApiClient.send_message method."""
+
+    @pytest.mark.asyncio
+    async def test_send_message_constructs_correct_mime_message(self):
+        """send_message should build a valid MIME message with correct headers."""
+        import json
+        from email import message_from_bytes
+        from email.header import decode_header
+
+        from src.services.gmail_service import GmailApiClient
+
+        with patch("httpx.AsyncClient") as mock_client_class:
+            mock_client = AsyncMock()
+            mock_client_class.return_value.__aenter__.return_value = mock_client
+            mock_response = MagicMock()
+            mock_response.status_code = 200
+            mock_response.json.return_value = {
+                "id": "sent-msg-123",
+                "threadId": "thread-abc",
+                "labelIds": ["SENT"],
+            }
+            mock_client.post.return_value = mock_response
+
+            client = GmailApiClient("test-access-token")
+            result = await client.send_message(
+                to="boss@company.com",
+                subject="Re: 報告書について",
+                body="お疲れ様です。報告書を提出いたします。",
+                thread_id="thread-abc",
+                in_reply_to="<original-msg@mail.gmail.com>",
+                references="<original-msg@mail.gmail.com>",
+            )
+
+            assert result["id"] == "sent-msg-123"
+            assert result["threadId"] == "thread-abc"
+
+            # Verify the POST request was made correctly
+            mock_client.post.assert_called_once()
+            call_args = mock_client.post.call_args
+
+            # Verify URL
+            assert "messages/send" in call_args[0][0]
+
+            # Verify the MIME message content
+            request_body = call_args[1].get("json") or call_args[1].get("content")
+            if isinstance(request_body, str):
+                request_body = json.loads(request_body)
+
+            assert "raw" in request_body
+            assert "threadId" in request_body
+            assert request_body["threadId"] == "thread-abc"
+
+            # Decode the raw MIME message
+            raw_bytes = base64.urlsafe_b64decode(request_body["raw"] + "==")
+            mime_msg = message_from_bytes(raw_bytes)
+
+            assert mime_msg["To"] == "boss@company.com"
+            # Subject may be RFC2047-encoded for non-ASCII
+            decoded_subject_parts = decode_header(mime_msg["Subject"])
+            decoded_subject = "".join(
+                part.decode(enc or "utf-8") if isinstance(part, bytes) else part
+                for part, enc in decoded_subject_parts
+            )
+            assert decoded_subject == "Re: 報告書について"
+            assert mime_msg["In-Reply-To"] == "<original-msg@mail.gmail.com>"
+            assert mime_msg["References"] == "<original-msg@mail.gmail.com>"
+
+    @pytest.mark.asyncio
+    async def test_send_message_calls_gmail_api_with_auth_header(self):
+        """send_message should include Authorization header in API call."""
+        from src.services.gmail_service import GmailApiClient
+
+        with patch("httpx.AsyncClient") as mock_client_class:
+            mock_client = AsyncMock()
+            mock_client_class.return_value.__aenter__.return_value = mock_client
+            mock_response = MagicMock()
+            mock_response.status_code = 200
+            mock_response.json.return_value = {
+                "id": "sent-msg-123",
+                "threadId": "thread-abc",
+                "labelIds": ["SENT"],
+            }
+            mock_client.post.return_value = mock_response
+
+            client = GmailApiClient("my-access-token")
+            await client.send_message(
+                to="test@example.com",
+                subject="Re: Test",
+                body="Test reply",
+                thread_id="thread-1",
+                in_reply_to="<msg@example.com>",
+                references="<msg@example.com>",
+            )
+
+            call_args = mock_client.post.call_args
+            headers = call_args[1]["headers"]
+            assert headers["Authorization"] == "Bearer my-access-token"
+
+    @pytest.mark.asyncio
+    async def test_send_message_raises_on_api_error(self):
+        """send_message should raise GmailApiError on API failure."""
+        from src.services.gmail_service import GmailApiClient, GmailApiError
+
+        with patch("httpx.AsyncClient") as mock_client_class:
+            mock_client = AsyncMock()
+            mock_client_class.return_value.__aenter__.return_value = mock_client
+            mock_response = MagicMock()
+            mock_response.status_code = 403
+            mock_response.text = "Insufficient Permission"
+            mock_client.post.return_value = mock_response
+
+            client = GmailApiClient("test-access-token")
+
+            with pytest.raises(GmailApiError) as exc_info:
+                await client.send_message(
+                    to="test@example.com",
+                    subject="Re: Test",
+                    body="Test reply",
+                    thread_id="thread-1",
+                    in_reply_to="<msg@example.com>",
+                    references="<msg@example.com>",
+                )
+
+            assert exc_info.value.status_code == 403

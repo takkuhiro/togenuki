@@ -17,6 +17,7 @@ Google Cloud を中心としたサーバーレスアーキテクチャ。フロ�
 - **Language**: Python 3.10+
 - **Framework**: FastAPI (async/await 必須)
 - **Database**: Cloud SQL (PostgreSQL) + SQLAlchemy ORM
+- **Migrations**: Alembic（スキーマバージョン管理）
 - **Storage**: Cloud Storage (GCS) - 音声ファイル保存
 
 ### AI/ML Services
@@ -28,9 +29,9 @@ Google Cloud を中心としたサーバーレスアーキテクチャ。フロ�
 - Gmail API OAuth scopes: `gmail.readonly`, `gmail.send`
 
 ### Infrastructure
-- Cloud Run (コンテナデプロイ)
+- Cloud Run (コンテナデプロイ、`deploy.sh` スクリプトによるデプロイ)
 - Cloud Pub/Sub (Gmail Push通知受信)
-- Terraform (IaC)
+- Terraform (IaC、`infrastructures/` で管理)
 
 ## Development Standards
 
@@ -66,6 +67,10 @@ npm run check  # lint + format チェック (Biome)
 uvicorn src.main:app --reload   # 開発サーバー起動
 pytest                          # テスト実行
 ruff check src/                 # lint
+
+# Migrations (apps/api/)
+alembic revision --autogenerate -m "description"  # マイグレーション生成
+alembic upgrade head                              # マイグレーション適用
 ```
 
 ## Key Technical Decisions

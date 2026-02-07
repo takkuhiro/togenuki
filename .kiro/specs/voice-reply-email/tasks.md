@@ -1,37 +1,37 @@
 # Implementation Plan
 
-- [ ] 1. データモデル拡張とDBマイグレーション
-- [ ] 1.1 Emailモデルに返信関連カラムを追加しマイグレーションを作成する
+- [x] 1. データモデル拡張とDBマイグレーション
+- [x] 1.1 Emailモデルに返信関連カラムを追加しマイグレーションを作成する
   - Emailモデルに`reply_body`（Text, nullable）、`reply_subject`（Text, nullable）、`replied_at`（DateTime, nullable）、`reply_google_message_id`（String, nullable）カラムを追加する
   - Alembicマイグレーションファイルを生成し、既存データに影響がないことを確認する
   - マイグレーションの適用と、テスト用のロールバックを検証する
   - _Requirements: 3.4_
   - **ユーザー確認**: マイグレーションファイル生成後、開発者にTerraformやCloud SQL環境へのマイグレーション適用を依頼する。ローカル環境でのマイグレーション適用結果（`alembic upgrade head`）の成功を確認してもらう
 
-- [ ] 2. GeminiService にビジネスメール清書メソッドを追加する
-- [ ] 2.1 (P) 口語テキストをビジネスメール文体に変換するメソッドを実装する
+- [x] 2. GeminiService にビジネスメール清書メソッドを追加する
+- [x] 2.1 (P) 口語テキストをビジネスメール文体に変換するメソッドを実装する
   - 口語テキスト、元メール本文、送信者名、contact_context（任意）を受け取り、ビジネスメールを生成する
   - 清書用のシステムプロンプトを作成する（元メールの文脈を考慮、敬語・定型表現の適切な使用）
   - contact_contextが提供された場合は、過去のやり取りパターンを踏まえたトーン調整を行う
   - 既存のResult型パターン（Ok/Err）でエラーハンドリングする
   - _Requirements: 2.1, 2.2, 2.3_
 
-- [ ] 2.2 (P) 清書メソッドのユニットテストを作成する
+- [x] 2.2 (P) 清書メソッドのユニットテストを作成する
   - 正常系：口語テキストがビジネスメール文体に変換されること
   - contact_contextありの場合にプロンプトに含まれること
   - 空テキストでINVALID_INPUTエラーが返ること
   - APIタイムアウト・レートリミットのエラーケース
   - _Requirements: 2.1, 2.2, 2.3_
 
-- [ ] 3. GmailApiClient にメール送信メソッドを追加する
-- [ ] 3.1 (P) MIMEメッセージを構築しGmail API経由で返信メールを送信するメソッドを実装する
+- [x] 3. GmailApiClient にメール送信メソッドを追加する
+- [x] 3.1 (P) MIMEメッセージを構築しGmail API経由で返信メールを送信するメソッドを実装する
   - 宛先、件名、本文、threadId、In-Reply-To、Referencesを受け取る
   - MIMEメッセージをbase64urlエンコードし、threadIdと共にGmail API messages.sendに送信する
   - 元メールのMessage-IDヘッダーを取得するために、既存のfetch_messageメソッドのパース結果からMessage-IDを抽出するユーティリティを追加する
   - 既存のhttpx.AsyncClientパターンとGmailApiErrorを使用したエラーハンドリング
   - _Requirements: 3.1, 3.2_
 
-- [ ] 3.2 (P) メール送信メソッドのユニットテストを作成する
+- [x] 3.2 (P) メール送信メソッドのユニットテストを作成する
   - 正常系：MIMEメッセージの構築が正しいこと（ヘッダー、エンコード）
   - Gmail API呼び出しのリクエスト形式が正しいこと
   - APIエラー時にGmailApiErrorが発生すること

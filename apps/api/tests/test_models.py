@@ -138,6 +138,15 @@ class TestEmailModel:
         assert hasattr(Email, "is_processed")
         assert hasattr(Email, "created_at")
 
+    def test_email_has_reply_fields(self) -> None:
+        """Email model should have reply-related fields."""
+        from src.models import Email
+
+        assert hasattr(Email, "reply_body")
+        assert hasattr(Email, "reply_subject")
+        assert hasattr(Email, "replied_at")
+        assert hasattr(Email, "reply_google_message_id")
+
     def test_email_table_name(self) -> None:
         """Email model should have correct table name."""
         from src.models import Email
@@ -160,6 +169,20 @@ class TestEmailModel:
         assert email.user_id == test_user_id
         assert email.google_message_id == "msg-123"
         assert email.sender_email == "boss@example.com"
+
+    def test_email_reply_fields_are_optional(self) -> None:
+        """Reply fields should be optional (nullable) by default."""
+        from src.models import Email
+
+        email = Email(
+            user_id=uuid7(),
+            google_message_id="msg-123",
+            sender_email="boss@example.com",
+        )
+        assert email.reply_body is None
+        assert email.reply_subject is None
+        assert email.replied_at is None
+        assert email.reply_google_message_id is None
 
     def test_email_is_processed_field_exists(self) -> None:
         """is_processed field should exist."""
@@ -436,6 +459,63 @@ class TestDatabaseIntegration:
         # Verify context is also deleted
         result = session.execute(select(ContactContext)).scalars().all()
         assert len(result) == 0
+
+    def test_email_reply_fields_in_database(self, session: Session) -> None:
+        """Email reply fields should be persistable in the database."""
+        from datetime import datetime, timezone
+
+        from src.models import Email, User
+
+        user = User(firebase_uid="uid-123", email="test@example.com")
+        session.add(user)
+        session.commit()
+
+        now = datetime.now(timezone.utc)
+        email = Email(
+            user_id=user.id,
+            google_message_id="msg-reply-test",
+            sender_email="boss@example.com",
+            reply_body="お世話になっております。ご連絡ありがとうございます。",
+            reply_subject="Re: 重要なお知らせ",
+            replied_at=now,
+            reply_google_message_id="reply-msg-456",
+        )
+        session.add(email)
+        session.commit()
+
+        result = session.execute(
+            select(Email).where(Email.google_message_id == "msg-reply-test")
+        ).scalar_one()
+        assert (
+            result.reply_body == "お世話になっております。ご連絡ありがとうございます。"
+        )
+        assert result.reply_subject == "Re: 重要なお知らせ"
+        assert result.replied_at is not None
+        assert result.reply_google_message_id == "reply-msg-456"
+
+    def test_email_reply_fields_null_by_default(self, session: Session) -> None:
+        """Email reply fields should be null when not set."""
+        from src.models import Email, User
+
+        user = User(firebase_uid="uid-123", email="test@example.com")
+        session.add(user)
+        session.commit()
+
+        email = Email(
+            user_id=user.id,
+            google_message_id="msg-no-reply",
+            sender_email="boss@example.com",
+        )
+        session.add(email)
+        session.commit()
+
+        result = session.execute(
+            select(Email).where(Email.google_message_id == "msg-no-reply")
+        ).scalar_one()
+        assert result.reply_body is None
+        assert result.reply_subject is None
+        assert result.replied_at is None
+        assert result.reply_google_message_id is None
 
     def test_contact_learning_failed_at_field(self, session: Session) -> None:
         """Contact should have learning_failed_at field."""

@@ -9,7 +9,7 @@
 ### Applications
 **Location**: `apps/`
 **Purpose**: 独立したアプリケーションを配置
-**Example**: `apps/web/` (React SPA), `apps/api/` (FastAPI - 計画中)
+**Example**: `apps/web/` (React SPA), `apps/api/` (FastAPI)
 
 ### Frontend Application
 **Location**: `apps/web/`
@@ -24,6 +24,7 @@ apps/web/src/
 ├── pages/             # ページコンポーネント
 ├── contexts/          # React Context (認証等)
 ├── api/               # API呼び出しモジュール
+├── hooks/             # カスタムReact Hooks
 ├── types/             # 型定義
 ├── firebase/          # Firebase設定
 └── __tests__/         # テストファイル
@@ -52,6 +53,22 @@ apps/api/src/
 **Location**: `docs/`
 **Purpose**: プロジェクトドキュメント（アーキテクチャ、設計書等）
 **Example**: `docs/ARCHITECTURE.md`
+
+### Infrastructure
+**Location**: `infrastructures/`
+**Purpose**: Terraform によるGoogle Cloudリソースのプロビジョニング
+**Pattern**: ルートモジュール構成（`main.tf`, `variables.tf`, `outputs.tf`）
+**管理リソース**: Cloud SQL, Cloud Run, Pub/Sub, Artifact Registry, GCS等
+
+### Database Migrations
+**Location**: `apps/api/alembic/`
+**Purpose**: Alembicによるデータベーススキーマ管理
+**Pattern**: `alembic revision --autogenerate -m "description"` でマイグレーション生成、`alembic upgrade head` で適用
+
+### Scripts
+**Location**: `scripts/`
+**Purpose**: 開発・運用ユーティリティスクリプト
+**Example**: Firebase トークン取得、Gmail Watch設定等
 
 ### Specifications
 **Location**: `.kiro/specs/`

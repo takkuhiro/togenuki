@@ -142,6 +142,16 @@ class Email(Base):
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )
 
+    # Reply fields
+    reply_body: Mapped[str | None] = mapped_column(Text, nullable=True)
+    reply_subject: Mapped[str | None] = mapped_column(Text, nullable=True)
+    replied_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    reply_google_message_id: Mapped[str | None] = mapped_column(
+        String(255), nullable=True
+    )
+
     # Relationships
     user: Mapped["User"] = relationship("User", back_populates="emails")
     contact: Mapped[Optional["Contact"]] = relationship(
