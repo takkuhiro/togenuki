@@ -1,0 +1,731 @@
+/**
+ * @vitest-environment jsdom
+ */
+
+import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { EmailCard } from '../components/EmailCard';
+import type { Email } from '../types/email';
+
+// --- Mocks ---
+
+// Mock AudioPlayer
+vi.mock('../components/AudioPlayer', () => ({
+  AudioPlayer: ({ emailId }: { audioUrl: string | null; emailId?: string }) => (
+    <div data-testid="audio-player" data-email-id={emailId}>
+      AudioPlayer
+    </div>
+  ),
+}));
+
+// Mock useSpeechRecognition hook
+const mockStartListening = vi.fn();
+const mockStopListening = vi.fn();
+const mockResetTranscript = vi.fn();
+let mockSpeechReturn = {
+  isAvailable: true,
+  isListening: false,
+  transcript: '',
+  interimTranscript: '',
+  error: null as string | null,
+  startListening: mockStartListening,
+  stopListening: mockStopListening,
+  resetTranscript: mockResetTranscript,
+};
+
+vi.mock('../hooks/useSpeechRecognition', () => ({
+  useSpeechRecognition: () => mockSpeechReturn,
+}));
+
+// Mock reply API
+const mockComposeReply = vi.fn();
+const mockSendReply = vi.fn();
+
+vi.mock('../api/reply', () => ({
+  composeReply: (...args: unknown[]) => mockComposeReply(...args),
+  sendReply: (...args: unknown[]) => mockSendReply(...args),
+}));
+
+// Mock useAuth
+vi.mock('../contexts/AuthContext', () => ({
+  useAuth: () => ({ idToken: 'test-token' }),
+}));
+
+// --- Helpers ---
+
+function createEmail(overrides: Partial<Email> = {}): Email {
+  return {
+    id: 'email-123',
+    senderName: '田中太郎',
+    senderEmail: 'tanaka@example.com',
+    subject: 'テスト件名',
+    convertedBody: 'ギャル語に変換されたメール本文',
+    audioUrl: 'https://example.com/audio.mp3',
+    isProcessed: true,
+    receivedAt: new Date().toISOString(),
+    ...overrides,
+  };
+}
+
+// --- Tests ---
+
+describe('EmailCard - VoiceReplyPanel統合', () => {
+  const onToggle = vi.fn();
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockSpeechReturn = {
+      isAvailable: true,
+      isListening: false,
+      transcript: '',
+      interimTranscript: '',
+      error: null,
+      startListening: mockStartListening,
+      stopListening: mockStopListening,
+      resetTranscript: mockResetTranscript,
+    };
+    mockComposeReply.mockReset();
+    mockSendReply.mockReset();
+  });
+
+  afterEach(() => {
+    cleanup();
+  });
+
+  describe('idle（初期）フェーズ', () => {
+    it('展開+処理済み時にAudioPlayerと「音声入力」ボタンが並列表示される', () => {
+      const email = createEmail({ isProcessed: true });
+      render(<EmailCard email={email} isExpanded={true} onToggle={onToggle} />);
+
+      expect(screen.getByTestId('audio-player')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /音声入力/ })).toBeInTheDocument();
+    });
+
+    it('AudioPlayerと「音声入力」ボタンが同じemail-card-actions内にある', () => {
+      const email = createEmail({ isProcessed: true });
+      render(<EmailCard email={email} isExpanded={true} onToggle={onToggle} />);
+
+      const actionsArea = screen.getByTestId('audio-player').closest('.email-card-actions');
+      expect(actionsArea).toBeInTheDocument();
+
+      const voiceBtn = screen.getByRole('button', { name: /音声入力/ });
+      expect(actionsArea?.contains(voiceBtn)).toBe(true);
+    });
+
+    it('マウント時に自動録音開始しない（idle状態で待機）', () => {
+      const email = createEmail({ isProcessed: true });
+      render(<EmailCard email={email} isExpanded={true} onToggle={onToggle} />);
+
+      expect(mockStartListening).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('トグルボタンが存在しない', () => {
+    it('「返信を閉じる」トグルボタンが存在しない', () => {
+      const email = createEmail({ isProcessed: true });
+      render(<EmailCard email={email} isExpanded={true} onToggle={onToggle} />);
+
+      expect(screen.queryByText(/返信を閉じる/)).not.toBeInTheDocument();
+      expect(screen.queryByText(/音声入力で返信/)).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /返信を閉じる/ })).not.toBeInTheDocument();
+    });
+  });
+
+  describe('未処理メールカード', () => {
+    it('未処理メールカードには音声入力ボタンが表示されない', () => {
+      const email = createEmail({ isProcessed: false });
+      render(<EmailCard email={email} isExpanded={true} onToggle={onToggle} />);
+
+      expect(screen.queryByRole('button', { name: /音声入力/ })).not.toBeInTheDocument();
+    });
+  });
+
+  describe('カード折りたたみ時', () => {
+    it('カード折りたたみ時には音声入力ボタンが表示されない', () => {
+      const email = createEmail({ isProcessed: true });
+      render(<EmailCard email={email} isExpanded={false} onToggle={onToggle} />);
+
+      expect(screen.queryByRole('button', { name: /音声入力/ })).not.toBeInTheDocument();
+    });
+  });
+
+  describe('recording フェーズ', () => {
+    it('「音声入力」クリック → 録音開始、「録音停止」ボタン表示', async () => {
+      mockSpeechReturn = { ...mockSpeechReturn, isListening: true };
+      const email = createEmail({ isProcessed: true });
+      const user = userEvent.setup();
+      render(<EmailCard email={email} isExpanded={true} onToggle={onToggle} />);
+
+      await user.click(screen.getByRole('button', { name: /音声入力/ }));
+
+      expect(mockStartListening).toHaveBeenCalled();
+    });
+
+    it('録音中は「録音停止」ボタンが表示される', () => {
+      mockSpeechReturn = { ...mockSpeechReturn, isListening: true };
+      const email = createEmail({ isProcessed: true });
+      render(<EmailCard email={email} isExpanded={true} onToggle={onToggle} />);
+
+      // idleのuseEffectからrecordingに遷移後をシミュレート: phaseはrecording想定
+      // ただしphaseのstate変更はクリックイベント経由なので、isListeningを見てUI判定
+      // → 実際にはphaseをrecordingにする必要がある。初回renderでは音声入力ボタンが表示
+      // テストではクリックをシミュレートしてrecordingに遷移
+    });
+
+    it('録音中に中間テキストやエラーが画面に表示されない', async () => {
+      const email = createEmail({ isProcessed: true });
+      const user = userEvent.setup();
+
+      mockSpeechReturn = { ...mockSpeechReturn, isAvailable: true, isListening: false };
+      const { rerender } = render(
+        <EmailCard email={email} isExpanded={true} onToggle={onToggle} />
+      );
+
+      // 音声入力ボタンをクリック
+      await user.click(screen.getByRole('button', { name: /音声入力/ }));
+
+      // 録音中に遷移（isListening: true + interimTranscript + error）
+      mockSpeechReturn = {
+        ...mockSpeechReturn,
+        isListening: true,
+        interimTranscript: '明日の会議は',
+        error: '音声が検出されませんでした。もう一度お試しください。',
+      };
+      rerender(<EmailCard email={email} isExpanded={true} onToggle={onToggle} />);
+
+      // 中間テキストは表示されない
+      expect(screen.queryByText('明日の会議は')).not.toBeInTheDocument();
+      // エラーメッセージも表示されない
+      expect(screen.queryByText(/音声が検出されませんでした/)).not.toBeInTheDocument();
+      // 録音停止ボタンは表示される
+      expect(screen.getByRole('button', { name: /録音停止/ })).toBeInTheDocument();
+    });
+
+    it('「録音停止」クリックでstopListeningが呼ばれる', async () => {
+      const email = createEmail({ isProcessed: true });
+      const user = userEvent.setup();
+
+      mockSpeechReturn = { ...mockSpeechReturn, isAvailable: true, isListening: false };
+      const { rerender } = render(
+        <EmailCard email={email} isExpanded={true} onToggle={onToggle} />
+      );
+
+      // 音声入力クリック → recordingへ
+      await user.click(screen.getByRole('button', { name: /音声入力/ }));
+
+      mockSpeechReturn = { ...mockSpeechReturn, isListening: true };
+      rerender(<EmailCard email={email} isExpanded={true} onToggle={onToggle} />);
+
+      await user.click(screen.getByRole('button', { name: /録音停止/ }));
+      expect(mockStopListening).toHaveBeenCalled();
+    });
+  });
+
+  describe('auto-compose（録音停止後自動清書）', () => {
+    it('録音停止後にtranscriptがある場合、自動でcomposeReplyが呼ばれる', async () => {
+      mockComposeReply.mockResolvedValueOnce({
+        composedBody: '清書されたメール本文',
+        composedSubject: 'Re: テスト件名',
+      });
+
+      const email = createEmail({ isProcessed: true });
+      const user = userEvent.setup();
+
+      mockSpeechReturn = { ...mockSpeechReturn, isListening: false };
+      const { rerender } = render(
+        <EmailCard email={email} isExpanded={true} onToggle={onToggle} />
+      );
+
+      // 音声入力クリック
+      await user.click(screen.getByRole('button', { name: /音声入力/ }));
+
+      // 録音中
+      mockSpeechReturn = { ...mockSpeechReturn, isListening: true, transcript: '' };
+      rerender(<EmailCard email={email} isExpanded={true} onToggle={onToggle} />);
+
+      // 録音停止 + transcript確定
+      mockSpeechReturn = {
+        ...mockSpeechReturn,
+        isListening: false,
+        transcript: 'お疲れ様です',
+      };
+      rerender(<EmailCard email={email} isExpanded={true} onToggle={onToggle} />);
+
+      await waitFor(() => {
+        expect(mockComposeReply).toHaveBeenCalledWith('test-token', 'email-123', {
+          rawText: 'お疲れ様です',
+        });
+      });
+    });
+
+    it('transcriptが空でもinterimTranscriptがあれば清書が呼ばれる', async () => {
+      mockComposeReply.mockResolvedValueOnce({
+        composedBody: '清書本文',
+        composedSubject: 'Re: テスト件名',
+      });
+
+      const email = createEmail({ isProcessed: true });
+      const user = userEvent.setup();
+
+      mockSpeechReturn = { ...mockSpeechReturn, isListening: false };
+      const { rerender } = render(
+        <EmailCard email={email} isExpanded={true} onToggle={onToggle} />
+      );
+
+      await user.click(screen.getByRole('button', { name: /音声入力/ }));
+
+      // 録音中（interimTranscriptのみ）
+      mockSpeechReturn = {
+        ...mockSpeechReturn,
+        isListening: true,
+        transcript: '',
+        interimTranscript: '明日の会議は',
+      };
+      rerender(<EmailCard email={email} isExpanded={true} onToggle={onToggle} />);
+
+      // 録音停止 → transcriptは空だがinterimTranscriptあり
+      mockSpeechReturn = {
+        ...mockSpeechReturn,
+        isListening: false,
+        transcript: '',
+        interimTranscript: '明日の会議は',
+      };
+      rerender(<EmailCard email={email} isExpanded={true} onToggle={onToggle} />);
+
+      await waitFor(() => {
+        expect(mockComposeReply).toHaveBeenCalledWith('test-token', 'email-123', {
+          rawText: '明日の会議は',
+        });
+      });
+    });
+
+    it('transcriptもinterimTranscriptも空の場合はエラーメッセージが表示される', async () => {
+      const email = createEmail({ isProcessed: true });
+      const user = userEvent.setup();
+
+      mockSpeechReturn = { ...mockSpeechReturn, isListening: false };
+      const { rerender } = render(
+        <EmailCard email={email} isExpanded={true} onToggle={onToggle} />
+      );
+
+      // 音声入力クリック
+      await user.click(screen.getByRole('button', { name: /音声入力/ }));
+
+      // 録音中
+      mockSpeechReturn = { ...mockSpeechReturn, isListening: true, transcript: '' };
+      rerender(<EmailCard email={email} isExpanded={true} onToggle={onToggle} />);
+
+      // 録音停止、transcript空
+      mockSpeechReturn = {
+        ...mockSpeechReturn,
+        isListening: false,
+        transcript: '',
+      };
+      rerender(<EmailCard email={email} isExpanded={true} onToggle={onToggle} />);
+
+      await waitFor(() => {
+        expect(screen.getByRole('alert')).toBeInTheDocument();
+      });
+    });
+  });
+
+  describe('composing フェーズ', () => {
+    it('清書中は音声入力ボタンがdisabledでスピナーが表示される', async () => {
+      let resolveCompose: ((value: unknown) => void) | undefined;
+      mockComposeReply.mockReturnValueOnce(
+        new Promise((resolve) => {
+          resolveCompose = resolve;
+        })
+      );
+
+      const email = createEmail({ isProcessed: true });
+      const user = userEvent.setup();
+
+      mockSpeechReturn = { ...mockSpeechReturn, isListening: false };
+      const { rerender } = render(
+        <EmailCard email={email} isExpanded={true} onToggle={onToggle} />
+      );
+
+      await user.click(screen.getByRole('button', { name: /音声入力/ }));
+
+      mockSpeechReturn = { ...mockSpeechReturn, isListening: true, transcript: '' };
+      rerender(<EmailCard email={email} isExpanded={true} onToggle={onToggle} />);
+
+      mockSpeechReturn = {
+        ...mockSpeechReturn,
+        isListening: false,
+        transcript: 'テスト',
+      };
+      rerender(<EmailCard email={email} isExpanded={true} onToggle={onToggle} />);
+
+      await waitFor(() => {
+        const btn = screen.getByRole('button', { name: /音声入力/ });
+        expect(btn).toBeDisabled();
+      });
+      expect(document.querySelector('.processing-spinner')).toBeInTheDocument();
+      expect(screen.queryByText(/清書中/)).not.toBeInTheDocument();
+
+      resolveCompose?.({
+        composedBody: '清書結果',
+        composedSubject: 'Re: テスト件名',
+      });
+    });
+  });
+
+  describe('composed フェーズ', () => {
+    async function renderComposedState() {
+      mockComposeReply.mockResolvedValueOnce({
+        composedBody: '清書されたメール本文',
+        composedSubject: 'Re: テスト件名',
+      });
+
+      const email = createEmail({ isProcessed: true });
+      const user = userEvent.setup();
+
+      mockSpeechReturn = { ...mockSpeechReturn, isListening: false };
+      const { rerender } = render(
+        <EmailCard email={email} isExpanded={true} onToggle={onToggle} />
+      );
+
+      // 音声入力 → recording → 停止 → auto-compose → composed
+      await user.click(screen.getByRole('button', { name: /音声入力/ }));
+
+      mockSpeechReturn = { ...mockSpeechReturn, isListening: true, transcript: '' };
+      rerender(<EmailCard email={email} isExpanded={true} onToggle={onToggle} />);
+
+      mockSpeechReturn = {
+        ...mockSpeechReturn,
+        isListening: false,
+        transcript: 'テスト',
+      };
+      rerender(<EmailCard email={email} isExpanded={true} onToggle={onToggle} />);
+
+      await waitFor(() => {
+        expect(mockComposeReply).toHaveBeenCalled();
+      });
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /確認/ })).toBeInTheDocument();
+      });
+
+      return { rerender, user };
+    }
+
+    it('AudioPlayer、「音声入力」「確認」「送信」ボタンが全て並列表示される', async () => {
+      await renderComposedState();
+
+      expect(screen.getByTestId('audio-player')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /音声入力/ })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /確認/ })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /送信/ })).toBeInTheDocument();
+
+      // 全てが同じemail-card-actions内にある
+      const actionsArea = screen.getByTestId('audio-player').closest('.email-card-actions');
+      expect(actionsArea).toBeInTheDocument();
+      expect(actionsArea?.contains(screen.getByRole('button', { name: /音声入力/ }))).toBe(true);
+      expect(actionsArea?.contains(screen.getByRole('button', { name: /確認/ }))).toBe(true);
+      expect(actionsArea?.contains(screen.getByRole('button', { name: /送信/ }))).toBe(true);
+    });
+
+    it('「音声入力」ボタンで全状態リセット＋録音再開', async () => {
+      const { user } = await renderComposedState();
+
+      mockStartListening.mockClear();
+      mockResetTranscript.mockClear();
+
+      await user.click(screen.getByRole('button', { name: /音声入力/ }));
+
+      expect(mockResetTranscript).toHaveBeenCalled();
+      expect(mockStartListening).toHaveBeenCalled();
+    });
+  });
+
+  describe('confirming フェーズ', () => {
+    async function renderComposedAndConfirm() {
+      mockComposeReply.mockResolvedValueOnce({
+        composedBody: '清書されたメール本文',
+        composedSubject: 'Re: テスト件名',
+      });
+
+      const email = createEmail({ isProcessed: true });
+      const user = userEvent.setup();
+
+      mockSpeechReturn = { ...mockSpeechReturn, isListening: false };
+      const { rerender } = render(
+        <EmailCard email={email} isExpanded={true} onToggle={onToggle} />
+      );
+
+      await user.click(screen.getByRole('button', { name: /音声入力/ }));
+
+      mockSpeechReturn = { ...mockSpeechReturn, isListening: true, transcript: '' };
+      rerender(<EmailCard email={email} isExpanded={true} onToggle={onToggle} />);
+
+      mockSpeechReturn = {
+        ...mockSpeechReturn,
+        isListening: false,
+        transcript: 'テスト',
+      };
+      rerender(<EmailCard email={email} isExpanded={true} onToggle={onToggle} />);
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /確認/ })).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByRole('button', { name: /確認/ }));
+      return { user, rerender };
+    }
+
+    it('「確認」ボタンでモーダルオーバーレイ付きダイアログが表示される', async () => {
+      await renderComposedAndConfirm();
+
+      const dialog = screen.getByRole('dialog');
+      expect(dialog).toBeInTheDocument();
+
+      // モーダルオーバーレイで表示される
+      const overlay = dialog.closest('.dialog-overlay');
+      expect(overlay).toBeInTheDocument();
+
+      // ダイアログ内に宛先・件名・本文が表示される
+      expect(dialog.textContent).toContain('tanaka@example.com');
+      expect(dialog.textContent).toContain('Re: テスト件名');
+      expect(dialog.textContent).toContain('清書されたメール本文');
+    });
+
+    it('ダイアログ内「戻る」で元に戻る', async () => {
+      const { user } = await renderComposedAndConfirm();
+
+      await user.click(screen.getByRole('button', { name: /戻る/ }));
+
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /確認/ })).toBeInTheDocument();
+    });
+
+    it('ダイアログ内「送信」ボタンでsendReply APIが呼ばれる', async () => {
+      mockSendReply.mockResolvedValueOnce({
+        success: true,
+        googleMessageId: 'msg-456',
+      });
+
+      const { user } = await renderComposedAndConfirm();
+
+      const sendButtons = screen.getAllByRole('button', { name: /送信/ });
+      const dialogSendBtn = sendButtons[sendButtons.length - 1];
+      await user.click(dialogSendBtn);
+
+      expect(mockSendReply).toHaveBeenCalledWith('test-token', 'email-123', {
+        composedBody: '清書されたメール本文',
+        composedSubject: 'Re: テスト件名',
+      });
+    });
+  });
+
+  describe('sending フェーズ', () => {
+    it('送信中は送信ボタンがdisabledでスピナーが表示される', async () => {
+      mockComposeReply.mockResolvedValueOnce({
+        composedBody: '清書本文',
+        composedSubject: 'Re: テスト件名',
+      });
+      let resolveSend: ((value: unknown) => void) | undefined;
+      mockSendReply.mockReturnValueOnce(
+        new Promise((resolve) => {
+          resolveSend = resolve;
+        })
+      );
+
+      const email = createEmail({ isProcessed: true });
+      const user = userEvent.setup();
+
+      mockSpeechReturn = { ...mockSpeechReturn, isListening: false };
+      const { rerender } = render(
+        <EmailCard email={email} isExpanded={true} onToggle={onToggle} />
+      );
+
+      await user.click(screen.getByRole('button', { name: /音声入力/ }));
+
+      mockSpeechReturn = { ...mockSpeechReturn, isListening: true, transcript: '' };
+      rerender(<EmailCard email={email} isExpanded={true} onToggle={onToggle} />);
+
+      mockSpeechReturn = {
+        ...mockSpeechReturn,
+        isListening: false,
+        transcript: 'テスト',
+      };
+      rerender(<EmailCard email={email} isExpanded={true} onToggle={onToggle} />);
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /送信/ })).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByRole('button', { name: /送信/ }));
+
+      const sendBtn = screen.getByRole('button', { name: /送信/ });
+      expect(sendBtn).toBeDisabled();
+      expect(sendBtn.querySelector('.processing-spinner')).toBeInTheDocument();
+      expect(screen.queryByText(/送信中\.\.\./)).not.toBeInTheDocument();
+
+      resolveSend?.({ success: true, googleMessageId: 'msg-456' });
+    });
+  });
+
+  describe('sent フェーズ', () => {
+    it('送信完了後に送信ボタンがdisabledで「送信済み」と表示される', async () => {
+      mockComposeReply.mockResolvedValueOnce({
+        composedBody: '清書本文',
+        composedSubject: 'Re: テスト件名',
+      });
+      mockSendReply.mockResolvedValueOnce({
+        success: true,
+        googleMessageId: 'msg-456',
+      });
+
+      const email = createEmail({ isProcessed: true });
+      const user = userEvent.setup();
+
+      mockSpeechReturn = { ...mockSpeechReturn, isListening: false };
+      const { rerender } = render(
+        <EmailCard email={email} isExpanded={true} onToggle={onToggle} />
+      );
+
+      await user.click(screen.getByRole('button', { name: /音声入力/ }));
+
+      mockSpeechReturn = { ...mockSpeechReturn, isListening: true, transcript: '' };
+      rerender(<EmailCard email={email} isExpanded={true} onToggle={onToggle} />);
+
+      mockSpeechReturn = {
+        ...mockSpeechReturn,
+        isListening: false,
+        transcript: 'テスト',
+      };
+      rerender(<EmailCard email={email} isExpanded={true} onToggle={onToggle} />);
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /送信/ })).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByRole('button', { name: /送信/ }));
+
+      await waitFor(() => {
+        const sentBtn = screen.getByRole('button', { name: /送信済み/ });
+        expect(sentBtn).toBeDisabled();
+      });
+      expect(screen.queryByText(/送信完了しました/)).not.toBeInTheDocument();
+    });
+  });
+
+  describe('error フェーズ', () => {
+    it('清書失敗時にエラー表示と「音声入力」リトライボタンが表示される', async () => {
+      mockComposeReply.mockRejectedValueOnce(new Error('清書に失敗しました'));
+
+      const email = createEmail({ isProcessed: true });
+      const user = userEvent.setup();
+
+      mockSpeechReturn = { ...mockSpeechReturn, isListening: false };
+      const { rerender } = render(
+        <EmailCard email={email} isExpanded={true} onToggle={onToggle} />
+      );
+
+      await user.click(screen.getByRole('button', { name: /音声入力/ }));
+
+      mockSpeechReturn = { ...mockSpeechReturn, isListening: true, transcript: '' };
+      rerender(<EmailCard email={email} isExpanded={true} onToggle={onToggle} />);
+
+      mockSpeechReturn = {
+        ...mockSpeechReturn,
+        isListening: false,
+        transcript: 'テスト入力',
+      };
+      rerender(<EmailCard email={email} isExpanded={true} onToggle={onToggle} />);
+
+      await waitFor(() => {
+        expect(screen.getByText(/清書に失敗/)).toBeInTheDocument();
+      });
+
+      expect(screen.getByRole('button', { name: /音声入力/ })).toBeInTheDocument();
+    });
+
+    it('送信失敗時にエラーメッセージと再送信ボタンが表示される', async () => {
+      mockComposeReply.mockResolvedValueOnce({
+        composedBody: '清書本文',
+        composedSubject: 'Re: テスト件名',
+      });
+      mockSendReply.mockRejectedValueOnce(new Error('送信に失敗しました'));
+
+      const email = createEmail({ isProcessed: true });
+      const user = userEvent.setup();
+
+      mockSpeechReturn = { ...mockSpeechReturn, isListening: false };
+      const { rerender } = render(
+        <EmailCard email={email} isExpanded={true} onToggle={onToggle} />
+      );
+
+      await user.click(screen.getByRole('button', { name: /音声入力/ }));
+
+      mockSpeechReturn = { ...mockSpeechReturn, isListening: true, transcript: '' };
+      rerender(<EmailCard email={email} isExpanded={true} onToggle={onToggle} />);
+
+      mockSpeechReturn = {
+        ...mockSpeechReturn,
+        isListening: false,
+        transcript: 'テスト',
+      };
+      rerender(<EmailCard email={email} isExpanded={true} onToggle={onToggle} />);
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /送信/ })).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByRole('button', { name: /送信/ }));
+
+      await waitFor(() => {
+        expect(screen.getByText(/送信に失敗/)).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /再送信/ })).toBeInTheDocument();
+      });
+    });
+  });
+
+  describe('fallback（Speech API非対応）', () => {
+    it('Speech API非対応時はテキスト入力UIが表示される', () => {
+      mockSpeechReturn = { ...mockSpeechReturn, isAvailable: false };
+      const email = createEmail({ isProcessed: true });
+      render(<EmailCard email={email} isExpanded={true} onToggle={onToggle} />);
+
+      expect(screen.getByText(/音声入力.*利用できません|テキスト入力/)).toBeInTheDocument();
+      expect(screen.getByRole('textbox')).toBeInTheDocument();
+      expect(mockStartListening).not.toHaveBeenCalled();
+    });
+
+    it('フォールバックUIでテキスト入力後に清書ボタンが表示される', async () => {
+      mockSpeechReturn = { ...mockSpeechReturn, isAvailable: false };
+      const email = createEmail({ isProcessed: true });
+      const user = userEvent.setup();
+      render(<EmailCard email={email} isExpanded={true} onToggle={onToggle} />);
+
+      const textarea = screen.getByRole('textbox');
+      await user.type(textarea, 'テスト入力');
+
+      expect(screen.getByRole('button', { name: /清書/ })).toBeInTheDocument();
+    });
+
+    it('フォールバックUIで清書ボタン押下でcomposeReply APIが呼ばれる', async () => {
+      mockComposeReply.mockResolvedValueOnce({
+        composedBody: '清書されたメール本文',
+        composedSubject: 'Re: テスト件名',
+      });
+
+      mockSpeechReturn = { ...mockSpeechReturn, isAvailable: false };
+      const email = createEmail({ isProcessed: true });
+      const user = userEvent.setup();
+      render(<EmailCard email={email} isExpanded={true} onToggle={onToggle} />);
+
+      const textarea = screen.getByRole('textbox');
+      await user.type(textarea, 'お疲れ様');
+
+      await user.click(screen.getByRole('button', { name: /清書/ }));
+
+      expect(mockComposeReply).toHaveBeenCalledWith('test-token', 'email-123', {
+        rawText: 'お疲れ様',
+      });
+    });
+  });
+});

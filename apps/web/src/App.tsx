@@ -1,6 +1,7 @@
 import './App.css';
 import { IoSettingsOutline } from 'react-icons/io5';
 import { BrowserRouter, Link, Navigate, Route, Routes } from 'react-router-dom';
+import headerLogo from './assets/icon_square_transparent.png';
 import { EmailList } from './components/EmailList';
 import { useAuth } from './contexts/AuthContext';
 import { ContactsPage } from './pages/ContactsPage';
@@ -17,14 +18,13 @@ function AppLayout({ children }: { children: React.ReactNode }) {
       <header className="app-header">
         <div className="header-content">
           <div className="header-title">
-            <span className="header-icon">💖</span>
-            <h1>TogeNuki</h1>
+            <img src={headerLogo} alt="TogeNuki" className="header-logo" />
           </div>
           <div className="header-actions">
+            <span className="user-email">{user?.email}</span>
             <Link to="/contacts" className="nav-icon-link" aria-label="設定">
               <IoSettingsOutline size={20} />
             </Link>
-            <span className="user-email">{user?.email}</span>
             <button type="button" onClick={signOut} className="logout-button-small">
               ログアウト
             </button>

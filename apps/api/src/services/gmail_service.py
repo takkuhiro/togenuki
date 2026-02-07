@@ -4,11 +4,13 @@ Provides functionality to:
 - Fetch email content from Gmail API
 - Extract sender information and email body
 - Parse Gmail message responses
+- Send reply emails via Gmail API
 """
 
 import base64
 import re
 from datetime import datetime, timezone
+from email.mime.text import MIMEText
 from typing import Any, cast
 
 import httpx
@@ -151,6 +153,20 @@ def parse_gmail_message(message: dict) -> dict:
         "original_body": extract_email_body(payload),
         "received_at": received_at,
     }
+
+
+def get_message_id(message: dict) -> str | None:
+    """Extract Message-ID header from a Gmail API message response.
+
+    Args:
+        message: Raw Gmail API message response
+
+    Returns:
+        Message-ID header value or None if not found
+    """
+    payload = message.get("payload", {})
+    headers = payload.get("headers", [])
+    return get_header_value(headers, "Message-ID")
 
 
 class GmailApiClient:
@@ -320,3 +336,64 @@ class GmailApiClient:
 
             data = cast(dict[str, Any], response.json())
             return cast(list[dict[str, Any]], data.get("messages", []))
+
+    async def send_message(
+        self,
+        to: str,
+        subject: str,
+        body: str,
+        thread_id: str,
+        in_reply_to: str,
+        references: str,
+    ) -> dict[str, Any]:
+        """Send a reply email via Gmail API.
+
+        Constructs a MIME message with reply headers and sends it
+        using Gmail API messages.send endpoint.
+
+        Args:
+            to: Recipient email address
+            subject: Email subject
+            body: Email body text
+            thread_id: Gmail thread ID to reply in
+            in_reply_to: Message-ID of the original email
+            references: References header value
+
+        Returns:
+            Gmail API response (id, threadId, labelIds)
+
+        Raises:
+            GmailApiError: If API call fails
+        """
+        mime_message = MIMEText(body, "plain", "utf-8")
+        mime_message["To"] = to
+        mime_message["Subject"] = subject
+        mime_message["In-Reply-To"] = in_reply_to
+        mime_message["References"] = references
+
+        raw = base64.urlsafe_b64encode(mime_message.as_bytes()).decode("utf-8")
+
+        url = f"{GMAIL_API_BASE_URL}/messages/send"
+        request_body = {
+            "raw": raw,
+            "threadId": thread_id,
+        }
+
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                url,
+                headers=self.headers,
+                json=request_body,
+                timeout=30.0,
+            )
+
+            if response.status_code != 200:
+                logger.error(
+                    f"Gmail send API error: {response.status_code} - {response.text}"
+                )
+                raise GmailApiError(
+                    f"Failed to send message: {response.text}",
+                    status_code=response.status_code,
+                )
+
+            return cast(dict[str, Any], response.json())

@@ -34,17 +34,28 @@ class TestGeminiService:
         assert "〜だし" in GYARU_SYSTEM_PROMPT or "だし" in GYARU_SYSTEM_PROMPT
         assert "草" in GYARU_SYSTEM_PROMPT or "ｗ" in GYARU_SYSTEM_PROMPT
 
-    def test_system_prompt_includes_emoji_usage(self):
-        """Test that system prompt includes emoji usage guidelines."""
+    def test_system_prompt_prohibits_emoji_usage(self):
+        """Test that system prompt prohibits emoji usage for TTS readability."""
         from src.services.gemini_service import GYARU_SYSTEM_PROMPT
 
-        # Should include emoji guidelines
-        emoji_count = sum(
-            1
-            for emoji in ["💖", "✨", "🥺", "🎉", "🔥"]
-            if emoji in GYARU_SYSTEM_PROMPT
+        # Should prohibit emojis for voice readout
+        assert "絵文字" in GYARU_SYSTEM_PROMPT, "System prompt should mention emoji policy"
+        assert "使用しない" in GYARU_SYSTEM_PROMPT or "禁止" in GYARU_SYSTEM_PROMPT, (
+            "System prompt should prohibit emoji usage"
         )
-        assert emoji_count >= 3, "System prompt should include at least 3 gyaru emojis"
+        # Conversion example should not contain emojis
+        for emoji in ["💖", "✨", "🥺", "🎉", "🔥"]:
+            assert emoji not in GYARU_SYSTEM_PROMPT, (
+                f"System prompt should not contain emoji {emoji}"
+            )
+
+    def test_system_prompt_requires_concise_output(self):
+        """Test that system prompt requires concise output for TTS."""
+        from src.services.gemini_service import GYARU_SYSTEM_PROMPT
+
+        assert "端的" in GYARU_SYSTEM_PROMPT or "簡潔" in GYARU_SYSTEM_PROMPT, (
+            "System prompt should require concise output"
+        )
 
 
 class TestGyaruConversion:
@@ -232,6 +243,148 @@ class TestGeminiConfiguration:
 
             service = GeminiService()
             assert service.model == "gemini-2.5-flash"
+
+
+class TestComposeBusinessReply:
+    """Tests for compose_business_reply method."""
+
+    @pytest.mark.asyncio
+    async def test_compose_business_reply_returns_composed_text(self):
+        """compose_business_reply should convert casual text to business email."""
+        from src.services.gemini_service import GeminiService
+
+        with (
+            patch("src.services.gemini_service.get_settings") as mock_settings,
+            patch("src.services.gemini_service.genai") as mock_genai,
+        ):
+            mock_settings.return_value.gemini_api_key = "test-api-key"
+            mock_settings.return_value.gemini_model = None
+            mock_client = MagicMock()
+            mock_genai.Client.return_value = mock_client
+
+            mock_response = MagicMock()
+            mock_response.text = "お疲れ様です。ご連絡いただきありがとうございます。報告書の件、承知いたしました。明日中に提出いたします。"
+            mock_client.models.generate_content = MagicMock(return_value=mock_response)
+
+            service = GeminiService()
+            result = await service.compose_business_reply(
+                raw_text="了解っす、明日出します",
+                original_email_body="明日までに報告書を提出してください。",
+                sender_name="田中課長",
+            )
+
+            assert result.is_ok()
+            composed = result.unwrap()
+            assert isinstance(composed, str)
+            assert len(composed) > 0
+
+    @pytest.mark.asyncio
+    async def test_compose_business_reply_includes_contact_context_in_prompt(self):
+        """compose_business_reply should include contact_context in the prompt when provided."""
+        from src.services.gemini_service import GeminiService
+
+        with (
+            patch("src.services.gemini_service.get_settings") as mock_settings,
+            patch("src.services.gemini_service.genai") as mock_genai,
+        ):
+            mock_settings.return_value.gemini_api_key = "test-api-key"
+            mock_settings.return_value.gemini_model = None
+            mock_client = MagicMock()
+            mock_genai.Client.return_value = mock_client
+
+            mock_response = MagicMock()
+            mock_response.text = "清書されたメール"
+            mock_client.models.generate_content = MagicMock(return_value=mock_response)
+
+            service = GeminiService()
+            await service.compose_business_reply(
+                raw_text="了解です",
+                original_email_body="確認お願いします。",
+                sender_name="佐藤部長",
+                contact_context="丁寧で形式的なトーン。「お疲れ様です」で始めることが多い。",
+            )
+
+            call_args = mock_client.models.generate_content.call_args
+            contents = call_args.kwargs.get("contents") or call_args.args[1]
+            assert "丁寧で形式的なトーン" in str(contents)
+
+    @pytest.mark.asyncio
+    async def test_compose_business_reply_with_empty_text_returns_error(self):
+        """compose_business_reply should return INVALID_INPUT for empty text."""
+        from src.services.gemini_service import GeminiError, GeminiService
+
+        with (
+            patch("src.services.gemini_service.get_settings") as mock_settings,
+            patch("src.services.gemini_service.genai"),
+        ):
+            mock_settings.return_value.gemini_api_key = "test-api-key"
+            mock_settings.return_value.gemini_model = None
+
+            service = GeminiService()
+            result = await service.compose_business_reply(
+                raw_text="",
+                original_email_body="テスト本文",
+                sender_name="田中さん",
+            )
+
+            assert result.is_err()
+            assert result.unwrap_err() == GeminiError.INVALID_INPUT
+
+    @pytest.mark.asyncio
+    async def test_compose_business_reply_handles_api_timeout(self):
+        """compose_business_reply should handle timeout errors."""
+        import asyncio
+
+        from src.services.gemini_service import GeminiError, GeminiService
+
+        with (
+            patch("src.services.gemini_service.get_settings") as mock_settings,
+            patch("src.services.gemini_service.genai") as mock_genai,
+        ):
+            mock_settings.return_value.gemini_api_key = "test-api-key"
+            mock_settings.return_value.gemini_model = None
+            mock_client = MagicMock()
+            mock_genai.Client.return_value = mock_client
+            mock_client.models.generate_content = MagicMock(
+                side_effect=asyncio.TimeoutError("Request timed out")
+            )
+
+            service = GeminiService()
+            result = await service.compose_business_reply(
+                raw_text="了解です",
+                original_email_body="テスト本文",
+                sender_name="田中さん",
+            )
+
+            assert result.is_err()
+            assert result.unwrap_err() == GeminiError.TIMEOUT
+
+    @pytest.mark.asyncio
+    async def test_compose_business_reply_handles_rate_limit(self):
+        """compose_business_reply should detect rate limit errors."""
+        from src.services.gemini_service import GeminiError, GeminiService
+
+        with (
+            patch("src.services.gemini_service.get_settings") as mock_settings,
+            patch("src.services.gemini_service.genai") as mock_genai,
+        ):
+            mock_settings.return_value.gemini_api_key = "test-api-key"
+            mock_settings.return_value.gemini_model = None
+            mock_client = MagicMock()
+            mock_genai.Client.return_value = mock_client
+            mock_client.models.generate_content = MagicMock(
+                side_effect=Exception("429 Resource has been exhausted")
+            )
+
+            service = GeminiService()
+            result = await service.compose_business_reply(
+                raw_text="了解です",
+                original_email_body="テスト本文",
+                sender_name="田中さん",
+            )
+
+            assert result.is_err()
+            assert result.unwrap_err() == GeminiError.RATE_LIMIT
 
 
 class TestAnalyzePatterns:

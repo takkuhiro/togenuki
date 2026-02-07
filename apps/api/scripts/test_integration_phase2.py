@@ -10,17 +10,17 @@ DBからGmailトークンを取得し、実際のAPIを使って統合テスト�
 
 import asyncio
 import sys
-from datetime import datetime, timezone
 
 # プロジェクトルートをパスに追加
 sys.path.insert(0, ".")
 
 from sqlalchemy import select
-from src.database import AsyncSessionLocal
-from src.models import User, Contact
-from src.services.gmail_service import GmailApiClient
-from src.services.gemini_service import GeminiService
+
 from src.auth.gmail_oauth import GmailOAuthService
+from src.database import AsyncSessionLocal
+from src.models import User
+from src.services.gemini_service import GeminiService
+from src.services.gmail_service import GmailApiClient
 
 
 async def get_user_with_gmail_token():
@@ -44,7 +44,9 @@ async def get_user_with_gmail_token():
         if oauth_service.is_token_expired(user.gmail_token_expires_at):
             print("   ⚠️  トークンが期限切れです。リフレッシュ中...")
 
-            refreshed = await oauth_service.refresh_access_token(user.gmail_refresh_token)
+            refreshed = await oauth_service.refresh_access_token(
+                user.gmail_refresh_token
+            )
             if refreshed is None:
                 print("   ❌ トークンのリフレッシュに失敗しました。再認証が必要です。")
                 return None
@@ -54,16 +56,18 @@ async def get_user_with_gmail_token():
             user.gmail_token_expires_at = refreshed["expires_at"]
             await session.commit()
 
-            print(f"   ✅ トークンをリフレッシュしました（新しい有効期限: {refreshed['expires_at']}）")
+            print(
+                f"   ✅ トークンをリフレッシュしました（新しい有効期限: {refreshed['expires_at']}）"
+            )
 
         return user
 
 
 async def test_gmail_search(access_token: str, query: str = "in:inbox"):
     """GmailApiClient.search_messages() のテスト."""
-    print("\n" + "="*50)
+    print("\n" + "=" * 50)
     print("📧 Gmail API テスト: search_messages()")
-    print("="*50)
+    print("=" * 50)
 
     try:
         client = GmailApiClient(access_token)
@@ -81,9 +85,9 @@ async def test_gmail_search(access_token: str, query: str = "in:inbox"):
 
 async def test_gmail_fetch_message(access_token: str, message_id: str):
     """GmailApiClient.fetch_message() のテスト."""
-    print("\n" + "="*50)
+    print("\n" + "=" * 50)
     print("📧 Gmail API テスト: fetch_message()")
-    print("="*50)
+    print("=" * 50)
 
     try:
         client = GmailApiClient(access_token)
@@ -94,7 +98,7 @@ async def test_gmail_fetch_message(access_token: str, message_id: str):
         subject = next((h["value"] for h in headers if h["name"] == "Subject"), "N/A")
         from_header = next((h["value"] for h in headers if h["name"] == "From"), "N/A")
 
-        print(f"✅ メッセージ取得成功:")
+        print("✅ メッセージ取得成功:")
         print(f"   From: {from_header}")
         print(f"   Subject: {subject}")
 
@@ -106,9 +110,9 @@ async def test_gmail_fetch_message(access_token: str, message_id: str):
 
 async def test_gemini_analyze_patterns():
     """GeminiService.analyze_patterns() のテスト."""
-    print("\n" + "="*50)
+    print("\n" + "=" * 50)
     print("🤖 Gemini API テスト: analyze_patterns()")
-    print("="*50)
+    print("=" * 50)
 
     try:
         service = GeminiService()
@@ -118,12 +122,12 @@ async def test_gemini_analyze_patterns():
             {
                 "sender": "boss@example.com",
                 "body": "明日の会議資料、今日中に準備お願いします。",
-                "user_reply": "承知いたしました。本日中に完成させます。"
+                "user_reply": "承知いたしました。本日中に完成させます。",
             },
             {
                 "sender": "boss@example.com",
                 "body": "報告書の修正点について確認してください。添付ファイルをご確認ください。",
-                "user_reply": "ご確認いただきありがとうございます。修正いたします。"
+                "user_reply": "ご確認いただきありがとうございます。修正いたします。",
             },
         ]
 
@@ -144,9 +148,9 @@ async def test_gemini_analyze_patterns():
 
 
 async def main():
-    print("="*60)
+    print("=" * 60)
     print("🧪 Phase 2 統合テスト")
-    print("="*60)
+    print("=" * 60)
 
     # 1. DBからユーザー取得
     user = await get_user_with_gmail_token()
@@ -162,9 +166,9 @@ async def main():
     # 4. Gemini API テスト（Gmailとは独立）
     await test_gemini_analyze_patterns()
 
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("🏁 テスト完了")
-    print("="*60)
+    print("=" * 60)
 
 
 if __name__ == "__main__":
