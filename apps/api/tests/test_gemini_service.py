@@ -39,7 +39,9 @@ class TestGeminiService:
         from src.services.gemini_service import GYARU_SYSTEM_PROMPT
 
         # Should prohibit emojis for voice readout
-        assert "絵文字" in GYARU_SYSTEM_PROMPT, "System prompt should mention emoji policy"
+        assert "絵文字" in GYARU_SYSTEM_PROMPT, (
+            "System prompt should mention emoji policy"
+        )
         assert "使用しない" in GYARU_SYSTEM_PROMPT or "禁止" in GYARU_SYSTEM_PROMPT, (
             "System prompt should prohibit emoji usage"
         )

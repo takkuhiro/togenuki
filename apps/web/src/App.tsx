@@ -17,9 +17,9 @@ function AppLayout({ children }: { children: React.ReactNode }) {
     <div className="app">
       <header className="app-header">
         <div className="header-content">
-          <div className="header-title">
+          <Link to="/emails" className="header-title">
             <img src={headerLogo} alt="TogeNuki" className="header-logo" />
-          </div>
+          </Link>
           <div className="header-actions">
             <span className="user-email">{user?.email}</span>
             <Link to="/contacts" className="nav-icon-link" aria-label="設定">
@@ -99,7 +99,6 @@ function LandingPage() {
       <div className="app">
         <div className="login-container">
           <h1>TogeNuki</h1>
-          <p className="app-description">メールストレス軽減AIツール</p>
           {error && <p className="error-message">エラー: {error}</p>}
           <button type="button" onClick={signInWithGoogle} className="login-button">
             Googleでログイン

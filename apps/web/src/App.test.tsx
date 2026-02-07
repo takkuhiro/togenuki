@@ -37,12 +37,6 @@ describe('App', () => {
     expect(titleElement).toBeInTheDocument();
   });
 
-  it('renders subtitle', () => {
-    renderWithAuth(<App />);
-    const subtitleElement = screen.getByText(/メールストレス軽減AIツール/i);
-    expect(subtitleElement).toBeInTheDocument();
-  });
-
   it('renders login button when not authenticated', () => {
     renderWithAuth(<App />);
     const loginButton = screen.getByText(/Googleでログイン/i);

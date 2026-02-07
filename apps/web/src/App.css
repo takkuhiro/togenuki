@@ -69,6 +69,7 @@ body {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  text-decoration: none;
 }
 
 .header-logo {
@@ -216,6 +217,51 @@ button:disabled {
 
 .email-list-error p {
   color: #dc3545;
+}
+
+.email-list-tabs {
+  display: flex;
+  gap: 0;
+  margin-bottom: 1rem;
+  background-color: #EAE7E1;
+  border-radius: 10px;
+  padding: 3px;
+}
+
+.email-list-tab {
+  flex: 1;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #8C8C8C;
+  background: none;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: none;
+}
+
+.email-list-tab:hover {
+  color: #464646;
+  transform: none;
+}
+
+.email-list-tab--active {
+  background-color: white;
+  color: #4A6C74;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.email-list-tab--active:hover {
+  color: #4A6C74;
+}
+
+.email-list-section-title {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #8C8C8C;
+  margin-bottom: 0.75rem;
 }
 
 /* Email Card */

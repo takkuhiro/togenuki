@@ -19,6 +19,9 @@ class EmailDTO(BaseModel):
     audioUrl: str | None
     isProcessed: bool
     receivedAt: str | None
+    repliedAt: str | None
+    replyBody: str | None
+    replySubject: str | None
 
 
 class EmailsResponse(BaseModel):

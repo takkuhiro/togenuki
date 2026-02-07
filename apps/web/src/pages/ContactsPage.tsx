@@ -36,7 +36,6 @@ export function ContactsPage() {
       </div>
 
       <section>
-        <h3 className="contacts-section-title">新しい連絡先を登録</h3>
         <ContactForm onSuccess={handleContactCreated} />
       </section>
 

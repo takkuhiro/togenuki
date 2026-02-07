@@ -373,6 +373,15 @@ SYSTEM_PROMPT_LEARNING = """
 2. **確認**: PC画面にメールが通知されて、ギャルが読み上げ、返信する流れをリハーサル。
 
 
+### ページの色味
+色の役割,Hex Code,色の名前,説明
+Main Background,#F2F0EB,Warm Washi,真っ白ではなく、少し黄みがかった和紙のような白。目の疲れを軽減します。
+Primary (Brand),#4A6C74,Deep Calm Teal,深い青緑。知性と落ち着きを表します。アイコンの「暗い部分」とリンクさせます。
+Secondary (Accent),#D6A884,Muted Apricot,落ち着いたオレンジベージュ。アイコンの「とげが抜けた光」や「肌のぬくもり」を表現。
+Surface (Card),#FFFFFF,Pure White,メール本文などを表示するカード部分。清潔感を保ちます。
+Text (Body),#464646,Soft Charcoal,真っ黒（#000）ではなく、柔らかいチャコールグレー。
+Text (Muted),#8C8C8C,Stone Gray,補足情報や、読みたくない「原文」の表示などに使用。
+
 
 ### その他
 

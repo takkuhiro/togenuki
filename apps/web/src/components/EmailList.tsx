@@ -26,9 +26,18 @@ export function EmailList() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [expandedEmailId, setExpandedEmailId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'unreplied' | 'replied'>('unreplied');
 
   const handleToggle = useCallback((emailId: string) => {
     setExpandedEmailId((prevId) => (prevId === emailId ? null : emailId));
+  }, []);
+
+  const handleReplied = useCallback((emailId: string) => {
+    setEmails((prev) =>
+      prev.map((email) =>
+        email.id === emailId ? { ...email, repliedAt: new Date().toISOString() } : email
+      )
+    );
   }, []);
 
   const loadEmails = useCallback(async () => {
@@ -82,16 +91,47 @@ export function EmailList() {
     );
   }
 
+  const unrepliedEmails = emails.filter((email) => !email.repliedAt);
+  const repliedEmails = emails.filter((email) => email.repliedAt);
+  const displayedEmails = activeTab === 'unreplied' ? unrepliedEmails : repliedEmails;
+
   return (
     <div className="email-list">
-      {emails.map((email) => (
-        <EmailCard
-          key={email.id}
-          email={email}
-          isExpanded={expandedEmailId === email.id}
-          onToggle={() => handleToggle(email.id)}
-        />
-      ))}
+      <div className="email-list-tabs" role="tablist">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'unreplied'}
+          className={`email-list-tab ${activeTab === 'unreplied' ? 'email-list-tab--active' : ''}`}
+          onClick={() => setActiveTab('unreplied')}
+        >
+          未返信（{unrepliedEmails.length}件）
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'replied'}
+          className={`email-list-tab ${activeTab === 'replied' ? 'email-list-tab--active' : ''}`}
+          onClick={() => setActiveTab('replied')}
+        >
+          返信済み（{repliedEmails.length}件）
+        </button>
+      </div>
+      <div role="tabpanel">
+        {activeTab === 'unreplied' && unrepliedEmails.length === 0 ? (
+          <p className="email-list-section-title">すべて返信済みです</p>
+        ) : (
+          displayedEmails.map((email) => (
+            <EmailCard
+              key={email.id}
+              email={email}
+              isExpanded={expandedEmailId === email.id}
+              onToggle={() => handleToggle(email.id)}
+              onReplied={handleReplied}
+            />
+          ))
+        )}
+      </div>
     </div>
   );
 }

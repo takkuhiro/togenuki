@@ -286,6 +286,9 @@ class TestDashboardAndAudioPlayback:
                 "audio_url": "https://storage.googleapis.com/togenuki-audio/audio1.mp3",
                 "is_processed": True,
                 "received_at": "2024-01-15T10:30:00+00:00",
+                "replied_at": None,
+                "reply_body": None,
+                "reply_subject": None,
             },
             {
                 "id": str(uuid7()),
@@ -296,6 +299,9 @@ class TestDashboardAndAudioPlayback:
                 "audio_url": None,
                 "is_processed": False,
                 "received_at": "2024-01-14T09:00:00+00:00",
+                "replied_at": None,
+                "reply_body": None,
+                "reply_subject": None,
             },
         ]
 
@@ -388,6 +394,9 @@ class TestDashboardAndAudioPlayback:
                 "audio_url": "https://example.com/new.mp3",
                 "is_processed": True,
                 "received_at": "2024-01-15T12:00:00+00:00",
+                "replied_at": None,
+                "reply_body": None,
+                "reply_subject": None,
             },
             {
                 "id": str(uuid7()),
@@ -398,6 +407,9 @@ class TestDashboardAndAudioPlayback:
                 "audio_url": "https://example.com/old.mp3",
                 "is_processed": True,
                 "received_at": "2024-01-10T12:00:00+00:00",
+                "replied_at": None,
+                "reply_body": None,
+                "reply_subject": None,
             },
         ]
 

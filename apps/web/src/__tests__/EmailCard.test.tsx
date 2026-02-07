@@ -64,6 +64,9 @@ function createEmail(overrides: Partial<Email> = {}): Email {
     audioUrl: 'https://example.com/audio.mp3',
     isProcessed: true,
     receivedAt: new Date().toISOString(),
+    repliedAt: null,
+    replyBody: null,
+    replySubject: null,
     ...overrides,
   };
 }
@@ -611,6 +614,52 @@ describe('EmailCard - VoiceReplyPanel統合', () => {
       });
       expect(screen.queryByText(/送信完了しました/)).not.toBeInTheDocument();
     });
+
+    it('送信完了時にonRepliedコールバックが呼ばれる', async () => {
+      mockComposeReply.mockResolvedValueOnce({
+        composedBody: '清書本文',
+        composedSubject: 'Re: テスト件名',
+      });
+      mockSendReply.mockResolvedValueOnce({
+        success: true,
+        googleMessageId: 'msg-456',
+      });
+
+      const onReplied = vi.fn();
+      const email = createEmail({ isProcessed: true });
+      const user = userEvent.setup();
+
+      mockSpeechReturn = { ...mockSpeechReturn, isListening: false };
+      const { rerender } = render(
+        <EmailCard email={email} isExpanded={true} onToggle={onToggle} onReplied={onReplied} />
+      );
+
+      await user.click(screen.getByRole('button', { name: /音声入力/ }));
+
+      mockSpeechReturn = { ...mockSpeechReturn, isListening: true, transcript: '' };
+      rerender(
+        <EmailCard email={email} isExpanded={true} onToggle={onToggle} onReplied={onReplied} />
+      );
+
+      mockSpeechReturn = {
+        ...mockSpeechReturn,
+        isListening: false,
+        transcript: 'テスト',
+      };
+      rerender(
+        <EmailCard email={email} isExpanded={true} onToggle={onToggle} onReplied={onReplied} />
+      );
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /送信/ })).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByRole('button', { name: /送信/ }));
+
+      await waitFor(() => {
+        expect(onReplied).toHaveBeenCalledWith('email-123');
+      });
+    });
   });
 
   describe('error フェーズ', () => {
@@ -681,6 +730,93 @@ describe('EmailCard - VoiceReplyPanel統合', () => {
         expect(screen.getByText(/送信に失敗/)).toBeInTheDocument();
         expect(screen.getByRole('button', { name: /再送信/ })).toBeInTheDocument();
       });
+    });
+  });
+
+  describe('返信済みメール（repliedAt設定済み）', () => {
+    it('repliedAtが設定されている場合、返信UI（音声入力ボタン等）が非表示', () => {
+      const email = createEmail({
+        isProcessed: true,
+        repliedAt: '2024-01-16T14:00:00+00:00',
+      });
+      render(<EmailCard email={email} isExpanded={true} onToggle={onToggle} />);
+
+      // AudioPlayerは表示される
+      expect(screen.getByTestId('audio-player')).toBeInTheDocument();
+      // 返信UI（音声入力ボタン）は非表示
+      expect(screen.queryByRole('button', { name: /音声入力/ })).not.toBeInTheDocument();
+    });
+
+    it('repliedAtが設定されている場合、テキスト入力フォールバックUIも非表示', () => {
+      mockSpeechReturn = { ...mockSpeechReturn, isAvailable: false };
+      const email = createEmail({
+        isProcessed: true,
+        repliedAt: '2024-01-16T14:00:00+00:00',
+      });
+      render(<EmailCard email={email} isExpanded={true} onToggle={onToggle} />);
+
+      expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+      expect(screen.queryByText(/音声入力.*利用できません/)).not.toBeInTheDocument();
+    });
+
+    it('replyBodyがある場合、「確認」ボタンが表示される', () => {
+      const email = createEmail({
+        isProcessed: true,
+        repliedAt: '2024-01-16T14:00:00+00:00',
+        replyBody: '送信済みの本文です',
+        replySubject: 'Re: テスト件名',
+      });
+      render(<EmailCard email={email} isExpanded={true} onToggle={onToggle} />);
+
+      expect(screen.getByRole('button', { name: /確認/ })).toBeInTheDocument();
+    });
+
+    it('replyBodyがnullの場合、「確認」ボタンが表示されない', () => {
+      const email = createEmail({
+        isProcessed: true,
+        repliedAt: '2024-01-16T14:00:00+00:00',
+        replyBody: null,
+        replySubject: null,
+      });
+      render(<EmailCard email={email} isExpanded={true} onToggle={onToggle} />);
+
+      expect(screen.queryByRole('button', { name: /確認/ })).not.toBeInTheDocument();
+    });
+
+    it('「確認」ボタンクリックでダイアログに送信内容が表示される', async () => {
+      const email = createEmail({
+        isProcessed: true,
+        repliedAt: '2024-01-16T14:00:00+00:00',
+        replyBody: '送信済みの本文です',
+        replySubject: 'Re: テスト件名',
+      });
+      const user = userEvent.setup();
+      render(<EmailCard email={email} isExpanded={true} onToggle={onToggle} />);
+
+      await user.click(screen.getByRole('button', { name: /確認/ }));
+
+      const dialog = screen.getByRole('dialog');
+      expect(dialog).toBeInTheDocument();
+      expect(dialog.textContent).toContain('tanaka@example.com');
+      expect(dialog.textContent).toContain('Re: テスト件名');
+      expect(dialog.textContent).toContain('送信済みの本文です');
+    });
+
+    it('ダイアログの「閉じる」ボタンでダイアログが閉じる', async () => {
+      const email = createEmail({
+        isProcessed: true,
+        repliedAt: '2024-01-16T14:00:00+00:00',
+        replyBody: '送信済みの本文です',
+        replySubject: 'Re: テスト件名',
+      });
+      const user = userEvent.setup();
+      render(<EmailCard email={email} isExpanded={true} onToggle={onToggle} />);
+
+      await user.click(screen.getByRole('button', { name: /確認/ }));
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
+
+      await user.click(screen.getByRole('button', { name: /閉じる/ }));
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     });
   });
 
