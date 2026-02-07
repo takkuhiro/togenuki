@@ -69,7 +69,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const token = await user.getIdToken();
         setState((prev) => ({ ...prev, idToken: token }));
       } catch {
-        setState((prev) => ({ ...prev, idToken: null }));
+        setState((prev) => ({ ...prev, idToken: null, isLoading: false }));
       }
     } else {
       setState((prev) => ({ ...prev, idToken: null }));
@@ -85,10 +85,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           email: user.email,
           displayName: user.displayName,
         };
+        // Keep isLoading: true until Gmail status check completes
         setState((prev) => ({
           ...prev,
           user: firebaseUser,
-          isLoading: false,
           error: null,
         }));
         await updateIdToken(user);
@@ -164,11 +164,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (response.ok) {
         const data = await response.json();
         const connected = data.connected === true;
-        setState((prev) => ({ ...prev, isGmailConnected: connected }));
+        setState((prev) => ({ ...prev, isGmailConnected: connected, isLoading: false }));
         return connected;
       }
+      setState((prev) => ({ ...prev, isLoading: false }));
       return false;
     } catch {
+      setState((prev) => ({ ...prev, isLoading: false }));
       return false;
     }
   }, [state.idToken]);
