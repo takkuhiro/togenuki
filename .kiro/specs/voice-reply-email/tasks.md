@@ -97,8 +97,8 @@
   - _Requirements: 2.1, 3.1, 3.5, 5.3, 5.4_
   - **ユーザー確認**: バックエンド実装（タスク1〜5）の完了後、ローカル環境でバックエンドサーバーを起動し、curlやHTTPクライアントで清書・送信エンドポイントの動作確認を依頼する。特にGemini API連携（清書結果の品質）とOAuthトークンのリフレッシュ動作を実際のAPIキーで確認してもらう
 
-- [ ] 6. useSpeechRecognition hookを実装する
-- [ ] 6.1 (P) Web Speech APIをラップするカスタムhookを実装する
+- [x] 6. useSpeechRecognition hookを実装する
+- [x] 6.1 (P) Web Speech APIをラップするカスタムhookを実装する
   - SpeechRecognition / webkitSpeechRecognitionの存在をチェックし、利用可能フラグを提供する
   - 日本語（ja-JP）でcontinuousモードとinterimResultsを有効にした音声認識を管理する
   - 開始・停止・リセット関数と、確定テキスト・中間テキスト・エラー状態を返却する
@@ -107,7 +107,7 @@
   - onerrorイベントでエラーメッセージを日本語で設定する
   - _Requirements: 1.3, 1.4, 1.5, 5.1, 5.2_
 
-- [ ] 6.2 (P) useSpeechRecognition hookのユニットテストを作成する
+- [x] 6.2 (P) useSpeechRecognition hookのユニットテストを作成する
   - SpeechRecognition APIのモックを使用
   - 利用可能判定：API存在時はtrue、非存在時はfalse
   - 開始→中間結果→確定結果の状態遷移
