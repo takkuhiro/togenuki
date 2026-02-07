@@ -101,6 +101,18 @@ import './App.css';
 - **型定義**: ブラウザAPI等の型は利用ファイル内でinterface定義
 - **状態管理**: React hooks (useState, useRef) をローカルで使用
 - **副作用**: useRef等でインスタンスを保持し、クリーンアップを確実に行う
+- **カスタムフック**: ブラウザAPI統合（Web Speech API等）は`hooks/`に専用フックとして切り出し、可用性チェック・フォールバックを内包
+- **UIフェーズ管理**: 複雑なUI操作フロー（例: 録音→清書→確認→送信）はフェーズ型（`type Phase = 'idle' | 'recording' | ...`）で状態遷移を管理
+- **APIモジュール**: `api/`配下は機能単位で1ファイル（例: `reply.ts`）。リクエスト/レスポンス型とfetch関数をセットでエクスポート
+
+### Backend Module Pattern
+
+機能追加時は以下の3ファイルをセットで作成:
+- `routers/<feature>.py` - エンドポイント定義 + エラーマッピング
+- `services/<feature>_service.py` - ビジネスロジック（`Result[T]`返却）
+- `schemas/<feature>.py` - Pydantic リクエスト/レスポンスモデル
+
+複数サービスを横断する場合は、オーケストレーションサービスとして独立（例: `reply_service.py` が `gemini_service` + `gmail_service` を調整）
 
 ---
 _Document patterns, not file trees. New files following patterns shouldn't require updates_

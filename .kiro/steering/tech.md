@@ -21,8 +21,9 @@ Google Cloud を中心としたサーバーレスアーキテクチャ。フロ�
 - **Storage**: Cloud Storage (GCS) - 音声ファイル保存
 
 ### AI/ML Services
-- **LLM**: Gemini 2.5 Flash (感情変換・メール清書・学習分析)
+- **LLM**: Gemini 2.5 Flash (感情変換・返信清書・学習分析)
 - **TTS**: Google Cloud Text-to-Speech (日本語)
+- **STT**: Web Speech API (ブラウザ側、SpeechRecognition + webkitSpeechRecognition フォールバック)
 
 ### Authentication
 - Firebase Authentication (Google Sign-In)
@@ -77,9 +78,10 @@ alembic upgrade head                              # マイグレーション適�
 
 - **非同期処理優先**: Pub/Sub Webhook受信後、即座に200 OK返却し、BackgroundTasksで処理
 - **音声変換ローカル化**: Web Speech APIでブラウザ側STT処理（サーバー負荷軽減）
-- **学習データ永続化**: contact_contextテーブルで相手パターンを保持
-- **Result型パターン**: 外部API呼び出しは`result`ライブラリでエラーハンドリング
+- **学習データ永続化**: contact_contextテーブルで相手パターンを保持し、返信生成時にコンテキストとして活用
+- **Result型パターン**: サービス層の外部API呼び出しは`result`ライブラリで`Result[T]`型を返却。Routerでエラーマッピング
 - **UUID v7採用**: 時系列ソート可能なUUIDをPKに使用
+- **サービスオーケストレーション**: 複数サービスを横断する処理（例: 返信=Gemini清書→Gmail送信）は専用オーケストレーションサービスで調整
 
 ---
 _Document standards and patterns, not every dependency_
