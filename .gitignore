@@ -1,3 +1,14 @@
+# Secrets
 docs/SECRETS.md
-docs/BLOG_STRUCTURE.md
+.env
+.env.*
+!.env.example
+
+# Dependencies
+node_modules/
+
+# OS
 .DS_Store
+
+# Other
+docs/BLOG_STRUCTURE.md

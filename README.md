@@ -129,4 +129,4 @@ ruff check src/                 # lint
 
 ## ライセンス
 
-Private
+[MIT](LICENSE)

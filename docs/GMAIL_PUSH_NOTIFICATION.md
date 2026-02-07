@@ -584,7 +584,7 @@ GOOGLE_CLIENT_SECRET=xxx
 GOOGLE_REDIRECT_URI=https://api.example.com/api/auth/gmail/callback
 
 # Project
-PROJECT_ID=aitech-good-s15112
+PROJECT_ID=your-gcp-project-id
 
 # Firebase
 FIREBASE_CREDENTIALS_PATH=secrets/firebase-service-account.json
