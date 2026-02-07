@@ -31,6 +31,7 @@ const mockEmails = [
     audioUrl: 'https://example.com/audio1.mp3',
     isProcessed: true,
     receivedAt: '2024-01-15T10:30:00+00:00',
+    repliedAt: null,
   },
   {
     id: '2',
@@ -41,6 +42,43 @@ const mockEmails = [
     audioUrl: null,
     isProcessed: false,
     receivedAt: '2024-01-14T09:00:00+00:00',
+    repliedAt: null,
+  },
+];
+
+const mockEmailsWithReplied = [
+  {
+    id: '1',
+    senderName: '田中部長',
+    senderEmail: 'tanaka@example.com',
+    subject: '重要：プロジェクト進捗報告',
+    convertedBody: '変換後テキスト1',
+    audioUrl: 'https://example.com/audio1.mp3',
+    isProcessed: true,
+    receivedAt: '2024-01-15T10:30:00+00:00',
+    repliedAt: null,
+  },
+  {
+    id: '2',
+    senderName: '佐藤課長',
+    senderEmail: 'sato@example.com',
+    subject: '週報提出のお願い',
+    convertedBody: '変換後テキスト2',
+    audioUrl: 'https://example.com/audio2.mp3',
+    isProcessed: true,
+    receivedAt: '2024-01-14T09:00:00+00:00',
+    repliedAt: '2024-01-15T12:00:00+00:00',
+  },
+  {
+    id: '3',
+    senderName: '鈴木係長',
+    senderEmail: 'suzuki@example.com',
+    subject: '会議室予約の件',
+    convertedBody: '変換後テキスト3',
+    audioUrl: 'https://example.com/audio3.mp3',
+    isProcessed: true,
+    receivedAt: '2024-01-13T08:00:00+00:00',
+    repliedAt: '2024-01-14T10:00:00+00:00',
   },
 ];
 
@@ -207,6 +245,111 @@ describe('EmailList', () => {
 
       await waitFor(() => {
         expect(screen.getByText(/エラー/)).toBeInTheDocument();
+      });
+    });
+  });
+
+  describe('タブ切り替え（未返信/返信済み）', () => {
+    it('タブが表示され、デフォルトで未返信タブが選択される', async () => {
+      vi.mocked(emailApi.fetchEmails).mockResolvedValue({
+        emails: mockEmailsWithReplied,
+        total: 3,
+      });
+
+      render(<EmailList />);
+
+      await waitFor(() => {
+        const unrepliedTab = screen.getByRole('tab', { name: /未返信/ });
+        const repliedTab = screen.getByRole('tab', { name: /返信済み/ });
+        expect(unrepliedTab).toBeInTheDocument();
+        expect(repliedTab).toBeInTheDocument();
+        expect(unrepliedTab).toHaveAttribute('aria-selected', 'true');
+        expect(repliedTab).toHaveAttribute('aria-selected', 'false');
+      });
+    });
+
+    it('未返信タブ選択時は未返信メールのみ表示される', async () => {
+      vi.mocked(emailApi.fetchEmails).mockResolvedValue({
+        emails: mockEmailsWithReplied,
+        total: 3,
+      });
+
+      render(<EmailList />);
+
+      await waitFor(() => {
+        expect(screen.getByText('田中部長')).toBeInTheDocument();
+      });
+
+      // 未返信メールが表示される
+      expect(screen.getByText('田中部長')).toBeInTheDocument();
+      // 返信済みメールは表示されない
+      expect(screen.queryByText('佐藤課長')).not.toBeInTheDocument();
+      expect(screen.queryByText('鈴木係長')).not.toBeInTheDocument();
+    });
+
+    it('返信済みタブをクリックすると返信済みメールのみ表示される', async () => {
+      vi.mocked(emailApi.fetchEmails).mockResolvedValue({
+        emails: mockEmailsWithReplied,
+        total: 3,
+      });
+
+      render(<EmailList />);
+
+      await waitFor(() => {
+        expect(screen.getByText('田中部長')).toBeInTheDocument();
+      });
+
+      // 返信済みタブをクリック
+      fireEvent.click(screen.getByRole('tab', { name: /返信済み/ }));
+
+      // 返信済みメールが表示される
+      expect(screen.getByText('佐藤課長')).toBeInTheDocument();
+      expect(screen.getByText('鈴木係長')).toBeInTheDocument();
+      // 未返信メールは表示されない
+      expect(screen.queryByText('田中部長')).not.toBeInTheDocument();
+    });
+
+    it('タブに件数が表示される', async () => {
+      vi.mocked(emailApi.fetchEmails).mockResolvedValue({
+        emails: mockEmailsWithReplied,
+        total: 3,
+      });
+
+      render(<EmailList />);
+
+      await waitFor(() => {
+        expect(screen.getByRole('tab', { name: /未返信.*1/ })).toBeInTheDocument();
+        expect(screen.getByRole('tab', { name: /返信済み.*2/ })).toBeInTheDocument();
+      });
+    });
+
+    it('全て未返信の場合でも両方のタブが表示される', async () => {
+      vi.mocked(emailApi.fetchEmails).mockResolvedValue({
+        emails: mockEmails,
+        total: 2,
+      });
+
+      render(<EmailList />);
+
+      await waitFor(() => {
+        expect(screen.getByText('田中部長')).toBeInTheDocument();
+      });
+
+      expect(screen.getByRole('tab', { name: /未返信/ })).toBeInTheDocument();
+      expect(screen.getByRole('tab', { name: /返信済み/ })).toBeInTheDocument();
+    });
+
+    it('全て返信済みの場合「すべて返信済みです」メッセージが未返信タブに表示される', async () => {
+      const allReplied = mockEmailsWithReplied.filter((e) => e.repliedAt !== null);
+      vi.mocked(emailApi.fetchEmails).mockResolvedValue({
+        emails: allReplied,
+        total: allReplied.length,
+      });
+
+      render(<EmailList />);
+
+      await waitFor(() => {
+        expect(screen.getByText('すべて返信済みです')).toBeInTheDocument();
       });
     });
   });

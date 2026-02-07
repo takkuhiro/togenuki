@@ -14,6 +14,9 @@ export interface Email {
   audioUrl: string | null;
   isProcessed: boolean;
   receivedAt: string | null;
+  repliedAt: string | null;
+  replyBody: string | null;
+  replySubject: string | null;
 }
 
 /**

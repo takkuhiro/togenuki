@@ -23,10 +23,11 @@ type ReplyPhase =
 
 type ErrorType = 'compose' | 'send' | 'empty';
 
-interface EmailCardProps {
+export interface EmailCardProps {
   email: Email;
   isExpanded: boolean;
   onToggle: () => void;
+  onReplied?: (emailId: string) => void;
 }
 
 /**
@@ -38,7 +39,7 @@ interface EmailCardProps {
  * - Shows loading indicator for unprocessed emails (when expanded)
  * - Includes audio player and voice reply controls for processed emails (when expanded)
  */
-export function EmailCard({ email, isExpanded, onToggle }: EmailCardProps) {
+export function EmailCard({ email, isExpanded, onToggle, onReplied }: EmailCardProps) {
   const { idToken } = useAuth();
   const speech = useSpeechRecognition();
 
@@ -50,6 +51,7 @@ export function EmailCard({ email, isExpanded, onToggle }: EmailCardProps) {
   const wasListeningRef = useRef(false);
   const composeTriggeredRef = useRef(false);
   const [fallbackText, setFallbackText] = useState('');
+  const [showSentReply, setShowSentReply] = useState(false);
 
   const formatDate = (dateString: string | null) => {
     if (!dateString) return '';
@@ -164,12 +166,13 @@ export function EmailCard({ email, isExpanded, onToggle }: EmailCardProps) {
         composedSubject,
       });
       setPhase('sent');
+      onReplied?.(email.id);
     } catch (err) {
       setError(err instanceof Error ? err.message : '送信に失敗しました');
       setErrorType('send');
       setPhase('error');
     }
-  }, [idToken, email.id, composedBody, composedSubject]);
+  }, [idToken, email.id, composedBody, composedSubject, onReplied]);
 
   const handleRetrySend = useCallback(async () => {
     await handleSend();
@@ -376,7 +379,55 @@ export function EmailCard({ email, isExpanded, onToggle }: EmailCardProps) {
               {email.convertedBody && <p className="email-card-body">{email.convertedBody}</p>}
               <div className="email-card-actions">
                 <AudioPlayer audioUrl={email.audioUrl} emailId={email.id} />
-                {renderReplyUI()}
+                {!email.repliedAt && renderReplyUI()}
+                {email.repliedAt && email.replyBody && (
+                  <>
+                    <button
+                      type="button"
+                      className="audio-player-button"
+                      onClick={() => setShowSentReply(true)}
+                    >
+                      <CheckIcon />
+                      確認
+                    </button>
+                    {showSentReply && (
+                      // biome-ignore lint/a11y/useKeyWithClickEvents: overlay dismiss is supplementary
+                      // biome-ignore lint/a11y/noStaticElementInteractions: overlay backdrop click to dismiss
+                      <div className="dialog-overlay" onClick={() => setShowSentReply(false)}>
+                        {/* biome-ignore lint/a11y/useKeyWithClickEvents: stopPropagation prevents overlay dismiss */}
+                        <div
+                          role="dialog"
+                          aria-label="送信内容確認"
+                          className="dialog voice-reply-confirm-dialog"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <div className="voice-reply-preview-field">
+                            <span className="voice-reply-preview-label">宛先:</span>
+                            <span>{email.senderEmail}</span>
+                          </div>
+                          <div className="voice-reply-preview-field">
+                            <span className="voice-reply-preview-label">件名:</span>
+                            <span>{email.replySubject || ''}</span>
+                          </div>
+                          <div className="voice-reply-preview-field">
+                            <span className="voice-reply-preview-label">本文:</span>
+                            <p>{email.replyBody}</p>
+                          </div>
+                          <div className="dialog-actions">
+                            <button
+                              type="button"
+                              className="audio-player-button"
+                              onClick={() => setShowSentReply(false)}
+                            >
+                              <CloseIcon />
+                              閉じる
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
               </div>
             </>
           ) : (
@@ -428,6 +479,14 @@ function BackIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
       <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z" />
+    </svg>
+  );
+}
+
+function CloseIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
     </svg>
   );
 }

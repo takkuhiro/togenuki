@@ -46,6 +46,9 @@ async def get_user_emails(
             "received_at": (
                 email.received_at.isoformat() if email.received_at else None
             ),
+            "replied_at": (email.replied_at.isoformat() if email.replied_at else None),
+            "reply_body": email.reply_body,
+            "reply_subject": email.reply_subject,
         }
         for email in emails
     ]
@@ -79,6 +82,9 @@ async def get_emails(
             audioUrl=email["audio_url"],
             isProcessed=email["is_processed"],
             receivedAt=email["received_at"],
+            repliedAt=email["replied_at"],
+            replyBody=email["reply_body"],
+            replySubject=email["reply_subject"],
         )
         for email in emails_data
     ]

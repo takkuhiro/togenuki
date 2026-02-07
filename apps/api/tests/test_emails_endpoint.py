@@ -31,6 +31,9 @@ class TestEmailsEndpoint:
                 "audio_url": "https://storage.example.com/audio1.mp3",
                 "is_processed": True,
                 "received_at": "2024-01-15T10:30:00+00:00",
+                "replied_at": None,
+                "reply_body": None,
+                "reply_subject": None,
             },
             {
                 "id": "019494a5-eb1c-7000-8000-000000000002",
@@ -41,6 +44,9 @@ class TestEmailsEndpoint:
                 "audio_url": None,
                 "is_processed": False,
                 "received_at": "2024-01-14T09:00:00+00:00",
+                "replied_at": None,
+                "reply_body": None,
+                "reply_subject": None,
             },
         ]
 
@@ -236,6 +242,202 @@ class TestEmailsEndpoint:
             "audioUrl",
             "isProcessed",
             "receivedAt",
+            "repliedAt",
         ]
         for field in required_fields:
             assert field in email, f"Missing required field: {field}"
+
+    @pytest.mark.asyncio
+    async def test_get_emails_includes_replied_at_field(
+        self,
+        mock_user: FirebaseUser,
+        mock_session: MagicMock,
+    ) -> None:
+        """Email response should include repliedAt field for replied emails."""
+        from src.routers.emails import router
+
+        replied_email_data = [
+            {
+                "id": "019494a5-eb1c-7000-8000-000000000001",
+                "sender_name": "田中部長",
+                "sender_email": "tanaka@example.com",
+                "subject": "件名テスト1",
+                "converted_body": "変換後テキスト1",
+                "audio_url": "https://storage.example.com/audio1.mp3",
+                "is_processed": True,
+                "received_at": "2024-01-15T10:30:00+00:00",
+                "replied_at": "2024-01-16T14:00:00+00:00",
+                "reply_body": "返信本文",
+                "reply_subject": "Re: 件名テスト1",
+            },
+        ]
+
+        app = FastAPI()
+        app.include_router(router, prefix="/api")
+        app.dependency_overrides[get_db] = lambda: mock_session
+
+        with (
+            patch("src.auth.middleware.auth") as mock_auth,
+            patch(
+                "src.routers.emails.get_user_emails",
+                new=AsyncMock(return_value=replied_email_data),
+            ),
+        ):
+            mock_auth.verify_id_token.return_value = {
+                "uid": mock_user.uid,
+                "email": mock_user.email,
+            }
+
+            async with AsyncClient(
+                transport=ASGITransport(app=app), base_url="http://test"
+            ) as client:
+                response = await client.get(
+                    "/api/emails",
+                    headers={"Authorization": "Bearer valid_token"},
+                )
+
+        assert response.status_code == 200
+        email = response.json()["emails"][0]
+        assert "repliedAt" in email
+        assert email["repliedAt"] == "2024-01-16T14:00:00+00:00"
+
+    @pytest.mark.asyncio
+    async def test_get_emails_includes_reply_body_and_subject_for_replied_emails(
+        self,
+        mock_user: FirebaseUser,
+        mock_session: MagicMock,
+    ) -> None:
+        """Email response should include replyBody and replySubject for replied emails."""
+        from src.routers.emails import router
+
+        replied_email_data = [
+            {
+                "id": "019494a5-eb1c-7000-8000-000000000001",
+                "sender_name": "田中部長",
+                "sender_email": "tanaka@example.com",
+                "subject": "件名テスト1",
+                "converted_body": "変換後テキスト1",
+                "audio_url": "https://storage.example.com/audio1.mp3",
+                "is_processed": True,
+                "received_at": "2024-01-15T10:30:00+00:00",
+                "replied_at": "2024-01-16T14:00:00+00:00",
+                "reply_body": "送信済みの返信本文",
+                "reply_subject": "Re: 件名テスト1",
+            },
+        ]
+
+        app = FastAPI()
+        app.include_router(router, prefix="/api")
+        app.dependency_overrides[get_db] = lambda: mock_session
+
+        with (
+            patch("src.auth.middleware.auth") as mock_auth,
+            patch(
+                "src.routers.emails.get_user_emails",
+                new=AsyncMock(return_value=replied_email_data),
+            ),
+        ):
+            mock_auth.verify_id_token.return_value = {
+                "uid": mock_user.uid,
+                "email": mock_user.email,
+            }
+
+            async with AsyncClient(
+                transport=ASGITransport(app=app), base_url="http://test"
+            ) as client:
+                response = await client.get(
+                    "/api/emails",
+                    headers={"Authorization": "Bearer valid_token"},
+                )
+
+        assert response.status_code == 200
+        email = response.json()["emails"][0]
+        assert "replyBody" in email
+        assert email["replyBody"] == "送信済みの返信本文"
+        assert "replySubject" in email
+        assert email["replySubject"] == "Re: 件名テスト1"
+
+    @pytest.mark.asyncio
+    async def test_get_emails_reply_fields_are_null_for_unreplied_emails(
+        self,
+        mock_user: FirebaseUser,
+        mock_emails_data: list[dict],
+        mock_session: MagicMock,
+    ) -> None:
+        """Email response should have replyBody and replySubject as null for unreplied emails."""
+        from src.routers.emails import router
+
+        # Add reply fields to mock data
+        for email_data in mock_emails_data:
+            email_data["reply_body"] = None
+            email_data["reply_subject"] = None
+
+        app = FastAPI()
+        app.include_router(router, prefix="/api")
+        app.dependency_overrides[get_db] = lambda: mock_session
+
+        with (
+            patch("src.auth.middleware.auth") as mock_auth,
+            patch(
+                "src.routers.emails.get_user_emails",
+                new=AsyncMock(return_value=mock_emails_data),
+            ),
+        ):
+            mock_auth.verify_id_token.return_value = {
+                "uid": mock_user.uid,
+                "email": mock_user.email,
+            }
+
+            async with AsyncClient(
+                transport=ASGITransport(app=app), base_url="http://test"
+            ) as client:
+                response = await client.get(
+                    "/api/emails",
+                    headers={"Authorization": "Bearer valid_token"},
+                )
+
+        assert response.status_code == 200
+        for email in response.json()["emails"]:
+            assert "replyBody" in email
+            assert email["replyBody"] is None
+            assert "replySubject" in email
+            assert email["replySubject"] is None
+
+    @pytest.mark.asyncio
+    async def test_get_emails_replied_at_is_null_for_unreplied_emails(
+        self,
+        mock_user: FirebaseUser,
+        mock_emails_data: list[dict],
+        mock_session: MagicMock,
+    ) -> None:
+        """Email response should have repliedAt as null for unreplied emails."""
+        from src.routers.emails import router
+
+        app = FastAPI()
+        app.include_router(router, prefix="/api")
+        app.dependency_overrides[get_db] = lambda: mock_session
+
+        with (
+            patch("src.auth.middleware.auth") as mock_auth,
+            patch(
+                "src.routers.emails.get_user_emails",
+                new=AsyncMock(return_value=mock_emails_data),
+            ),
+        ):
+            mock_auth.verify_id_token.return_value = {
+                "uid": mock_user.uid,
+                "email": mock_user.email,
+            }
+
+            async with AsyncClient(
+                transport=ASGITransport(app=app), base_url="http://test"
+            ) as client:
+                response = await client.get(
+                    "/api/emails",
+                    headers={"Authorization": "Bearer valid_token"},
+                )
+
+        assert response.status_code == 200
+        for email in response.json()["emails"]:
+            assert "repliedAt" in email
+            assert email["repliedAt"] is None
