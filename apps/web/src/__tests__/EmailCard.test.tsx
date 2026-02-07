@@ -331,7 +331,7 @@ describe('EmailCard - VoiceReplyPanel統合', () => {
   });
 
   describe('composing フェーズ', () => {
-    it('清書中はスピナーが表示される', async () => {
+    it('清書中は音声入力ボタンがdisabledでスピナーが表示される', async () => {
       let resolveCompose: ((value: unknown) => void) | undefined;
       mockComposeReply.mockReturnValueOnce(
         new Promise((resolve) => {
@@ -360,9 +360,11 @@ describe('EmailCard - VoiceReplyPanel統合', () => {
       rerender(<EmailCard email={email} isExpanded={true} onToggle={onToggle} />);
 
       await waitFor(() => {
-        expect(screen.getByText(/清書中/)).toBeInTheDocument();
+        const btn = screen.getByRole('button', { name: /音声入力/ });
+        expect(btn).toBeDisabled();
       });
       expect(document.querySelector('.processing-spinner')).toBeInTheDocument();
+      expect(screen.queryByText(/清書中/)).not.toBeInTheDocument();
 
       resolveCompose?.({
         composedBody: '清書結果',
@@ -474,11 +476,16 @@ describe('EmailCard - VoiceReplyPanel統合', () => {
       return { user, rerender };
     }
 
-    it('「確認」ボタンでダイアログ（宛先・件名・本文）が表示される', async () => {
+    it('「確認」ボタンでモーダルオーバーレイ付きダイアログが表示される', async () => {
       await renderComposedAndConfirm();
 
       const dialog = screen.getByRole('dialog');
       expect(dialog).toBeInTheDocument();
+
+      // モーダルオーバーレイで表示される
+      const overlay = dialog.closest('.dialog-overlay');
+      expect(overlay).toBeInTheDocument();
+
       // ダイアログ内に宛先・件名・本文が表示される
       expect(dialog.textContent).toContain('tanaka@example.com');
       expect(dialog.textContent).toContain('Re: テスト件名');
@@ -514,7 +521,7 @@ describe('EmailCard - VoiceReplyPanel統合', () => {
   });
 
   describe('sending フェーズ', () => {
-    it('送信中はスピナーとテキストが表示される', async () => {
+    it('送信中は送信ボタンがdisabledでスピナーが表示される', async () => {
       mockComposeReply.mockResolvedValueOnce({
         composedBody: '清書本文',
         composedSubject: 'Re: テスト件名',
@@ -552,15 +559,17 @@ describe('EmailCard - VoiceReplyPanel統合', () => {
 
       await user.click(screen.getByRole('button', { name: /送信/ }));
 
-      expect(screen.getByText(/送信中/)).toBeInTheDocument();
-      expect(document.querySelector('.processing-spinner')).toBeInTheDocument();
+      const sendBtn = screen.getByRole('button', { name: /送信/ });
+      expect(sendBtn).toBeDisabled();
+      expect(sendBtn.querySelector('.processing-spinner')).toBeInTheDocument();
+      expect(screen.queryByText(/送信中\.\.\./)).not.toBeInTheDocument();
 
       resolveSend?.({ success: true, googleMessageId: 'msg-456' });
     });
   });
 
   describe('sent フェーズ', () => {
-    it('送信完了後にフィードバックメッセージが表示される', async () => {
+    it('送信完了後に送信ボタンがdisabledで「送信済み」と表示される', async () => {
       mockComposeReply.mockResolvedValueOnce({
         composedBody: '清書本文',
         composedSubject: 'Re: テスト件名',
@@ -597,8 +606,10 @@ describe('EmailCard - VoiceReplyPanel統合', () => {
       await user.click(screen.getByRole('button', { name: /送信/ }));
 
       await waitFor(() => {
-        expect(screen.getByText(/送信完了/)).toBeInTheDocument();
+        const sentBtn = screen.getByRole('button', { name: /送信済み/ });
+        expect(sentBtn).toBeDisabled();
       });
+      expect(screen.queryByText(/送信完了しました/)).not.toBeInTheDocument();
     });
   });
 

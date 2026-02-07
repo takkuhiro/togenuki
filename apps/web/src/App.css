@@ -7,14 +7,14 @@
 
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  background-color: #f5f5f5;
-  color: #333;
+  background-color: #F2F0EB;
+  color: #464646;
   line-height: 1.5;
 }
 
 .app {
   min-height: 100vh;
-  background-color: #f5f5f5;
+  background-color: #F2F0EB;
 }
 
 /* Loading and Login containers */
@@ -32,12 +32,12 @@ body {
 .loading-container h1,
 .login-container h1 {
   font-size: 2rem;
-  color: #333;
+  color: #4A6C74;
   margin-bottom: 0.5rem;
 }
 
 .app-description {
-  color: #666;
+  color: #8C8C8C;
   margin-bottom: 2rem;
 }
 
@@ -51,9 +51,9 @@ body {
   position: sticky;
   top: 0;
   z-index: 10;
-  background-color: rgba(255, 255, 255, 0.9);
+  background-color: rgba(242, 240, 235, 0.92);
   backdrop-filter: blur(8px);
-  border-bottom: 1px solid #e0e0e0;
+  border-bottom: 1px solid #DDD9D2;
 }
 
 .header-content {
@@ -71,13 +71,9 @@ body {
   gap: 0.5rem;
 }
 
-.header-icon {
-  font-size: 1.5rem;
-}
-
-.header-title h1 {
-  font-size: 1.25rem;
-  font-weight: 600;
+.header-logo {
+  height: 2rem;
+  width: auto;
 }
 
 .header-actions {
@@ -88,7 +84,7 @@ body {
 
 .user-email {
   font-size: 0.875rem;
-  color: #666;
+  color: #8C8C8C;
 }
 
 /* Main content */
@@ -103,36 +99,37 @@ body {
   border-radius: 16px;
   padding: 2rem;
   text-align: center;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
 .setup-container h2 {
   margin-bottom: 1rem;
+  color: #4A6C74;
 }
 
 .setup-container p {
-  color: #666;
+  color: #8C8C8C;
   margin-bottom: 1.5rem;
 }
 
 .dashboard-intro {
-  background: linear-gradient(135deg, #fff5f5 0%, #fff 100%);
+  background: linear-gradient(135deg, #F0F5F6 0%, #FFFFFF 100%);
   border-radius: 16px;
   padding: 1.5rem;
   text-align: center;
   margin-bottom: 1.5rem;
-  border: 1px solid #ffe0e0;
+  border: 1px solid #D4E2E5;
 }
 
 .dashboard-intro h2 {
   font-size: 1.25rem;
-  color: #333;
+  color: #4A6C74;
   margin-bottom: 0.5rem;
 }
 
 .dashboard-intro p {
   font-size: 0.875rem;
-  color: #666;
+  color: #8C8C8C;
 }
 
 /* Buttons */
@@ -158,12 +155,12 @@ button:disabled {
 }
 
 .login-button {
-  background-color: #4285f4;
+  background-color: #4A6C74;
   color: white;
 }
 
 .gmail-button {
-  background-color: #ea4335;
+  background-color: #D6A884;
   color: white;
   margin-bottom: 1rem;
   display: block;
@@ -171,26 +168,26 @@ button:disabled {
 }
 
 .check-button {
-  background-color: #34a853;
+  background-color: #4A6C74;
   color: white;
   display: block;
   width: 100%;
 }
 
 .logout-button {
-  background-color: #666;
+  background-color: #8C8C8C;
   color: white;
 }
 
 .logout-button-small {
   padding: 0.5rem 1rem;
   font-size: 0.875rem;
-  background-color: #f0f0f0;
-  color: #666;
+  background-color: #EAE7E1;
+  color: #8C8C8C;
 }
 
 .retry-button {
-  background-color: #4285f4;
+  background-color: #4A6C74;
   color: white;
   margin-top: 1rem;
 }
@@ -214,7 +211,7 @@ button:disabled {
 
 .email-list-loading p,
 .email-list-empty p {
-  color: #666;
+  color: #8C8C8C;
 }
 
 .email-list-error p {
@@ -226,18 +223,18 @@ button:disabled {
   background: white;
   border-radius: 16px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-  border: 1px solid #e0e0e0;
+  border: 1px solid #DDD9D2;
   transition: all 0.2s ease;
   overflow: hidden;
 }
 
 .email-card:hover {
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
 }
 
 .email-card--expanded {
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
-  border-color: #ff6b9d;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  border-color: #4A6C74;
 }
 
 .email-card-header {
@@ -253,12 +250,12 @@ button:disabled {
 }
 
 .email-card-header:hover {
-  background-color: #f9f9f9;
+  background-color: #F5F3EE;
 }
 
 .email-card--expanded .email-card-header {
-  background-color: #fff5f7;
-  border-bottom: 1px solid #ffe0e8;
+  background-color: #F0F5F6;
+  border-bottom: 1px solid #D4E2E5;
 }
 
 .email-card-header-main {
@@ -282,23 +279,23 @@ button:disabled {
 
 .sender-name {
   font-weight: 600;
-  color: #333;
+  color: #464646;
 }
 
 .sender-email {
   font-size: 0.75rem;
-  color: #999;
+  color: #8C8C8C;
 }
 
 .email-card-date {
   font-size: 0.75rem;
-  color: #999;
+  color: #8C8C8C;
   white-space: nowrap;
 }
 
 .email-card-chevron {
   font-size: 0.75rem;
-  color: #999;
+  color: #8C8C8C;
   transition: transform 0.2s ease;
 }
 
@@ -309,7 +306,7 @@ button:disabled {
 .email-card-subject {
   font-size: 1rem;
   font-weight: 500;
-  color: #333;
+  color: #464646;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -339,13 +336,13 @@ button:disabled {
 
 .email-card-body {
   font-size: 0.875rem;
-  color: #666;
+  color: #8C8C8C;
   line-height: 1.6;
   margin-bottom: 1rem;
-  background-color: #f9f9f9;
+  background-color: #F5F3EE;
   border-radius: 8px;
   padding: 1rem;
-  border-left: 3px solid #ff6b9d;
+  border-left: 3px solid #D6A884;
 }
 
 .email-card-actions {
@@ -359,21 +356,44 @@ button:disabled {
   display: contents;
 }
 
+/* Voice Reply Confirm Modal */
+.voice-reply-confirm-dialog {
+  max-width: 480px;
+}
+
+.voice-reply-preview-field {
+  margin-bottom: 0.75rem;
+  font-size: 0.875rem;
+  color: #464646;
+}
+
+.voice-reply-preview-label {
+  font-weight: 600;
+  margin-right: 0.5rem;
+  color: #4A6C74;
+}
+
+.voice-reply-preview-field p {
+  margin-top: 0.25rem;
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
 .email-card-processing {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
   padding: 1rem;
-  color: #666;
+  color: #8C8C8C;
   font-size: 0.875rem;
 }
 
 .processing-spinner {
   width: 1rem;
   height: 1rem;
-  border: 2px solid #e0e0e0;
-  border-top-color: #ff6b9d;
+  border: 2px solid #DDD9D2;
+  border-top-color: #4A6C74;
   border-radius: 50%;
   animation: spin 1s linear infinite;
 }
@@ -390,16 +410,21 @@ button:disabled {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  background: linear-gradient(135deg, #ff6b9d 0%, #ff8fab 100%);
+  background: linear-gradient(135deg, #4A6C74 0%, #5D8189 100%);
   color: white;
   padding: 0.75rem 1.5rem;
   border-radius: 24px;
   font-weight: 500;
-  box-shadow: 0 2px 8px rgba(255, 107, 157, 0.3);
+  box-shadow: 0 2px 8px rgba(74, 108, 116, 0.3);
 }
 
-.audio-player-button:hover {
-  background: linear-gradient(135deg, #ff5a8f 0%, #ff7fa1 100%);
+.audio-player-button:hover:not(:disabled) {
+  background: linear-gradient(135deg, #3D5F67 0%, #527780 100%);
+}
+
+.audio-player-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .audio-player-button svg {
@@ -432,14 +457,14 @@ button:disabled {
   align-items: center;
   justify-content: center;
   min-height: 100vh;
-  background-color: #f5f5f5;
-  color: #333;
+  background-color: #F2F0EB;
+  color: #464646;
   padding: 2rem;
   text-align: center;
 }
 
 .callback-container a {
-  color: #4285f4;
+  color: #4A6C74;
   margin-top: 1rem;
 }
 
@@ -462,7 +487,7 @@ button:disabled {
 
 .contact-list-loading p,
 .contact-list-empty p {
-  color: #666;
+  color: #8C8C8C;
 }
 
 .contact-list-error p {
@@ -475,7 +500,7 @@ button:disabled {
   border-radius: 12px;
   padding: 1rem 1.25rem;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-  border: 1px solid #e0e0e0;
+  border: 1px solid #DDD9D2;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -499,7 +524,7 @@ button:disabled {
 
 .contact-name {
   font-weight: 600;
-  color: #333;
+  color: #464646;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -507,7 +532,7 @@ button:disabled {
 
 .contact-email {
   font-size: 0.75rem;
-  color: #999;
+  color: #8C8C8C;
 }
 
 .contact-card-meta {
@@ -532,8 +557,8 @@ button:disabled {
 }
 
 .contact-status.status--learning {
-  background-color: #fff3e0;
-  color: #f57c00;
+  background-color: #FFF0E1;
+  color: #D6A884;
 }
 
 .contact-status.status--failed {
@@ -544,7 +569,7 @@ button:disabled {
 .learning-spinner {
   width: 0.75rem;
   height: 0.75rem;
-  border: 2px solid #f57c00;
+  border: 2px solid #D6A884;
   border-top-color: transparent;
   border-radius: 50%;
   animation: spin 1s linear infinite;
@@ -552,7 +577,7 @@ button:disabled {
 
 .contact-date {
   font-size: 0.75rem;
-  color: #999;
+  color: #8C8C8C;
 }
 
 .contact-card-actions {
@@ -564,8 +589,8 @@ button:disabled {
 .contact-card .delete-button {
   padding: 0.5rem 0.75rem;
   font-size: 0.75rem;
-  background-color: #f5f5f5;
-  color: #666;
+  background-color: #EAE7E1;
+  color: #8C8C8C;
 }
 
 .contact-card .delete-button:hover {
@@ -596,7 +621,7 @@ button:disabled {
   display: block;
   font-size: 0.875rem;
   font-weight: 500;
-  color: #333;
+  color: #464646;
   margin-bottom: 0.5rem;
 }
 
@@ -608,19 +633,19 @@ button:disabled {
   width: 100%;
   padding: 0.75rem;
   font-size: 1rem;
-  border: 1px solid #e0e0e0;
+  border: 1px solid #DDD9D2;
   border-radius: 8px;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .form-field input:focus {
   outline: none;
-  border-color: #4285f4;
-  box-shadow: 0 0 0 3px rgba(66, 133, 244, 0.1);
+  border-color: #4A6C74;
+  box-shadow: 0 0 0 3px rgba(74, 108, 116, 0.1);
 }
 
 .form-field input:disabled {
-  background-color: #f5f5f5;
+  background-color: #F2F0EB;
   cursor: not-allowed;
 }
 
@@ -652,7 +677,7 @@ button:disabled {
   bottom: calc(100% + 0.5rem);
   left: 50%;
   transform: translateX(-50%);
-  background-color: #333;
+  background-color: #464646;
   color: #fff;
   font-size: 0.75rem;
   font-weight: 400;
@@ -672,7 +697,7 @@ button:disabled {
   transform: translateX(-50%);
   border-width: 5px;
   border-style: solid;
-  border-color: #333 transparent transparent transparent;
+  border-color: #464646 transparent transparent transparent;
 }
 
 .tooltip-wrapper:hover .tooltip-text,
@@ -692,7 +717,7 @@ button:disabled {
 
 .submit-button {
   width: 100%;
-  background: linear-gradient(135deg, #4285f4 0%, #5a95f5 100%);
+  background: linear-gradient(135deg, #4A6C74 0%, #5D8189 100%);
   color: white;
   font-weight: 500;
 }
@@ -727,12 +752,12 @@ button:disabled {
 
 .dialog p {
   margin-bottom: 0.5rem;
-  color: #333;
+  color: #464646;
 }
 
 .dialog-warning {
   font-size: 0.875rem;
-  color: #666;
+  color: #8C8C8C;
   margin-bottom: 1.5rem !important;
 }
 
@@ -743,8 +768,8 @@ button:disabled {
 }
 
 .dialog-cancel {
-  background-color: #f5f5f5;
-  color: #666;
+  background-color: #EAE7E1;
+  color: #8C8C8C;
 }
 
 .dialog-confirm {
@@ -767,13 +792,13 @@ button:disabled {
 .contacts-header h2 {
   font-size: 1.25rem;
   font-weight: 600;
-  color: #333;
+  color: #4A6C74;
 }
 
 .contacts-section-title {
   font-size: 0.875rem;
   font-weight: 500;
-  color: #666;
+  color: #8C8C8C;
   margin-bottom: 0.75rem;
 }
 
@@ -782,7 +807,7 @@ button:disabled {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: #666;
+  color: #8C8C8C;
   text-decoration: none;
   padding: 0.375rem;
   border-radius: 8px;
@@ -790,8 +815,8 @@ button:disabled {
 }
 
 .nav-icon-link:hover {
-  color: #333;
-  background-color: #f0f0f0;
+  color: #4A6C74;
+  background-color: #EAE7E1;
 }
 
 /* Responsive */
@@ -800,8 +825,8 @@ button:disabled {
     padding: 0.75rem;
   }
 
-  .header-title h1 {
-    font-size: 1rem;
+  .header-logo {
+    height: 1.5rem;
   }
 
   .user-email {

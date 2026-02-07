@@ -225,10 +225,10 @@ export function EmailCard({ email, isExpanded, onToggle }: EmailCardProps) {
 
       case 'composing':
         return (
-          <div className="voice-reply-loading">
+          <button type="button" className="audio-player-button" disabled>
             <span className="processing-spinner" aria-hidden="true" />
-            <p>清書中...</p>
-          </div>
+            音声入力
+          </button>
         );
 
       case 'composed':
@@ -251,42 +251,57 @@ export function EmailCard({ email, isExpanded, onToggle }: EmailCardProps) {
 
       case 'confirming':
         return (
-          <div role="dialog" aria-label="送信確認" className="voice-reply-confirm-dialog">
-            <div className="voice-reply-preview-field">
-              <span className="voice-reply-preview-label">宛先:</span>
-              <span>{email.senderEmail}</span>
-            </div>
-            <div className="voice-reply-preview-field">
-              <span className="voice-reply-preview-label">件名:</span>
-              <span>{displaySubject}</span>
-            </div>
-            <div className="voice-reply-preview-field">
-              <span className="voice-reply-preview-label">本文:</span>
-              <p>{composedBody}</p>
-            </div>
-            <div className="voice-reply-actions">
-              <button type="button" className="audio-player-button" onClick={handleBack}>
-                <BackIcon />
-                戻る
-              </button>
-              <button type="button" className="audio-player-button" onClick={handleSend}>
-                <SendIcon />
-                送信
-              </button>
+          // biome-ignore lint/a11y/useKeyWithClickEvents: overlay dismiss is supplementary to the 戻る button
+          // biome-ignore lint/a11y/noStaticElementInteractions: overlay backdrop click to dismiss
+          <div className="dialog-overlay" onClick={handleBack}>
+            {/* biome-ignore lint/a11y/useKeyWithClickEvents: stopPropagation prevents overlay dismiss */}
+            <div
+              role="dialog"
+              aria-label="送信確認"
+              className="dialog voice-reply-confirm-dialog"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="voice-reply-preview-field">
+                <span className="voice-reply-preview-label">宛先:</span>
+                <span>{email.senderEmail}</span>
+              </div>
+              <div className="voice-reply-preview-field">
+                <span className="voice-reply-preview-label">件名:</span>
+                <span>{displaySubject}</span>
+              </div>
+              <div className="voice-reply-preview-field">
+                <span className="voice-reply-preview-label">本文:</span>
+                <p>{composedBody}</p>
+              </div>
+              <div className="dialog-actions">
+                <button type="button" className="audio-player-button" onClick={handleBack}>
+                  <BackIcon />
+                  戻る
+                </button>
+                <button type="button" className="audio-player-button" onClick={handleSend}>
+                  <SendIcon />
+                  送信
+                </button>
+              </div>
             </div>
           </div>
         );
 
       case 'sending':
         return (
-          <div className="voice-reply-loading">
+          <button type="button" className="audio-player-button" disabled>
             <span className="processing-spinner" aria-hidden="true" />
-            <p>送信中...</p>
-          </div>
+            送信
+          </button>
         );
 
       case 'sent':
-        return <p className="voice-reply-success">送信完了しました</p>;
+        return (
+          <button type="button" className="audio-player-button" disabled>
+            <SendIcon />
+            送信済み
+          </button>
+        );
 
       case 'error':
         return (
@@ -300,7 +315,11 @@ export function EmailCard({ email, isExpanded, onToggle }: EmailCardProps) {
                 再送信
               </button>
             ) : (
-              <button type="button" className="audio-player-button" onClick={handleRestartRecording}>
+              <button
+                type="button"
+                className="audio-player-button"
+                onClick={handleRestartRecording}
+              >
                 <MicIcon />
                 音声入力
               </button>
