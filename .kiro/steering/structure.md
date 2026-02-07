@@ -9,7 +9,7 @@
 ### Applications
 **Location**: `apps/`
 **Purpose**: 独立したアプリケーションを配置
-**Example**: `apps/web/` (React SPA), `apps/api/` (FastAPI - 計画中)
+**Example**: `apps/web/` (React SPA), `apps/api/` (FastAPI)
 
 ### Frontend Application
 **Location**: `apps/web/`
@@ -24,6 +24,7 @@ apps/web/src/
 ├── pages/             # ページコンポーネント
 ├── contexts/          # React Context (認証等)
 ├── api/               # API呼び出しモジュール
+├── hooks/             # カスタムReact Hooks
 ├── types/             # 型定義
 ├── firebase/          # Firebase設定
 └── __tests__/         # テストファイル
@@ -52,6 +53,22 @@ apps/api/src/
 **Location**: `docs/`
 **Purpose**: プロジェクトドキュメント（アーキテクチャ、設計書等）
 **Example**: `docs/ARCHITECTURE.md`
+
+### Infrastructure
+**Location**: `infrastructures/`
+**Purpose**: Terraform によるGoogle Cloudリソースのプロビジョニング
+**Pattern**: ルートモジュール構成（`main.tf`, `variables.tf`, `outputs.tf`）
+**管理リソース**: Cloud SQL, Cloud Run, Pub/Sub, Artifact Registry, GCS等
+
+### Database Migrations
+**Location**: `apps/api/alembic/`
+**Purpose**: Alembicによるデータベーススキーマ管理
+**Pattern**: `alembic revision --autogenerate -m "description"` でマイグレーション生成、`alembic upgrade head` で適用
+
+### Scripts
+**Location**: `scripts/`
+**Purpose**: 開発・運用ユーティリティスクリプト
+**Example**: Firebase トークン取得、Gmail Watch設定等
 
 ### Specifications
 **Location**: `.kiro/specs/`
@@ -84,6 +101,18 @@ import './App.css';
 - **型定義**: ブラウザAPI等の型は利用ファイル内でinterface定義
 - **状態管理**: React hooks (useState, useRef) をローカルで使用
 - **副作用**: useRef等でインスタンスを保持し、クリーンアップを確実に行う
+- **カスタムフック**: ブラウザAPI統合（Web Speech API等）は`hooks/`に専用フックとして切り出し、可用性チェック・フォールバックを内包
+- **UIフェーズ管理**: 複雑なUI操作フロー（例: 録音→清書→確認→送信）はフェーズ型（`type Phase = 'idle' | 'recording' | ...`）で状態遷移を管理
+- **APIモジュール**: `api/`配下は機能単位で1ファイル（例: `reply.ts`）。リクエスト/レスポンス型とfetch関数をセットでエクスポート
+
+### Backend Module Pattern
+
+機能追加時は以下の3ファイルをセットで作成:
+- `routers/<feature>.py` - エンドポイント定義 + エラーマッピング
+- `services/<feature>_service.py` - ビジネスロジック（`Result[T]`返却）
+- `schemas/<feature>.py` - Pydantic リクエスト/レスポンスモデル
+
+複数サービスを横断する場合は、オーケストレーションサービスとして独立（例: `reply_service.py` が `gemini_service` + `gmail_service` を調整）
 
 ---
 _Document patterns, not file trees. New files following patterns shouldn't require updates_
