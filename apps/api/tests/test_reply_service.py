@@ -524,6 +524,9 @@ class TestSendReply:
             assert mock_email.replied_at is not None
             assert mock_email.reply_google_message_id == "sent-msg-456"
 
+            # session.commit() が呼ばれたことを検証
+            mock_session.commit.assert_awaited_once()
+
     @pytest.mark.asyncio
     async def test_send_reply_refreshes_expired_token(
         self,

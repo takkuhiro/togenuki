@@ -32,6 +32,8 @@ const mockEmails = [
     isProcessed: true,
     receivedAt: '2024-01-15T10:30:00+00:00',
     repliedAt: null,
+    replyBody: null,
+    replySubject: null,
   },
   {
     id: '2',
@@ -43,6 +45,8 @@ const mockEmails = [
     isProcessed: false,
     receivedAt: '2024-01-14T09:00:00+00:00',
     repliedAt: null,
+    replyBody: null,
+    replySubject: null,
   },
 ];
 
@@ -57,6 +61,8 @@ const mockEmailsWithReplied = [
     isProcessed: true,
     receivedAt: '2024-01-15T10:30:00+00:00',
     repliedAt: null,
+    replyBody: null,
+    replySubject: null,
   },
   {
     id: '2',
@@ -68,6 +74,8 @@ const mockEmailsWithReplied = [
     isProcessed: true,
     receivedAt: '2024-01-14T09:00:00+00:00',
     repliedAt: '2024-01-15T12:00:00+00:00',
+    replyBody: '返信本文2',
+    replySubject: 'Re: 週報提出のお願い',
   },
   {
     id: '3',
@@ -79,6 +87,8 @@ const mockEmailsWithReplied = [
     isProcessed: true,
     receivedAt: '2024-01-13T08:00:00+00:00',
     repliedAt: '2024-01-14T10:00:00+00:00',
+    replyBody: '返信本文3',
+    replySubject: 'Re: 会議室予約の件',
   },
 ];
 
