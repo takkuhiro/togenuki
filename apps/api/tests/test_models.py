@@ -56,6 +56,33 @@ class TestUserModel:
         assert user.gmail_access_token is None
         assert user.gmail_token_expires_at is None
 
+    def test_user_has_selected_character_id_field(self) -> None:
+        """User model should have selected_character_id field."""
+        from src.models import User
+
+        assert hasattr(User, "selected_character_id")
+
+    def test_user_selected_character_id_defaults_to_none(self) -> None:
+        """selected_character_id should default to None (nullable)."""
+        from src.models import User
+
+        user = User(
+            firebase_uid="test-uid-123",
+            email="test@example.com",
+        )
+        assert user.selected_character_id is None
+
+    def test_user_selected_character_id_can_be_set(self) -> None:
+        """selected_character_id should be settable."""
+        from src.models import User
+
+        user = User(
+            firebase_uid="test-uid-123",
+            email="test@example.com",
+            selected_character_id="butler",
+        )
+        assert user.selected_character_id == "butler"
+
 
 class TestContactModel:
     """Contact model tests."""
@@ -516,6 +543,43 @@ class TestDatabaseIntegration:
         assert result.reply_subject is None
         assert result.replied_at is None
         assert result.reply_google_message_id is None
+
+    def test_user_selected_character_id_persists_in_database(
+        self, session: Session
+    ) -> None:
+        """selected_character_id should be persistable in the database."""
+        from src.models import User
+
+        user = User(
+            firebase_uid="uid-char-test",
+            email="char-test@example.com",
+            selected_character_id="senpai",
+        )
+        session.add(user)
+        session.commit()
+
+        result = session.execute(
+            select(User).where(User.firebase_uid == "uid-char-test")
+        ).scalar_one()
+        assert result.selected_character_id == "senpai"
+
+    def test_user_selected_character_id_null_in_database(
+        self, session: Session
+    ) -> None:
+        """selected_character_id should be null when not set."""
+        from src.models import User
+
+        user = User(
+            firebase_uid="uid-char-null",
+            email="char-null@example.com",
+        )
+        session.add(user)
+        session.commit()
+
+        result = session.execute(
+            select(User).where(User.firebase_uid == "uid-char-null")
+        ).scalar_one()
+        assert result.selected_character_id is None
 
     def test_contact_learning_failed_at_field(self, session: Session) -> None:
         """Contact should have learning_failed_at field."""
