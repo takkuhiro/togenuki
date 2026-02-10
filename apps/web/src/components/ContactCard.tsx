@@ -9,6 +9,7 @@ interface ContactCardProps {
   contact: Contact;
   onDelete: (contactId: string) => void;
   onRetry?: (contactId: string) => void;
+  onRelearn?: (contactId: string) => void;
 }
 
 /**
@@ -35,7 +36,7 @@ function getLearningStatus(contact: Contact): {
  * - Shows delete button
  * - Shows retry button for failed contacts
  */
-export function ContactCard({ contact, onDelete, onRetry }: ContactCardProps) {
+export function ContactCard({ contact, onDelete, onRetry, onRelearn }: ContactCardProps) {
   const status = getLearningStatus(contact);
   const displayName = contact.contactName || contact.contactEmail;
 
@@ -64,6 +65,16 @@ export function ContactCard({ contact, onDelete, onRetry }: ContactCardProps) {
         </div>
       </div>
       <div className="contact-card-actions">
+        {contact.isLearningComplete && !contact.learningFailedAt && onRelearn && (
+          <button
+            type="button"
+            className="relearn-button"
+            data-testid="relearn-button"
+            onClick={() => onRelearn(contact.id)}
+          >
+            再学習
+          </button>
+        )}
         {contact.learningFailedAt && onRetry && (
           <button
             type="button"

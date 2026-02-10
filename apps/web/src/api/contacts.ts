@@ -102,6 +102,37 @@ export async function deleteContact(idToken: string, contactId: string): Promise
  * @returns Promise resolving to the updated Contact
  * @throws Error if the request fails
  */
+/**
+ * Relearn patterns for a completed contact.
+ *
+ * @param idToken - Firebase ID token for authentication
+ * @param contactId - ID of the contact to relearn
+ * @returns Promise resolving to the updated Contact
+ * @throws Error if the request fails
+ */
+export async function relearnContact(idToken: string, contactId: string): Promise<Contact> {
+  const response = await fetch(`${API_BASE_URL}/contacts/${contactId}/relearn`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${idToken}`,
+      'Content-Type': 'application/json',
+    },
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    if (response.status === 404) {
+      throw new Error('連絡先が見つかりません');
+    }
+    if (response.status === 409) {
+      throw new Error('この連絡先は現在学習中です');
+    }
+    throw new Error(error.detail?.error || '再学習に失敗しました');
+  }
+
+  return response.json();
+}
+
 export async function retryLearning(idToken: string, contactId: string): Promise<Contact> {
   const response = await fetch(`${API_BASE_URL}/contacts/${contactId}/retry`, {
     method: 'POST',

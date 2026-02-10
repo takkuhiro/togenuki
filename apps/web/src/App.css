@@ -650,6 +650,17 @@ button:disabled {
   margin-top: 0;
 }
 
+.contact-card .relearn-button {
+  padding: 0.5rem 0.75rem;
+  font-size: 0.75rem;
+  background-color: #4A6C74;
+  color: white;
+}
+
+.contact-card .relearn-button:hover {
+  background-color: #3A5C64;
+}
+
 /* Contact Form */
 .contact-form {
   background: white;

@@ -13,6 +13,7 @@ vi.mock('../api/contacts', () => ({
   fetchContacts: vi.fn(),
   deleteContact: vi.fn(),
   retryLearning: vi.fn(),
+  relearnContact: vi.fn(),
 }));
 
 // Mock AuthContext
@@ -381,6 +382,189 @@ describe('ContactList', () => {
 
       const retryButton = screen.getByTestId('retry-button');
       await user.click(retryButton);
+
+      await waitFor(() => {
+        expect(screen.getByText(/エラー/)).toBeInTheDocument();
+      });
+    });
+  });
+
+  describe('再学習機能 (Requirement 2.1-2.3, 2.5, 3.2, 4.2)', () => {
+    it('should show relearn button for completed contacts', async () => {
+      vi.mocked(contactApi.fetchContacts).mockResolvedValue({
+        contacts: mockContacts,
+        total: 3,
+      });
+
+      render(<ContactList />);
+
+      await waitFor(() => {
+        // 田中部長 has learning_complete status
+        const tanakaCard = screen.getByText('田中部長').closest('[data-testid="contact-card"]');
+        expect(tanakaCard?.querySelector('[data-testid="relearn-button"]')).toBeInTheDocument();
+      });
+    });
+
+    it('should not show relearn button for learning or failed contacts', async () => {
+      vi.mocked(contactApi.fetchContacts).mockResolvedValue({
+        contacts: mockContacts,
+        total: 3,
+      });
+
+      render(<ContactList />);
+
+      await waitFor(() => {
+        // 佐藤課長 is learning_started
+        const satoCard = screen.getByText('佐藤課長').closest('[data-testid="contact-card"]');
+        expect(satoCard?.querySelector('[data-testid="relearn-button"]')).not.toBeInTheDocument();
+
+        // suzuki is learning_failed
+        const suzukiCard = screen
+          .getByText('suzuki@example.com')
+          .closest('[data-testid="contact-card"]');
+        expect(suzukiCard?.querySelector('[data-testid="relearn-button"]')).not.toBeInTheDocument();
+      });
+    });
+
+    it('should show confirmation dialog when relearn button clicked', async () => {
+      vi.mocked(contactApi.fetchContacts).mockResolvedValue({
+        contacts: mockContacts,
+        total: 3,
+      });
+
+      const user = userEvent.setup();
+      render(<ContactList />);
+
+      await waitFor(() => {
+        expect(screen.getByText('田中部長')).toBeInTheDocument();
+      });
+
+      const relearnButton = screen.getByTestId('relearn-button');
+      await user.click(relearnButton);
+
+      await waitFor(() => {
+        expect(screen.getByText(/再学習しますか/)).toBeInTheDocument();
+      });
+    });
+
+    it('should call relearnContact API when confirmed', async () => {
+      vi.mocked(contactApi.fetchContacts).mockResolvedValue({
+        contacts: mockContacts,
+        total: 3,
+      });
+      vi.mocked(contactApi.relearnContact).mockResolvedValue({
+        id: '1',
+        contactEmail: 'tanaka@example.com',
+        contactName: '田中部長',
+        gmailQuery: 'from:tanaka@example.com',
+        isLearningComplete: false,
+        learningFailedAt: null,
+        createdAt: '2024-01-15T10:30:00+00:00',
+        status: 'learning_started' as const,
+      });
+
+      const user = userEvent.setup();
+      render(<ContactList />);
+
+      await waitFor(() => {
+        expect(screen.getByText('田中部長')).toBeInTheDocument();
+      });
+
+      const relearnButton = screen.getByTestId('relearn-button');
+      await user.click(relearnButton);
+
+      const confirmButton = await screen.findByRole('button', {
+        name: /確認|OK|はい/,
+      });
+      await user.click(confirmButton);
+
+      await waitFor(() => {
+        expect(contactApi.relearnContact).toHaveBeenCalledWith('mock-token', '1');
+      });
+    });
+
+    it('should update contact status to learning after relearn', async () => {
+      vi.mocked(contactApi.fetchContacts).mockResolvedValue({
+        contacts: mockContacts,
+        total: 3,
+      });
+      vi.mocked(contactApi.relearnContact).mockResolvedValue({
+        id: '1',
+        contactEmail: 'tanaka@example.com',
+        contactName: '田中部長',
+        gmailQuery: 'from:tanaka@example.com',
+        isLearningComplete: false,
+        learningFailedAt: null,
+        createdAt: '2024-01-15T10:30:00+00:00',
+        status: 'learning_started' as const,
+      });
+
+      const user = userEvent.setup();
+      render(<ContactList />);
+
+      await waitFor(() => {
+        expect(screen.getByText('田中部長')).toBeInTheDocument();
+      });
+
+      const relearnButton = screen.getByTestId('relearn-button');
+      await user.click(relearnButton);
+
+      const confirmButton = await screen.findByRole('button', {
+        name: /確認|OK|はい/,
+      });
+      await user.click(confirmButton);
+
+      await waitFor(() => {
+        const tanakaCard = screen.getByText('田中部長').closest('[data-testid="contact-card"]');
+        expect(tanakaCard).toHaveTextContent('学習中');
+      });
+    });
+
+    it('should not call relearnContact when cancelled', async () => {
+      vi.mocked(contactApi.fetchContacts).mockResolvedValue({
+        contacts: mockContacts,
+        total: 3,
+      });
+
+      const user = userEvent.setup();
+      render(<ContactList />);
+
+      await waitFor(() => {
+        expect(screen.getByText('田中部長')).toBeInTheDocument();
+      });
+
+      const relearnButton = screen.getByTestId('relearn-button');
+      await user.click(relearnButton);
+
+      const cancelButton = await screen.findByRole('button', {
+        name: /キャンセル|いいえ/,
+      });
+      await user.click(cancelButton);
+
+      expect(contactApi.relearnContact).not.toHaveBeenCalled();
+    });
+
+    it('should show error when relearn fails', async () => {
+      vi.mocked(contactApi.fetchContacts).mockResolvedValue({
+        contacts: mockContacts,
+        total: 3,
+      });
+      vi.mocked(contactApi.relearnContact).mockRejectedValue(new Error('再学習に失敗しました'));
+
+      const user = userEvent.setup();
+      render(<ContactList />);
+
+      await waitFor(() => {
+        expect(screen.getByText('田中部長')).toBeInTheDocument();
+      });
+
+      const relearnButton = screen.getByTestId('relearn-button');
+      await user.click(relearnButton);
+
+      const confirmButton = await screen.findByRole('button', {
+        name: /確認|OK|はい/,
+      });
+      await user.click(confirmButton);
 
       await waitFor(() => {
         expect(screen.getByText(/エラー/)).toBeInTheDocument();
