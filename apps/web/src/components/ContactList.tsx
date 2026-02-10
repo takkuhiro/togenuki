@@ -4,7 +4,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { deleteContact, fetchContacts, retryLearning } from '../api/contacts';
+import { deleteContact, fetchContacts, relearnContact, retryLearning } from '../api/contacts';
 import { useAuth } from '../contexts/AuthContext';
 import type { Contact } from '../types/contact';
 import { ContactCard } from './ContactCard';
@@ -48,6 +48,38 @@ function DeleteConfirmDialog({ contact, onConfirm, onCancel }: DeleteConfirmDial
   );
 }
 
+interface RelearnConfirmDialogProps {
+  contact: Contact | null;
+  onConfirm: () => void;
+  onCancel: () => void;
+}
+
+/**
+ * Confirmation dialog for contact relearning.
+ */
+function RelearnConfirmDialog({ contact, onConfirm, onCancel }: RelearnConfirmDialogProps) {
+  if (!contact) return null;
+
+  const displayName = contact.contactName || contact.contactEmail;
+
+  return (
+    <div className="dialog-overlay" role="dialog" aria-modal="true">
+      <div className="dialog">
+        <p>「{displayName}」を再学習しますか？</p>
+        <p className="dialog-warning">現在の学習データを削除し、最新のメール履歴で再学習します。</p>
+        <div className="dialog-actions">
+          <button type="button" className="dialog-cancel" onClick={onCancel}>
+            キャンセル
+          </button>
+          <button type="button" className="dialog-confirm" onClick={onConfirm}>
+            確認
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /**
  * Contact list component that fetches and displays all contacts for the user.
  *
@@ -66,6 +98,7 @@ export function ContactList() {
   const [error, setError] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Contact | null>(null);
   const [, setIsDeleting] = useState(false);
+  const [relearnTarget, setRelearnTarget] = useState<Contact | null>(null);
   const pollingRef = useRef<number | null>(null);
 
   const loadContacts = useCallback(async () => {
@@ -153,6 +186,34 @@ export function ContactList() {
     [idToken]
   );
 
+  const handleRelearnClick = useCallback(
+    (contactId: string) => {
+      const contact = contacts.find((c) => c.id === contactId);
+      if (contact) {
+        setRelearnTarget(contact);
+      }
+    },
+    [contacts]
+  );
+
+  const handleRelearnConfirm = useCallback(async () => {
+    if (!relearnTarget || !idToken) return;
+
+    try {
+      const updated = await relearnContact(idToken, relearnTarget.id);
+      setContacts((prev) => prev.map((c) => (c.id === relearnTarget.id ? updated : c)));
+      setRelearnTarget(null);
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '再学習に失敗しました');
+      setRelearnTarget(null);
+    }
+  }, [relearnTarget, idToken]);
+
+  const handleRelearnCancel = useCallback(() => {
+    setRelearnTarget(null);
+  }, []);
+
   if (isLoading) {
     return (
       <div className="contact-list-loading">
@@ -190,6 +251,7 @@ export function ContactList() {
             contact={contact}
             onDelete={handleDeleteClick}
             onRetry={handleRetry}
+            onRelearn={handleRelearnClick}
           />
         ))}
       </div>
@@ -197,6 +259,11 @@ export function ContactList() {
         contact={deleteTarget}
         onConfirm={handleDeleteConfirm}
         onCancel={handleDeleteCancel}
+      />
+      <RelearnConfirmDialog
+        contact={relearnTarget}
+        onConfirm={handleRelearnConfirm}
+        onCancel={handleRelearnCancel}
       />
     </>
   );

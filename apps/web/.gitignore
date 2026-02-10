@@ -33,5 +33,5 @@ coverage
 .env.test.local
 .env.production.local
 
-# References
-reference_app
+# deploy commands
+deploy.sh
