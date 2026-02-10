@@ -61,13 +61,17 @@ class TTSService:
         return self._storage_client
 
     async def synthesize_and_upload(
-        self, text: str, email_id: UUID
+        self,
+        text: str,
+        email_id: UUID,
+        voice_name: str | None = None,
     ) -> Result[str, TTSError]:
         """Synthesize text to speech and upload to GCS.
 
         Args:
             text: Text to convert to speech
             email_id: Email ID for filename generation
+            voice_name: Optional voice name override. Falls back to settings if None.
 
         Returns:
             Result containing public URL or error
@@ -78,7 +82,7 @@ class TTSService:
 
         try:
             # 1. Synthesize audio
-            audio_content = await self._synthesize(text)
+            audio_content = await self._synthesize(text, voice_name=voice_name)
 
             # 2. Upload to GCS
             url = await self._upload_to_gcs(audio_content, email_id)
@@ -97,11 +101,14 @@ class TTSService:
             logger.exception(f"TTS error: {e}")
             return Err(TTSError.API_ERROR)
 
-    async def _synthesize(self, text: str) -> bytes:
+    async def _synthesize(
+        self, text: str, voice_name: str | None = None
+    ) -> bytes:
         """Synthesize text to audio bytes.
 
         Args:
             text: Text to synthesize
+            voice_name: Optional voice name override. Falls back to settings if None.
 
         Returns:
             Audio content as bytes
@@ -113,9 +120,10 @@ class TTSService:
             # Build the synthesis request
             synthesis_input = texttospeech.SynthesisInput(text=text)
 
+            effective_voice_name = voice_name or self.voice_name
             voice = texttospeech.VoiceSelectionParams(
                 language_code=self.language_code,
-                name=self.voice_name,
+                name=effective_voice_name,
             )
 
             audio_config = texttospeech.AudioConfig(

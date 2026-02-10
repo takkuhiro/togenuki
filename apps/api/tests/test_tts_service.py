@@ -184,6 +184,95 @@ class TestGCSUpload:
             assert ".mp3" in blob_call
 
 
+class TestVoiceNameParameter:
+    """Tests for voice_name parameter in synthesize_and_upload."""
+
+    @pytest.mark.asyncio
+    async def test_custom_voice_name_is_used_in_synthesis(self):
+        """Test that a custom voice_name overrides the default."""
+        from src.services.tts_service import TTSService
+
+        with (
+            patch("src.services.tts_service.texttospeech") as mock_tts,
+            patch("src.services.tts_service.StorageClient") as mock_storage,
+            patch("src.services.tts_service.get_settings") as mock_settings,
+        ):
+            mock_settings.return_value.gcs_bucket_name = "test-bucket"
+            mock_settings.return_value.tts_voice_name = "ja-JP-Chirp3-HD-Callirrhoe"
+            mock_settings.return_value.tts_language_code = "ja-JP"
+
+            # Mock TTS
+            mock_tts_client = MagicMock()
+            mock_response = MagicMock()
+            mock_response.audio_content = b"fake-audio-content"
+            mock_tts_client.synthesize_speech.return_value = mock_response
+            mock_tts.TextToSpeechClient.return_value = mock_tts_client
+
+            # Mock GCS
+            mock_storage_client = MagicMock()
+            mock_bucket = MagicMock()
+            mock_blob = MagicMock()
+            mock_blob.public_url = "https://storage.googleapis.com/test-bucket/test.mp3"
+            mock_bucket.blob.return_value = mock_blob
+            mock_storage_client.bucket.return_value = mock_bucket
+            mock_storage.return_value = mock_storage_client
+
+            service = TTSService()
+            custom_voice = "ja-JP-Chirp3-HD-Charon"
+            result = await service.synthesize_and_upload(
+                "テスト音声", uuid7(), voice_name=custom_voice
+            )
+
+            assert result.is_ok()
+            # Verify VoiceSelectionParams was called with the custom voice
+            mock_tts.VoiceSelectionParams.assert_called_once_with(
+                language_code="ja-JP",
+                name=custom_voice,
+            )
+
+    @pytest.mark.asyncio
+    async def test_none_voice_name_falls_back_to_settings(self):
+        """Test that None voice_name uses the settings default."""
+        from src.services.tts_service import TTSService
+
+        with (
+            patch("src.services.tts_service.texttospeech") as mock_tts,
+            patch("src.services.tts_service.StorageClient") as mock_storage,
+            patch("src.services.tts_service.get_settings") as mock_settings,
+        ):
+            mock_settings.return_value.gcs_bucket_name = "test-bucket"
+            mock_settings.return_value.tts_voice_name = "ja-JP-Chirp3-HD-Callirrhoe"
+            mock_settings.return_value.tts_language_code = "ja-JP"
+
+            # Mock TTS
+            mock_tts_client = MagicMock()
+            mock_response = MagicMock()
+            mock_response.audio_content = b"fake-audio-content"
+            mock_tts_client.synthesize_speech.return_value = mock_response
+            mock_tts.TextToSpeechClient.return_value = mock_tts_client
+
+            # Mock GCS
+            mock_storage_client = MagicMock()
+            mock_bucket = MagicMock()
+            mock_blob = MagicMock()
+            mock_blob.public_url = "https://storage.googleapis.com/test-bucket/test.mp3"
+            mock_bucket.blob.return_value = mock_blob
+            mock_storage_client.bucket.return_value = mock_bucket
+            mock_storage.return_value = mock_storage_client
+
+            service = TTSService()
+            result = await service.synthesize_and_upload(
+                "テスト音声", uuid7(), voice_name=None
+            )
+
+            assert result.is_ok()
+            # Verify VoiceSelectionParams was called with default settings voice
+            mock_tts.VoiceSelectionParams.assert_called_once_with(
+                language_code="ja-JP",
+                name="ja-JP-Chirp3-HD-Callirrhoe",
+            )
+
+
 class TestTTSErrorHandling:
     """Tests for TTS error handling."""
 

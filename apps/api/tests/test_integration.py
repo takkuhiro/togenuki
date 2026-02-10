@@ -193,7 +193,7 @@ class TestEmailProcessingPipeline:
 
             # Mock Gemini Service (Requirement 2.1)
             mock_gemini_instance = MagicMock()
-            mock_gemini_instance.convert_to_gyaru = AsyncMock(
+            mock_gemini_instance.convert_email = AsyncMock(
                 return_value=Ok(converted_text)
             )
             mock_gemini.return_value = mock_gemini_instance
@@ -215,8 +215,8 @@ class TestEmailProcessingPipeline:
         assert result.processed_count == 1
 
         # Verify Gemini was called with sender name
-        mock_gemini_instance.convert_to_gyaru.assert_called_once()
-        call_args = mock_gemini_instance.convert_to_gyaru.call_args
+        mock_gemini_instance.convert_email.assert_called_once()
+        call_args = mock_gemini_instance.convert_email.call_args
         assert "Boss" in str(call_args) or "上司" in str(call_args)
 
         # Verify TTS was called with converted text
@@ -590,7 +590,7 @@ class TestGyaruConversionIntegration:
             patch("src.services.email_processor.TTSService") as mock_tts,
         ):
             mock_gemini_instance = MagicMock()
-            mock_gemini_instance.convert_to_gyaru = AsyncMock(
+            mock_gemini_instance.convert_email = AsyncMock(
                 return_value=Ok(converted)
             )
             mock_gemini.return_value = mock_gemini_instance
@@ -677,7 +677,7 @@ class TestTTSIntegration:
             patch("src.services.email_processor.TTSService") as mock_tts,
         ):
             mock_gemini_instance = MagicMock()
-            mock_gemini_instance.convert_to_gyaru = AsyncMock(
+            mock_gemini_instance.convert_email = AsyncMock(
                 return_value=Ok(converted)
             )
             mock_gemini.return_value = mock_gemini_instance

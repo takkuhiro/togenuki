@@ -1,8 +1,8 @@
-"""Tests for Gemini Service (Gyaru Language Conversion).
+"""Tests for Gemini Service (Email Conversion and Pattern Analysis).
 
 Tests for the Gemini API integration that handles:
 - API client setup with google-genai SDK
-- System prompt for gyaru conversion
+- Parameterized system prompt for email conversion
 - Sender name embedding in prompts
 - Error handling and retries
 """
@@ -24,47 +24,22 @@ class TestGeminiService:
             service = GeminiService()
             assert service is not None
 
-    def test_system_prompt_contains_gyaru_rules(self):
-        """Test that system prompt contains gyaru conversion rules."""
-        from src.services.gemini_service import GYARU_SYSTEM_PROMPT
+    def test_gyaru_system_prompt_no_longer_in_gemini_service(self):
+        """Test that GYARU_SYSTEM_PROMPT is no longer defined in gemini_service."""
+        import src.services.gemini_service as module
 
-        # Check for key gyaru rules
-        assert "ウチ" in GYARU_SYSTEM_PROMPT  # First person pronoun
-        assert "先輩" in GYARU_SYSTEM_PROMPT  # How to address user
-        assert "〜だし" in GYARU_SYSTEM_PROMPT or "だし" in GYARU_SYSTEM_PROMPT
-        assert "草" in GYARU_SYSTEM_PROMPT or "ｗ" in GYARU_SYSTEM_PROMPT
-
-    def test_system_prompt_prohibits_emoji_usage(self):
-        """Test that system prompt prohibits emoji usage for TTS readability."""
-        from src.services.gemini_service import GYARU_SYSTEM_PROMPT
-
-        # Should prohibit emojis for voice readout
-        assert "絵文字" in GYARU_SYSTEM_PROMPT, (
-            "System prompt should mention emoji policy"
-        )
-        assert "使用しない" in GYARU_SYSTEM_PROMPT or "禁止" in GYARU_SYSTEM_PROMPT, (
-            "System prompt should prohibit emoji usage"
-        )
-        # Conversion example should not contain emojis
-        for emoji in ["💖", "✨", "🥺", "🎉", "🔥"]:
-            assert emoji not in GYARU_SYSTEM_PROMPT, (
-                f"System prompt should not contain emoji {emoji}"
-            )
-
-    def test_system_prompt_requires_concise_output(self):
-        """Test that system prompt requires concise output for TTS."""
-        from src.services.gemini_service import GYARU_SYSTEM_PROMPT
-
-        assert "端的" in GYARU_SYSTEM_PROMPT or "簡潔" in GYARU_SYSTEM_PROMPT, (
-            "System prompt should require concise output"
+        assert not hasattr(module, "GYARU_SYSTEM_PROMPT"), (
+            "GYARU_SYSTEM_PROMPT should be moved to character_service"
         )
 
 
-class TestGyaruConversion:
-    """Tests for gyaru conversion functionality."""
+class TestEmailConversion:
+    """Tests for convert_email functionality."""
+
+    SAMPLE_SYSTEM_PROMPT = "あなたはテスト用キャラクターです。メール本文を変換してください。"
 
     @pytest.mark.asyncio
-    async def test_convert_to_gyaru_returns_converted_text(self):
+    async def test_convert_email_returns_converted_text(self):
         """Test that conversion returns transformed text."""
         from src.services.gemini_service import GeminiService
 
@@ -76,15 +51,15 @@ class TestGyaruConversion:
             mock_client = MagicMock()
             mock_genai.Client.return_value = mock_client
 
-            # Mock the generate_content response
             mock_response = MagicMock()
             mock_response.text = (
-                "やっほー！先輩！💖 報告書の件だけど、明日までにお願いだし！✨"
+                "やっほー！先輩！ 報告書の件だけど、明日までにお願いだし！"
             )
             mock_client.models.generate_content = MagicMock(return_value=mock_response)
 
             service = GeminiService()
-            result = await service.convert_to_gyaru(
+            result = await service.convert_email(
+                system_prompt=self.SAMPLE_SYSTEM_PROMPT,
                 sender_name="上司さん",
                 original_body="明日までに報告書を提出してください。",
             )
@@ -95,7 +70,39 @@ class TestGyaruConversion:
             assert len(converted_text) > 0
 
     @pytest.mark.asyncio
-    async def test_convert_to_gyaru_embeds_sender_name_in_prompt(self):
+    async def test_convert_email_uses_provided_system_prompt(self):
+        """Test that convert_email uses the provided system_prompt."""
+        from src.services.gemini_service import GeminiService
+
+        with (
+            patch("src.services.gemini_service.get_settings") as mock_settings,
+            patch("src.services.gemini_service.genai") as mock_genai,
+        ):
+            mock_settings.return_value.gemini_api_key = "test-api-key"
+            mock_client = MagicMock()
+            mock_genai.Client.return_value = mock_client
+
+            mock_response = MagicMock()
+            mock_response.text = "変換されたテキスト"
+            mock_client.models.generate_content = MagicMock(return_value=mock_response)
+
+            custom_prompt = "あなたは冷静な執事です。メール本文を報告してください。"
+            service = GeminiService()
+            await service.convert_email(
+                system_prompt=custom_prompt,
+                sender_name="田中課長",
+                original_body="テスト本文",
+            )
+
+            # Verify GenerateContentConfig was called with the custom system_prompt
+            mock_genai.types.GenerateContentConfig.assert_called_once_with(
+                system_instruction=custom_prompt,
+                temperature=0.8,
+                max_output_tokens=1024,
+            )
+
+    @pytest.mark.asyncio
+    async def test_convert_email_embeds_sender_name_in_prompt(self):
         """Test that sender name is embedded in the conversion prompt."""
         from src.services.gemini_service import GeminiService
 
@@ -112,17 +119,18 @@ class TestGyaruConversion:
             mock_client.models.generate_content = MagicMock(return_value=mock_response)
 
             service = GeminiService()
-            await service.convert_to_gyaru(
-                sender_name="田中課長", original_body="テスト本文"
+            await service.convert_email(
+                system_prompt=self.SAMPLE_SYSTEM_PROMPT,
+                sender_name="田中課長",
+                original_body="テスト本文",
             )
 
-            # Verify generate_content was called with sender name context
             call_args = mock_client.models.generate_content.call_args
             contents = call_args.kwargs.get("contents") or call_args.args[1]
             assert "田中課長" in str(contents), "Sender name should be in the prompt"
 
     @pytest.mark.asyncio
-    async def test_convert_to_gyaru_with_empty_body_returns_error(self):
+    async def test_convert_email_with_empty_body_returns_error(self):
         """Test that empty body returns an error."""
         from src.services.gemini_service import GeminiError, GeminiService
 
@@ -132,8 +140,10 @@ class TestGyaruConversion:
         ):
             mock_settings.return_value.gemini_api_key = "test-api-key"
             service = GeminiService()
-            result = await service.convert_to_gyaru(
-                sender_name="田中さん", original_body=""
+            result = await service.convert_email(
+                system_prompt=self.SAMPLE_SYSTEM_PROMPT,
+                sender_name="田中さん",
+                original_body="",
             )
 
             assert result.is_err()
@@ -142,6 +152,8 @@ class TestGyaruConversion:
 
 class TestGeminiErrorHandling:
     """Tests for Gemini API error handling."""
+
+    SAMPLE_SYSTEM_PROMPT = "テスト用プロンプト"
 
     @pytest.mark.asyncio
     async def test_api_error_returns_error_result(self):
@@ -160,8 +172,10 @@ class TestGeminiErrorHandling:
             )
 
             service = GeminiService()
-            result = await service.convert_to_gyaru(
-                sender_name="上司さん", original_body="テスト本文"
+            result = await service.convert_email(
+                system_prompt=self.SAMPLE_SYSTEM_PROMPT,
+                sender_name="上司さん",
+                original_body="テスト本文",
             )
 
             assert result.is_err()
@@ -187,8 +201,10 @@ class TestGeminiErrorHandling:
             )
 
             service = GeminiService()
-            result = await service.convert_to_gyaru(
-                sender_name="上司さん", original_body="テスト本文"
+            result = await service.convert_email(
+                system_prompt=self.SAMPLE_SYSTEM_PROMPT,
+                sender_name="上司さん",
+                original_body="テスト本文",
             )
 
             assert result.is_err()
@@ -215,8 +231,10 @@ class TestGeminiErrorHandling:
             )
 
             service = GeminiService()
-            result = await service.convert_to_gyaru(
-                sender_name="上司さん", original_body="テスト本文"
+            result = await service.convert_email(
+                system_prompt=self.SAMPLE_SYSTEM_PROMPT,
+                sender_name="上司さん",
+                original_body="テスト本文",
             )
 
             assert result.is_err()
