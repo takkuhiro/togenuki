@@ -37,9 +37,7 @@ class User(Base):
         DateTime(timezone=True), nullable=True
     )
     gmail_history_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
-    selected_character_id: Mapped[str | None] = mapped_column(
-        String(64), nullable=True
-    )
+    selected_character_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )

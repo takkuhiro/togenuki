@@ -108,9 +108,7 @@ class GeminiService:
             if converted_text is None:
                 logger.error("Gemini returned empty response")
                 return Err(GeminiError.API_ERROR)
-            logger.info(
-                f"Successfully converted email from {sender_name}"
-            )
+            logger.info(f"Successfully converted email from {sender_name}")
             return Ok(converted_text)
 
         except asyncio.TimeoutError:

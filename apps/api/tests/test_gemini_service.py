@@ -36,7 +36,9 @@ class TestGeminiService:
 class TestEmailConversion:
     """Tests for convert_email functionality."""
 
-    SAMPLE_SYSTEM_PROMPT = "あなたはテスト用キャラクターです。メール本文を変換してください。"
+    SAMPLE_SYSTEM_PROMPT = (
+        "あなたはテスト用キャラクターです。メール本文を変換してください。"
+    )
 
     @pytest.mark.asyncio
     async def test_convert_email_returns_converted_text(self):

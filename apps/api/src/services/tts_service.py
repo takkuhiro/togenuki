@@ -101,9 +101,7 @@ class TTSService:
             logger.exception(f"TTS error: {e}")
             return Err(TTSError.API_ERROR)
 
-    async def _synthesize(
-        self, text: str, voice_name: str | None = None
-    ) -> bytes:
+    async def _synthesize(self, text: str, voice_name: str | None = None) -> bytes:
         """Synthesize text to audio bytes.
 
         Args:
