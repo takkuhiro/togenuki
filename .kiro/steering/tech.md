@@ -9,6 +9,7 @@ Google Cloud を中心としたサーバーレスアーキテクチャ。フロ�
 ### Frontend
 - **Language**: TypeScript
 - **Framework**: React 19 (Vite)
+- **Routing**: react-router-dom v7 (BrowserRouter、認証ガードによる保護ルート)
 - **Runtime**: ブラウザ (Web Speech API for 音声入力)
 - **Linter/Formatter**: Biome (ESLint + Prettierの代替)
 - **Testing**: Vitest + Testing Library
@@ -78,7 +79,7 @@ alembic upgrade head                              # マイグレーション適�
 
 - **非同期処理優先**: Pub/Sub Webhook受信後、即座に200 OK返却し、BackgroundTasksで処理
 - **音声変換ローカル化**: Web Speech APIでブラウザ側STT処理（サーバー負荷軽減）
-- **学習データ永続化**: contact_contextテーブルで相手パターンを保持し、返信生成時にコンテキストとして活用
+- **学習データ永続化**: contact_contextテーブルで相手パターンを保持し、返信生成時にコンテキストとして活用。再学習（relearn）でコンテキスト刷新可能
 - **Result型パターン**: サービス層の外部API呼び出しは`result`ライブラリで`Result[T]`型を返却。Routerでエラーマッピング
 - **UUID v7採用**: 時系列ソート可能なUUIDをPKに使用
 - **サービスオーケストレーション**: 複数サービスを横断する処理（例: 返信=Gemini清書→Gmail送信）は専用オーケストレーションサービスで調整
