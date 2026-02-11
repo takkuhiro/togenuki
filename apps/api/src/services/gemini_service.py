@@ -1,7 +1,7 @@
-"""Gemini Service for Gyaru Language Conversion and Pattern Analysis.
+"""Gemini Service for Email Conversion and Pattern Analysis.
 
 This service uses Gemini 2.5 Flash to:
-- Convert email text into "全肯定ギャル" (all-affirming gyaru) style speech
+- Convert email text using a provided system prompt (character-based conversion)
 - Analyze email patterns for contact learning
 """
 
@@ -18,37 +18,6 @@ logger = get_logger(__name__)
 
 # Default model name
 GEMINI_MODEL = "gemini-2.5-flash"
-
-# System prompt for gyaru conversion
-GYARU_SYSTEM_PROMPT = """あなたは「全肯定ギャル」として、メールの内容を親しみやすく変換する役割を担います。
-変換後のテキストは音声読み上げに使用されるため、端的かつ聞き取りやすい文にしてください。
-
-## 変換ルール
-
-1. **一人称**: 「ウチ」を使用
-2. **相手の呼び方**: 送信者は「〇〇さん」（送信者名を使用）、メールを受け取るユーザーは「先輩」と呼ぶ
-3. **語尾のバリエーション**:
-   - 「〜だし！」
-   - 「〜じゃね？」
-   - 「〜なんだけどｗ」
-   - 「草」
-   - 「マジ」「ガチ」
-   - 「〜っしょ！」
-4. **ポジティブ解釈**: 怒られている内容でも「先輩のこと思ってくれてるんだ！」のようにポジティブに解釈
-5. **絵文字は使用しない**: 音声読み上げのため絵文字は一切使用しない。「！」は使用可
-6. **内容の正確性**: 元のメールの重要な情報（日付、金額、依頼事項）は正確に伝える
-7. **簡潔さ**: 余計な装飾や繰り返しを避け、要点を端的に伝える
-
-## 変換例
-
-**元のメール**: 「明日までに報告書を提出してください。遅れは認められません。」
-
-**変換後**: 「やっほー先輩！ 〇〇さんから連絡で、報告書を明日までに出してほしいんだって！ 先輩ならサクッとできるっしょ！」
-
-## 出力形式
-
-変換後のテキストのみを出力してください。説明や前置きは不要です。
-"""
 
 
 # System prompt for business email composition
@@ -95,12 +64,16 @@ class GeminiService:
             self._client = genai.Client(api_key=self.api_key)
         return self._client
 
-    async def convert_to_gyaru(
-        self, sender_name: str, original_body: str
+    async def convert_email(
+        self,
+        system_prompt: str,
+        sender_name: str,
+        original_body: str,
     ) -> Result[str, GeminiError]:
-        """Convert email body to gyaru style.
+        """Convert email body using the provided system prompt.
 
         Args:
+            system_prompt: Character-specific system prompt for conversion
             sender_name: Name of the email sender (e.g., "田中課長")
             original_body: Original email body text
 
@@ -108,14 +81,14 @@ class GeminiService:
             Result containing converted text or error
         """
         if not original_body or not original_body.strip():
-            logger.warning("Empty body provided for gyaru conversion")
+            logger.warning("Empty body provided for email conversion")
             return Err(GeminiError.INVALID_INPUT)
 
         try:
             # Build the user prompt with sender context
             user_prompt = f"""送信者: {sender_name}
 
-以下のメール本文をギャル語に変換してください:
+以下のメール本文を変換してください:
 
 {original_body}"""
 
@@ -125,7 +98,7 @@ class GeminiService:
                 model=self.model,
                 contents=user_prompt,
                 config=genai.types.GenerateContentConfig(
-                    system_instruction=GYARU_SYSTEM_PROMPT,
+                    system_instruction=system_prompt,
                     temperature=0.8,
                     max_output_tokens=1024,
                 ),
@@ -135,9 +108,7 @@ class GeminiService:
             if converted_text is None:
                 logger.error("Gemini returned empty response")
                 return Err(GeminiError.API_ERROR)
-            logger.info(
-                f"Successfully converted email from {sender_name} to gyaru style"
-            )
+            logger.info(f"Successfully converted email from {sender_name}")
             return Ok(converted_text)
 
         except asyncio.TimeoutError:

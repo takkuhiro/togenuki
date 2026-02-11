@@ -464,7 +464,7 @@ class TestAIProcessingIntegration:
         ):
             # Mock Gemini service
             mock_gemini = MagicMock()
-            mock_gemini.convert_to_gyaru = AsyncMock(
+            mock_gemini.convert_email = AsyncMock(
                 return_value=Ok("やっほー先輩💖 報告書お願いだし！")
             )
             mock_gemini_class.return_value = mock_gemini
@@ -482,9 +482,9 @@ class TestAIProcessingIntegration:
             )
 
             assert result.processed is True
-            mock_gemini.convert_to_gyaru.assert_called_once()
+            mock_gemini.convert_email.assert_called_once()
             # Verify sender name is passed
-            call_args = mock_gemini.convert_to_gyaru.call_args
+            call_args = mock_gemini.convert_email.call_args
             assert "Boss" in str(call_args) or "boss" in str(call_args).lower()
 
     @pytest.mark.asyncio
@@ -517,7 +517,7 @@ class TestAIProcessingIntegration:
             patch("src.services.email_processor.TTSService") as mock_tts_class,
         ):
             mock_gemini = MagicMock()
-            mock_gemini.convert_to_gyaru = AsyncMock(return_value=Ok(converted_text))
+            mock_gemini.convert_email = AsyncMock(return_value=Ok(converted_text))
             mock_gemini_class.return_value = mock_gemini
 
             mock_tts = MagicMock()
@@ -565,7 +565,7 @@ class TestAIProcessingIntegration:
             patch("src.services.email_processor.TTSService") as mock_tts_class,
         ):
             mock_gemini = MagicMock()
-            mock_gemini.convert_to_gyaru = AsyncMock(return_value=Ok(converted_text))
+            mock_gemini.convert_email = AsyncMock(return_value=Ok(converted_text))
             mock_gemini_class.return_value = mock_gemini
 
             mock_tts = MagicMock()
@@ -611,7 +611,7 @@ class TestAIProcessingIntegration:
             patch("src.services.email_processor.TTSService") as mock_tts_class,
         ):
             mock_gemini = MagicMock()
-            mock_gemini.convert_to_gyaru = AsyncMock(
+            mock_gemini.convert_email = AsyncMock(
                 return_value=Err(GeminiError.API_ERROR)
             )
             mock_gemini_class.return_value = mock_gemini
@@ -660,7 +660,7 @@ class TestAIProcessingIntegration:
             patch("src.services.email_processor.TTSService") as mock_tts_class,
         ):
             mock_gemini = MagicMock()
-            mock_gemini.convert_to_gyaru = AsyncMock(return_value=Ok(converted_text))
+            mock_gemini.convert_email = AsyncMock(return_value=Ok(converted_text))
             mock_gemini_class.return_value = mock_gemini
 
             mock_tts = MagicMock()
@@ -679,3 +679,291 @@ class TestAIProcessingIntegration:
             assert added_email.audio_url is None
             # is_processed is False because TTS failed
             assert added_email.is_processed is False
+
+
+class TestCharacterIntegration:
+    """Tests for character-based email processing pipeline (Task 6)."""
+
+    @pytest.fixture
+    def mock_contact(self) -> Contact:
+        """Create a mock registered contact."""
+        return Contact(
+            id=uuid7(),
+            user_id=uuid7(),
+            contact_email="boss@company.com",
+            contact_name="上司さん",
+        )
+
+    @pytest.fixture
+    def mock_gmail_message(self) -> dict:
+        """Create a mock Gmail API message."""
+        return {
+            "id": "msg-char-123",
+            "payload": {
+                "headers": [
+                    {"name": "From", "value": "Boss <boss@company.com>"},
+                    {"name": "Subject", "value": "報告書の件"},
+                ],
+                "mimeType": "text/plain",
+                "body": {
+                    "data": base64.urlsafe_b64encode(
+                        "明日までに報告書を提出してください。".encode()
+                    ).decode()
+                },
+            },
+            "internalDate": "1704067200000",
+        }
+
+    @pytest.mark.asyncio
+    async def test_process_message_uses_selected_character_for_gemini(
+        self,
+        mock_contact: Contact,
+        mock_gmail_message: dict,
+    ):
+        """Test that Gemini receives the selected character's system prompt."""
+        from result import Ok
+
+        from src.services.character_service import BUTLER_CHARACTER
+        from src.services.email_processor import EmailProcessorService
+
+        user_id = uuid7()
+        mock_session = AsyncMock()
+
+        mock_contact_result = MagicMock()
+        mock_contact_result.scalar_one_or_none.return_value = mock_contact
+        mock_email_exists_result = MagicMock()
+        mock_email_exists_result.scalar_one_or_none.return_value = None
+        mock_session.execute.side_effect = [
+            mock_contact_result,
+            mock_email_exists_result,
+        ]
+
+        with (
+            patch("src.services.email_processor.GeminiService") as mock_gemini_class,
+            patch("src.services.email_processor.TTSService") as mock_tts_class,
+        ):
+            mock_gemini = MagicMock()
+            mock_gemini.convert_email = AsyncMock(
+                return_value=Ok("ご主人様、報告書のご提出をお願いいたします。")
+            )
+            mock_gemini_class.return_value = mock_gemini
+
+            mock_tts = MagicMock()
+            mock_tts.synthesize_and_upload = AsyncMock(
+                return_value=Ok("https://storage.googleapis.com/bucket/audio.mp3")
+            )
+            mock_tts_class.return_value = mock_tts
+
+            processor = EmailProcessorService(mock_session)
+            result = await processor._process_single_message(
+                user_id, mock_gmail_message, selected_character_id="butler"
+            )
+
+            assert result.processed is True
+            # Verify Gemini was called with butler's system prompt
+            call_kwargs = mock_gemini.convert_email.call_args.kwargs
+            assert call_kwargs["system_prompt"] == BUTLER_CHARACTER.system_prompt
+
+    @pytest.mark.asyncio
+    async def test_process_message_uses_selected_character_voice_for_tts(
+        self,
+        mock_contact: Contact,
+        mock_gmail_message: dict,
+    ):
+        """Test that TTS receives the selected character's voice name."""
+        from result import Ok
+
+        from src.services.character_service import BUTLER_CHARACTER
+        from src.services.email_processor import EmailProcessorService
+
+        user_id = uuid7()
+        mock_session = AsyncMock()
+
+        mock_contact_result = MagicMock()
+        mock_contact_result.scalar_one_or_none.return_value = mock_contact
+        mock_email_exists_result = MagicMock()
+        mock_email_exists_result.scalar_one_or_none.return_value = None
+        mock_session.execute.side_effect = [
+            mock_contact_result,
+            mock_email_exists_result,
+        ]
+
+        converted_text = "ご主人様、報告書のご提出をお願いいたします。"
+
+        with (
+            patch("src.services.email_processor.GeminiService") as mock_gemini_class,
+            patch("src.services.email_processor.TTSService") as mock_tts_class,
+        ):
+            mock_gemini = MagicMock()
+            mock_gemini.convert_email = AsyncMock(return_value=Ok(converted_text))
+            mock_gemini_class.return_value = mock_gemini
+
+            mock_tts = MagicMock()
+            mock_tts.synthesize_and_upload = AsyncMock(
+                return_value=Ok("https://storage.googleapis.com/bucket/audio.mp3")
+            )
+            mock_tts_class.return_value = mock_tts
+
+            processor = EmailProcessorService(mock_session)
+            await processor._process_single_message(
+                user_id, mock_gmail_message, selected_character_id="butler"
+            )
+
+            # Verify TTS was called with butler's voice name
+            call_kwargs = mock_tts.synthesize_and_upload.call_args.kwargs
+            assert call_kwargs["voice_name"] == BUTLER_CHARACTER.tts_voice_name
+
+    @pytest.mark.asyncio
+    async def test_process_message_uses_default_character_when_none(
+        self,
+        mock_contact: Contact,
+        mock_gmail_message: dict,
+    ):
+        """Test that default character (gyaru) is used when selected_character_id is None."""
+        from result import Ok
+
+        from src.services.character_service import GYARU_CHARACTER
+        from src.services.email_processor import EmailProcessorService
+
+        user_id = uuid7()
+        mock_session = AsyncMock()
+
+        mock_contact_result = MagicMock()
+        mock_contact_result.scalar_one_or_none.return_value = mock_contact
+        mock_email_exists_result = MagicMock()
+        mock_email_exists_result.scalar_one_or_none.return_value = None
+        mock_session.execute.side_effect = [
+            mock_contact_result,
+            mock_email_exists_result,
+        ]
+
+        with (
+            patch("src.services.email_processor.GeminiService") as mock_gemini_class,
+            patch("src.services.email_processor.TTSService") as mock_tts_class,
+        ):
+            mock_gemini = MagicMock()
+            mock_gemini.convert_email = AsyncMock(return_value=Ok("やっほー先輩！"))
+            mock_gemini_class.return_value = mock_gemini
+
+            mock_tts = MagicMock()
+            mock_tts.synthesize_and_upload = AsyncMock(
+                return_value=Ok("https://storage.googleapis.com/bucket/audio.mp3")
+            )
+            mock_tts_class.return_value = mock_tts
+
+            processor = EmailProcessorService(mock_session)
+            await processor._process_single_message(
+                user_id, mock_gmail_message, selected_character_id=None
+            )
+
+            # Verify Gemini was called with gyaru's system prompt (default)
+            call_kwargs = mock_gemini.convert_email.call_args.kwargs
+            assert call_kwargs["system_prompt"] == GYARU_CHARACTER.system_prompt
+
+            # Verify TTS was called with gyaru's voice name (default)
+            tts_kwargs = mock_tts.synthesize_and_upload.call_args.kwargs
+            assert tts_kwargs["voice_name"] == GYARU_CHARACTER.tts_voice_name
+
+    @pytest.mark.asyncio
+    async def test_process_notification_passes_character_id_through_pipeline(
+        self,
+        mock_gmail_message: dict,
+    ):
+        """Test that process_notification passes user's selected_character_id through the pipeline."""
+        from result import Ok
+
+        from src.services.character_service import SENPAI_CHARACTER
+        from src.services.email_processor import EmailProcessorService
+
+        mock_user = User(
+            id=uuid7(),
+            firebase_uid="test-uid-senpai",
+            email="user@example.com",
+            gmail_refresh_token="refresh-token-xxx",
+            gmail_access_token="access-token-xxx",
+            gmail_token_expires_at=datetime.now(timezone.utc),
+            gmail_history_id="12345",
+            selected_character_id="senpai",
+        )
+
+        mock_contact = Contact(
+            id=uuid7(),
+            user_id=mock_user.id,
+            contact_email="boss@company.com",
+            contact_name="上司さん",
+        )
+
+        mock_history_response = {
+            "history": [
+                {
+                    "id": "12346",
+                    "messagesAdded": [
+                        {"message": {"id": "msg-char-123", "threadId": "t-1"}}
+                    ],
+                }
+            ],
+            "historyId": "12347",
+        }
+
+        mock_session = AsyncMock()
+
+        # Mock user lookup
+        mock_user_result = MagicMock()
+        mock_user_result.scalar_one_or_none.return_value = mock_user
+
+        # Mock contact lookup
+        mock_contact_result = MagicMock()
+        mock_contact_result.scalar_one_or_none.return_value = mock_contact
+
+        # Mock email existence check
+        mock_email_exists = MagicMock()
+        mock_email_exists.scalar_one_or_none.return_value = None
+
+        mock_session.execute.side_effect = [
+            mock_user_result,
+            mock_contact_result,
+            mock_email_exists,
+        ]
+
+        with (
+            patch("src.services.email_processor.GmailApiClient") as mock_gmail_client,
+            patch("src.services.email_processor.GeminiService") as mock_gemini_class,
+            patch("src.services.email_processor.TTSService") as mock_tts_class,
+            patch.object(
+                EmailProcessorService,
+                "_get_valid_access_token",
+                return_value="valid-access-token",
+            ),
+        ):
+            mock_gmail = MagicMock()
+            mock_gmail.fetch_email_history = AsyncMock(
+                return_value=mock_history_response
+            )
+            mock_gmail.fetch_message = AsyncMock(return_value=mock_gmail_message)
+            mock_gmail_client.return_value = mock_gmail
+
+            mock_gemini = MagicMock()
+            mock_gemini.convert_email = AsyncMock(
+                return_value=Ok("先輩からメールが来てるよ。")
+            )
+            mock_gemini_class.return_value = mock_gemini
+
+            mock_tts = MagicMock()
+            mock_tts.synthesize_and_upload = AsyncMock(
+                return_value=Ok("https://storage.googleapis.com/bucket/audio.mp3")
+            )
+            mock_tts_class.return_value = mock_tts
+
+            processor = EmailProcessorService(mock_session)
+            result = await processor.process_notification("user@example.com", "99999")
+
+            assert result.skipped is False
+            assert result.processed_count == 1
+
+            # Verify Gemini was called with senpai's system prompt
+            call_kwargs = mock_gemini.convert_email.call_args.kwargs
+            assert call_kwargs["system_prompt"] == SENPAI_CHARACTER.system_prompt
+
+            # Verify TTS was called with senpai's voice name
+            tts_kwargs = mock_tts.synthesize_and_upload.call_args.kwargs
+            assert tts_kwargs["voice_name"] == SENPAI_CHARACTER.tts_voice_name

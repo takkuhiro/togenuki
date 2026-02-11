@@ -21,6 +21,7 @@ from src.repositories.email_repository import (
     email_exists,
     get_contact_for_email,
 )
+from src.services.character_service import get_character
 from src.services.gemini_service import GeminiService
 from src.services.gmail_service import (
     GmailApiClient,
@@ -145,12 +146,14 @@ class EmailProcessorService:
         self,
         user_id: UUID,
         gmail_message: dict,
+        selected_character_id: str | None = None,
     ) -> MessageResult:
         """Process a single Gmail message.
 
         Args:
             user_id: The user's database ID
             gmail_message: Raw Gmail API message response
+            selected_character_id: User's selected character ID (None for default)
 
         Returns:
             MessageResult with processing status
@@ -190,7 +193,7 @@ class EmailProcessorService:
             )
 
             # 4. Trigger AI conversion (Gemini) and TTS
-            await self._process_ai_conversion(email, email_data)
+            await self._process_ai_conversion(email, email_data, selected_character_id)
 
             return MessageResult(processed=True, email_id=email.id)
 
@@ -202,12 +205,14 @@ class EmailProcessorService:
         self,
         email: "Email",
         email_data: dict,
+        selected_character_id: str | None = None,
     ) -> None:
         """Process AI conversion (Gemini) and TTS for an email.
 
         Args:
             email: Email model instance
             email_data: Parsed email data dict
+            selected_character_id: User's selected character ID (None for default)
         """
 
         sender_name = email_data.get("sender_name") or email_data.get(
@@ -220,8 +225,12 @@ class EmailProcessorService:
             logger.warning(f"Email {email.id} has no body, skipping AI conversion")
             return
 
-        # 1. Convert to gyaru style using Gemini
-        gemini_result = await self.gemini_service.convert_to_gyaru(
+        # 1. Get character definition (falls back to default if None or invalid)
+        character = get_character(selected_character_id)
+
+        # 2. Convert email using Gemini with character system prompt
+        gemini_result = await self.gemini_service.convert_email(
+            system_prompt=character.system_prompt,
             sender_name=sender_name,
             original_body=original_body,
         )
@@ -234,12 +243,13 @@ class EmailProcessorService:
 
         converted_body = gemini_result.unwrap()
         email.converted_body = converted_body
-        logger.info(f"Email {email.id} converted to gyaru style")
+        logger.info(f"Email {email.id} converted using character '{character.id}'")
 
-        # 2. Generate audio using TTS
+        # 3. Generate audio using TTS with character voice
         tts_result = await self.tts_service.synthesize_and_upload(
             text=converted_body,
             email_id=email.id,
+            voice_name=character.tts_voice_name,
         )
 
         if tts_result.is_err():
@@ -342,7 +352,9 @@ class EmailProcessorService:
             for message_id in message_ids:
                 try:
                     message = await client.fetch_message(message_id)
-                    result = await self._process_single_message(user.id, message)
+                    result = await self._process_single_message(
+                        user.id, message, user.selected_character_id
+                    )
 
                     if result.processed:
                         processed_count += 1
