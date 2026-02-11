@@ -39,17 +39,17 @@ export function ContactsPage() {
       </div>
 
       <section>
-        <h3 className="contacts-section-title">キャラクター選択</h3>
-        <CharacterSelector />
-      </section>
-
-      <section>
         <ContactForm onSuccess={handleContactCreated} />
       </section>
 
       <section>
         <h3 className="contacts-section-title">登録済み連絡先</h3>
         <ContactList key={refreshKey} />
+      </section>
+
+      <section>
+        <h2 className="contacts-section-heading">キャラクター選択</h2>
+        <CharacterSelector />
       </section>
     </div>
   );

@@ -113,6 +113,11 @@ export function CharacterSelector() {
             onClick={() => handleSelect(character.id)}
             aria-pressed={selectedId === character.id}
           >
+            <img
+              src={`/${character.id}.png`}
+              alt={character.displayName}
+              className="character-card-image"
+            />
             <h4 className="character-card-name">{character.displayName}</h4>
             <p className="character-card-description">{character.description}</p>
           </button>
