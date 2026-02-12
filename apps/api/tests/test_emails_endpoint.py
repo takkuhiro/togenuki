@@ -19,9 +19,7 @@ class TestReplySyncIntegration:
         return FirebaseUser(uid="test-uid-123", email="test@example.com")
 
     @pytest.mark.asyncio
-    async def test_get_emails_calls_reply_sync(
-        self, mock_user: FirebaseUser
-    ) -> None:
+    async def test_get_emails_calls_reply_sync(self, mock_user: FirebaseUser) -> None:
         """GET /api/emails should call reply sync before returning."""
         from src.routers.emails import router
 

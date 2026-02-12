@@ -37,12 +37,7 @@ function getLearningStatus(contact: Contact): {
  * - Shows retry button for failed contacts
  * - Shows learn button for completed contacts
  */
-export function ContactCard({
-  contact,
-  onDelete,
-  onRetry,
-  onLearn,
-}: ContactCardProps) {
+export function ContactCard({ contact, onDelete, onRetry, onLearn }: ContactCardProps) {
   const status = getLearningStatus(contact);
   const displayName = contact.contactName || contact.contactEmail;
 

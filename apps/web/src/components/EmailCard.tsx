@@ -20,7 +20,6 @@ type ReplyPhase =
   | 'sending'
   | 'sent'
   | 'draft_saving'
-  | 'draft_saved'
   | 'error';
 
 type ErrorType = 'compose' | 'send' | 'draft' | 'empty';
@@ -45,9 +44,12 @@ export function EmailCard({ email, isExpanded, onToggle, onReplied }: EmailCardP
   const { idToken } = useAuth();
   const speech = useSpeechRecognition();
 
-  const [phase, setPhase] = useState<ReplyPhase>('idle');
-  const [composedBody, setComposedBody] = useState('');
-  const [composedSubject, setComposedSubject] = useState('');
+  const [phase, setPhase] = useState<ReplyPhase>(
+    email.composedBody && !email.repliedAt ? 'composed' : 'idle'
+  );
+  const [composedBody, setComposedBody] = useState(email.composedBody || '');
+  const [composedSubject, setComposedSubject] = useState(email.composedSubject || '');
+  const [hasDraft, setHasDraft] = useState(!!email.googleDraftId);
   const [error, setError] = useState<string | null>(null);
   const [errorType, setErrorType] = useState<ErrorType>('compose');
   const wasListeningRef = useRef(false);
@@ -191,7 +193,8 @@ export function EmailCard({ email, isExpanded, onToggle, onReplied }: EmailCardP
         composedBody,
         composedSubject,
       });
-      setPhase('draft_saved');
+      setHasDraft(true);
+      setPhase('composed');
     } catch (err) {
       setError(err instanceof Error ? err.message : '下書き保存に失敗しました');
       setErrorType('draft');
@@ -335,14 +338,6 @@ export function EmailCard({ email, isExpanded, onToggle, onReplied }: EmailCardP
           </button>
         );
 
-      case 'draft_saved':
-        return (
-          <button type="button" className="audio-player-button" disabled>
-            <DraftIcon />
-            下書き保存済み
-          </button>
-        );
-
       case 'sent':
         return (
           <button type="button" className="audio-player-button" disabled>
@@ -414,9 +409,12 @@ export function EmailCard({ email, isExpanded, onToggle, onReplied }: EmailCardP
           <h3 className="email-card-subject">{email.subject || '(件名なし)'}</h3>
         </div>
         <div className="email-card-header-meta">
+          {hasDraft && !email.repliedAt && (
+            <span className="draft-saved-badge">下書き保存済み</span>
+          )}
           {email.repliedAt && email.replySource && (
             <span className={`reply-source-badge reply-source-badge--${email.replySource}`}>
-              {email.replySource === 'togenuki' ? 'TogeNuki' : 'Gmail'}
+              {email.replySource === 'togenuki' ? 'TogeNukiより返信' : 'Gmailより返信'}
             </span>
           )}
           <span className="email-card-date">{formatDate(email.receivedAt)}</span>

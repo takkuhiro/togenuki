@@ -35,6 +35,9 @@ const mockEmails = [
     replyBody: null,
     replySubject: null,
     replySource: null,
+    composedBody: null,
+    composedSubject: null,
+    googleDraftId: null,
   },
   {
     id: '2',
@@ -49,6 +52,9 @@ const mockEmails = [
     replyBody: null,
     replySubject: null,
     replySource: null,
+    composedBody: null,
+    composedSubject: null,
+    googleDraftId: null,
   },
 ];
 
@@ -66,6 +72,9 @@ const mockEmailsWithReplied = [
     replyBody: null,
     replySubject: null,
     replySource: null,
+    composedBody: null,
+    composedSubject: null,
+    googleDraftId: null,
   },
   {
     id: '2',
@@ -80,6 +89,9 @@ const mockEmailsWithReplied = [
     replyBody: '返信本文2',
     replySubject: 'Re: 週報提出のお願い',
     replySource: 'togenuki' as const,
+    composedBody: null,
+    composedSubject: null,
+    googleDraftId: null,
   },
   {
     id: '3',
@@ -94,6 +106,9 @@ const mockEmailsWithReplied = [
     replyBody: '返信本文3',
     replySubject: 'Re: 会議室予約の件',
     replySource: 'gmail' as const,
+    composedBody: null,
+    composedSubject: null,
+    googleDraftId: null,
   },
 ];
 

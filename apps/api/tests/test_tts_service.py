@@ -372,9 +372,7 @@ class TestTTSErrorHandling:
             mock_settings.return_value.gemini_api_key = "test-key"
 
             mock_client = MagicMock()
-            mock_client.models.generate_content.side_effect = Exception(
-                "TTS API Error"
-            )
+            mock_client.models.generate_content.side_effect = Exception("TTS API Error")
             mock_genai.Client.return_value = mock_client
 
             service = TTSService()

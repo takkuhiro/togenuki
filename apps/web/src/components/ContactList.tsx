@@ -123,9 +123,16 @@ function LearnDialog({
         {mode === 'relearn' && (
           <>
             <p>「{displayName}」を再学習しますか？</p>
-            <p className="dialog-warning">現在の学習データを削除し、最新のメール履歴で再学習します。</p>
+            <p className="dialog-warning">
+              現在の学習データを削除し、最新のメール履歴で再学習します。
+            </p>
             <div className="dialog-actions">
-              <button type="button" className="dialog-cancel" data-testid="learn-back" onClick={onBack}>
+              <button
+                type="button"
+                className="dialog-cancel"
+                data-testid="learn-back"
+                onClick={onBack}
+              >
                 戻る
               </button>
               <button type="button" className="dialog-cancel" onClick={onCancel}>
@@ -151,7 +158,12 @@ function LearnDialog({
               maxLength={1000}
             />
             <div className="dialog-actions">
-              <button type="button" className="dialog-cancel" data-testid="learn-back" onClick={onBack}>
+              <button
+                type="button"
+                className="dialog-cancel"
+                data-testid="learn-back"
+                onClick={onBack}
+              >
                 戻る
               </button>
               <button type="button" className="dialog-cancel" onClick={onCancel}>

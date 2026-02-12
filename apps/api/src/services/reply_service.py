@@ -135,6 +135,11 @@ class ReplyService:
         # 6. Generate subject with Re: prefix
         composed_subject = self._generate_reply_subject(email.subject)
 
+        # 7. Persist composed fields to DB
+        email.composed_body = composed_body
+        email.composed_subject = composed_subject
+        await session.commit()
+
         return Ok(
             ComposeReplyResult(
                 composed_body=composed_body,
@@ -223,6 +228,12 @@ class ReplyService:
         email.replied_at = datetime.now(timezone.utc)
         email.reply_google_message_id = google_message_id
         email.reply_source = "togenuki"
+
+        # Clear composed/draft fields after successful send
+        email.composed_body = None
+        email.composed_subject = None
+        email.google_draft_id = None
+
         await session.commit()
 
         return Ok(SendReplyResult(google_message_id=google_message_id))
@@ -298,6 +309,11 @@ class ReplyService:
             return Err(ReplyError.DRAFT_FAILED)
 
         google_draft_id = draft_result.get("id", "")
+
+        # Persist draft ID to DB
+        email.google_draft_id = google_draft_id
+        await session.commit()
+
         return Ok(SaveDraftResult(google_draft_id=google_draft_id))
 
     @staticmethod

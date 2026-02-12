@@ -873,8 +873,9 @@ class TestSaveDraft:
             draft_result = result.unwrap()
             assert draft_result.google_draft_id == "draft-789"
 
-            # DB should NOT be updated for drafts
-            mock_session.commit.assert_not_awaited()
+            # google_draft_id should be persisted to DB
+            assert mock_email.google_draft_id == "draft-789"
+            mock_session.commit.assert_awaited_once()
 
     @pytest.mark.asyncio
     async def test_save_draft_email_not_found(
@@ -1062,3 +1063,221 @@ class TestSaveDraft:
 
             assert result.is_err()
             assert result.unwrap_err() == ReplyError.DRAFT_FAILED
+
+
+class TestComposedFieldsPersistence:
+    """Tests for persisting composed fields and draft ID to DB."""
+
+    @pytest.mark.asyncio
+    async def test_compose_reply_persists_composed_fields(
+        self,
+        mock_session: AsyncMock,
+        firebase_user: FirebaseUser,
+        mock_user: User,
+        mock_email: Email,
+        mock_contact: Contact,
+        mock_contact_context: ContactContext,
+    ):
+        """compose_reply should persist composed_body and composed_subject to DB."""
+        from result import Ok
+
+        from src.services.reply_service import ReplyService
+
+        mock_contact.context = mock_contact_context
+
+        with (
+            patch(
+                "src.services.reply_service.get_user_by_firebase_uid",
+                new_callable=AsyncMock,
+                return_value=mock_user,
+            ),
+            patch(
+                "src.services.reply_service.get_email_by_id",
+                new_callable=AsyncMock,
+                return_value=mock_email,
+            ),
+            patch(
+                "src.services.reply_service.get_contact_for_email",
+                new_callable=AsyncMock,
+                return_value=mock_contact,
+            ),
+        ):
+            mock_gemini = MagicMock()
+            mock_gemini.compose_business_reply = AsyncMock(
+                return_value=Ok("お疲れ様です。報告書の件、承知いたしました。")
+            )
+
+            service = ReplyService(gemini_service=mock_gemini)
+            result = await service.compose_reply(
+                session=mock_session,
+                user=firebase_user,
+                email_id=mock_email.id,
+                raw_text="了解っす、明日出します",
+            )
+
+            assert result.is_ok()
+            # composed fields should be persisted to the email record
+            assert (
+                mock_email.composed_body
+                == "お疲れ様です。報告書の件、承知いたしました。"
+            )
+            assert mock_email.composed_subject == "Re: 報告書について"
+            mock_session.commit.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_save_draft_persists_google_draft_id(
+        self,
+        mock_session: AsyncMock,
+        firebase_user: FirebaseUser,
+        mock_user: User,
+        mock_email: Email,
+    ):
+        """save_draft should persist google_draft_id to DB."""
+        from src.services.reply_service import ReplyService
+
+        with (
+            patch(
+                "src.services.reply_service.get_user_by_firebase_uid",
+                new_callable=AsyncMock,
+                return_value=mock_user,
+            ),
+            patch(
+                "src.services.reply_service.get_email_by_id",
+                new_callable=AsyncMock,
+                return_value=mock_email,
+            ),
+        ):
+            mock_oauth = MagicMock()
+            mock_oauth.ensure_valid_access_token = AsyncMock(
+                return_value={
+                    "access_token": "valid-access-token",
+                    "expires_at": datetime.now(timezone.utc) + timedelta(hours=1),
+                }
+            )
+
+            mock_gmail_client_class = MagicMock()
+            mock_gmail_client = MagicMock()
+            mock_gmail_client.create_draft = AsyncMock(
+                return_value={
+                    "id": "draft-789",
+                    "message": {
+                        "id": "msg-draft-456",
+                        "threadId": "thread-abc",
+                        "labelIds": ["DRAFT"],
+                    },
+                }
+            )
+            mock_gmail_client.fetch_message = AsyncMock(
+                return_value={
+                    "id": "msg-123",
+                    "threadId": "thread-abc",
+                    "payload": {
+                        "headers": [
+                            {
+                                "name": "Message-ID",
+                                "value": "<original-msg@mail.gmail.com>",
+                            },
+                        ],
+                    },
+                }
+            )
+            mock_gmail_client_class.return_value = mock_gmail_client
+
+            mock_gemini = MagicMock()
+            service = ReplyService(
+                gemini_service=mock_gemini,
+                oauth_service=mock_oauth,
+                gmail_client_class=mock_gmail_client_class,
+            )
+            result = await service.save_draft(
+                session=mock_session,
+                user=firebase_user,
+                email_id=mock_email.id,
+                composed_body="お疲れ様です。",
+                composed_subject="Re: 報告書について",
+            )
+
+            assert result.is_ok()
+            assert mock_email.google_draft_id == "draft-789"
+            mock_session.commit.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_send_reply_clears_composed_and_draft_fields(
+        self,
+        mock_session: AsyncMock,
+        firebase_user: FirebaseUser,
+        mock_user: User,
+        mock_email: Email,
+    ):
+        """send_reply should clear composed_body, composed_subject, google_draft_id after send."""
+        from src.services.reply_service import ReplyService
+
+        # Pre-set composed fields
+        mock_email.composed_body = "既存の清書本文"
+        mock_email.composed_subject = "Re: 報告書について"
+        mock_email.google_draft_id = "draft-existing"
+
+        with (
+            patch(
+                "src.services.reply_service.get_user_by_firebase_uid",
+                new_callable=AsyncMock,
+                return_value=mock_user,
+            ),
+            patch(
+                "src.services.reply_service.get_email_by_id",
+                new_callable=AsyncMock,
+                return_value=mock_email,
+            ),
+        ):
+            mock_oauth = MagicMock()
+            mock_oauth.ensure_valid_access_token = AsyncMock(
+                return_value={
+                    "access_token": "valid-access-token",
+                    "expires_at": datetime.now(timezone.utc) + timedelta(hours=1),
+                }
+            )
+
+            mock_gmail_client_class = MagicMock()
+            mock_gmail_client = MagicMock()
+            mock_gmail_client.send_message = AsyncMock(
+                return_value={
+                    "id": "sent-msg-456",
+                    "threadId": "thread-abc",
+                    "labelIds": ["SENT"],
+                }
+            )
+            mock_gmail_client.fetch_message = AsyncMock(
+                return_value={
+                    "id": "msg-123",
+                    "threadId": "thread-abc",
+                    "payload": {
+                        "headers": [
+                            {
+                                "name": "Message-ID",
+                                "value": "<original-msg@mail.gmail.com>",
+                            },
+                        ],
+                    },
+                }
+            )
+            mock_gmail_client_class.return_value = mock_gmail_client
+
+            mock_gemini = MagicMock()
+            service = ReplyService(
+                gemini_service=mock_gemini,
+                oauth_service=mock_oauth,
+                gmail_client_class=mock_gmail_client_class,
+            )
+            result = await service.send_reply(
+                session=mock_session,
+                user=firebase_user,
+                email_id=mock_email.id,
+                composed_body="送信する本文",
+                composed_subject="Re: 報告書について",
+            )
+
+            assert result.is_ok()
+            # composed/draft fields should be cleared
+            assert mock_email.composed_body is None
+            assert mock_email.composed_subject is None
+            assert mock_email.google_draft_id is None

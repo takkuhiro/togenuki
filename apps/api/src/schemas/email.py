@@ -23,6 +23,9 @@ class EmailDTO(BaseModel):
     replyBody: str | None
     replySubject: str | None
     replySource: str | None
+    composedBody: str | None
+    composedSubject: str | None
+    googleDraftId: str | None
 
 
 class EmailsResponse(BaseModel):
