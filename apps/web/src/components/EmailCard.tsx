@@ -10,6 +10,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
 import type { Email } from '../types/email';
 import { AudioPlayer } from './AudioPlayer';
+import { SplitActionButton } from './SplitActionButton';
 
 type ReplyPhase =
   | 'idle'
@@ -269,14 +270,12 @@ export function EmailCard({ email, isExpanded, onToggle, onReplied }: EmailCardP
               <CheckIcon />
               確認
             </button>
-            <button type="button" className="audio-player-button" onClick={handleSend}>
-              <SendIcon />
-              送信
-            </button>
-            <button type="button" className="audio-player-button" onClick={handleSaveDraft}>
-              <DraftIcon />
-              下書き
-            </button>
+            <SplitActionButton
+              actions={[
+                { key: 'send', label: '送信', icon: <SendIcon />, onClick: handleSend },
+                { key: 'draft', label: '下書き', icon: <DraftIcon />, onClick: handleSaveDraft },
+              ]}
+            />
           </div>
         );
 
@@ -309,14 +308,12 @@ export function EmailCard({ email, isExpanded, onToggle, onReplied }: EmailCardP
                   <BackIcon />
                   戻る
                 </button>
-                <button type="button" className="audio-player-button" onClick={handleSaveDraft}>
-                  <DraftIcon />
-                  下書き
-                </button>
-                <button type="button" className="audio-player-button" onClick={handleSend}>
-                  <SendIcon />
-                  送信
-                </button>
+                <SplitActionButton
+                  actions={[
+                    { key: 'send', label: '送信', icon: <SendIcon />, onClick: handleSend },
+                    { key: 'draft', label: '下書き', icon: <DraftIcon />, onClick: handleSaveDraft },
+                  ]}
+                />
               </div>
             </div>
           </div>

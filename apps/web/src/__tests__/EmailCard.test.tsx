@@ -422,14 +422,15 @@ describe('EmailCard - VoiceReplyPanel統合', () => {
       return { rerender, user };
     }
 
-    it('AudioPlayer、「音声入力」「確認」「送信」「下書き」ボタンが全て並列表示される', async () => {
+    it('AudioPlayer、「音声入力」「確認」「送信」スプリットボタン（下書き含む）が全て並列表示される', async () => {
       await renderComposedState();
 
       expect(screen.getByTestId('audio-player')).toBeInTheDocument();
       expect(screen.getByRole('button', { name: /音声入力/ })).toBeInTheDocument();
       expect(screen.getByRole('button', { name: /確認/ })).toBeInTheDocument();
+      // スプリットボタン: メインに「送信」、ドロップダウントグルがある
       expect(screen.getByRole('button', { name: /送信/ })).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: /下書き/ })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /選択肢を開く/ })).toBeInTheDocument();
 
       // 全てが同じemail-card-actions内にある
       const actionsArea = screen.getByTestId('audio-player').closest('.email-card-actions');
@@ -437,7 +438,6 @@ describe('EmailCard - VoiceReplyPanel統合', () => {
       expect(actionsArea?.contains(screen.getByRole('button', { name: /音声入力/ }))).toBe(true);
       expect(actionsArea?.contains(screen.getByRole('button', { name: /確認/ }))).toBe(true);
       expect(actionsArea?.contains(screen.getByRole('button', { name: /送信/ }))).toBe(true);
-      expect(actionsArea?.contains(screen.getByRole('button', { name: /下書き/ }))).toBe(true);
     });
 
     it('「音声入力」ボタンで全状態リセット＋録音再開', async () => {
@@ -513,18 +513,19 @@ describe('EmailCard - VoiceReplyPanel統合', () => {
       expect(screen.getByRole('button', { name: /確認/ })).toBeInTheDocument();
     });
 
-    it('ダイアログ内に「下書き」ボタンが表示される', async () => {
+    it('ダイアログ内にスプリットボタン（送信・下書き切替可）が表示される', async () => {
+      const user = userEvent.setup();
       await renderComposedAndConfirm();
 
       const dialog = screen.getByRole('dialog');
-      // ダイアログ内に「下書き」ボタンがあること
-      expect(dialog.textContent).toContain('下書き');
-      const buttons = screen.getAllByRole('button', { name: /下書き/ });
-      // ダイアログ内に下書きボタンが存在
-      expect(buttons.length).toBeGreaterThanOrEqual(1);
+      expect(dialog).toBeInTheDocument();
+      // スプリットボタンのトグルを開くと「下書き」メニューアイテムがある
+      const toggle = within(dialog).getByRole('button', { name: /選択肢を開く/ });
+      await user.click(toggle);
+      expect(screen.getByRole('menuitem', { name: /下書き/ })).toBeInTheDocument();
     });
 
-    it('ダイアログ内「下書き」ボタンでsaveDraft APIが呼ばれる', async () => {
+    it('ダイアログ内スプリットボタンで下書き選択→クリックでsaveDraft APIが呼ばれる', async () => {
       mockSaveDraft.mockResolvedValueOnce({
         success: true,
         googleDraftId: 'draft-789',
@@ -532,9 +533,13 @@ describe('EmailCard - VoiceReplyPanel統合', () => {
 
       const { user } = await renderComposedAndConfirm();
 
-      const draftButtons = screen.getAllByRole('button', { name: /下書き/ });
-      const dialogDraftBtn = draftButtons[draftButtons.length - 1];
-      await user.click(dialogDraftBtn);
+      const dialog = screen.getByRole('dialog');
+      // スプリットボタンのドロップダウンを開いて下書きを選択
+      const toggle = within(dialog).getByRole('button', { name: /選択肢を開く/ });
+      await user.click(toggle);
+      await user.click(screen.getByRole('menuitem', { name: /下書き/ }));
+      // メインボタンクリック
+      await user.click(within(dialog).getByRole('button', { name: /下書き/ }));
 
       expect(mockSaveDraft).toHaveBeenCalledWith('test-token', 'email-123', {
         composedBody: '清書されたメール本文',
@@ -542,7 +547,7 @@ describe('EmailCard - VoiceReplyPanel統合', () => {
       });
     });
 
-    it('ダイアログ内「送信」ボタンでsendReply APIが呼ばれる', async () => {
+    it('ダイアログ内スプリットボタンの送信ボタンでsendReply APIが呼ばれる', async () => {
       mockSendReply.mockResolvedValueOnce({
         success: true,
         googleMessageId: 'msg-456',
@@ -550,9 +555,9 @@ describe('EmailCard - VoiceReplyPanel統合', () => {
 
       const { user } = await renderComposedAndConfirm();
 
-      const sendButtons = screen.getAllByRole('button', { name: /送信/ });
-      const dialogSendBtn = sendButtons[sendButtons.length - 1];
-      await user.click(dialogSendBtn);
+      const dialog = screen.getByRole('dialog');
+      // デフォルトで「送信」がメインボタンなのでそのままクリック
+      await user.click(within(dialog).getByRole('button', { name: /送信/ }));
 
       expect(mockSendReply).toHaveBeenCalledWith('test-token', 'email-123', {
         composedBody: '清書されたメール本文',
@@ -944,13 +949,22 @@ describe('EmailCard - VoiceReplyPanel統合', () => {
       rerender(<EmailCard email={email} isExpanded={true} onToggle={onToggle} />);
 
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: /下書き/ })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /送信/ })).toBeInTheDocument();
       });
 
       return { rerender, user };
     }
 
-    it('「下書き」ボタンクリックでsaveDraft APIが呼ばれる', async () => {
+    /** スプリットボタンで「下書き」を選択してメインボタンをクリックするヘルパー */
+    async function selectDraftAndClick(user: ReturnType<typeof userEvent.setup>) {
+      // スプリットボタンのドロップダウンを開いて下書きを選択
+      await user.click(screen.getByRole('button', { name: /選択肢を開く/ }));
+      await user.click(screen.getByRole('menuitem', { name: /下書き/ }));
+      // メインボタン（下書き）をクリック
+      await user.click(screen.getByRole('button', { name: /下書き/ }));
+    }
+
+    it('スプリットボタンで下書き選択→クリックでsaveDraft APIが呼ばれる', async () => {
       mockSaveDraft.mockResolvedValueOnce({
         success: true,
         googleDraftId: 'draft-789',
@@ -958,7 +972,7 @@ describe('EmailCard - VoiceReplyPanel統合', () => {
 
       const { user } = await renderComposedStateForDraft();
 
-      await user.click(screen.getByRole('button', { name: /下書き/ }));
+      await selectDraftAndClick(user);
 
       expect(mockSaveDraft).toHaveBeenCalledWith('test-token', 'email-123', {
         composedBody: '清書されたメール本文',
@@ -976,7 +990,7 @@ describe('EmailCard - VoiceReplyPanel統合', () => {
 
       const { user } = await renderComposedStateForDraft();
 
-      await user.click(screen.getByRole('button', { name: /下書き/ }));
+      await selectDraftAndClick(user);
 
       const draftBtn = screen.getByRole('button', { name: /下書き/ });
       expect(draftBtn).toBeDisabled();
@@ -993,7 +1007,7 @@ describe('EmailCard - VoiceReplyPanel統合', () => {
 
       const { user } = await renderComposedStateForDraft();
 
-      await user.click(screen.getByRole('button', { name: /下書き/ }));
+      await selectDraftAndClick(user);
 
       await waitFor(() => {
         expect(screen.getByText('下書き保存済み')).toBeInTheDocument();
@@ -1008,11 +1022,12 @@ describe('EmailCard - VoiceReplyPanel統合', () => {
       expect(
         within(actionsArea as HTMLElement).getByRole('button', { name: /確認/ })
       ).toBeInTheDocument();
+      // スプリットボタン（送信がデフォルト）とトグルが存在
       expect(
         within(actionsArea as HTMLElement).getByRole('button', { name: /送信/ })
       ).toBeInTheDocument();
       expect(
-        within(actionsArea as HTMLElement).getByRole('button', { name: /下書き/ })
+        within(actionsArea as HTMLElement).getByRole('button', { name: /選択肢を開く/ })
       ).toBeInTheDocument();
     });
 
@@ -1053,9 +1068,12 @@ describe('EmailCard - VoiceReplyPanel統合', () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: /下書き/ })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /送信/ })).toBeInTheDocument();
       });
 
+      // スプリットボタンで下書きを選択→クリック
+      await user.click(screen.getByRole('button', { name: /選択肢を開く/ }));
+      await user.click(screen.getByRole('menuitem', { name: /下書き/ }));
       await user.click(screen.getByRole('button', { name: /下書き/ }));
 
       await waitFor(() => {
@@ -1070,7 +1088,7 @@ describe('EmailCard - VoiceReplyPanel統合', () => {
 
       const { user } = await renderComposedStateForDraft();
 
-      await user.click(screen.getByRole('button', { name: /下書き/ }));
+      await selectDraftAndClick(user);
 
       await waitFor(() => {
         expect(screen.getByText(/下書き保存に失敗/)).toBeInTheDocument();
@@ -1110,9 +1128,12 @@ describe('EmailCard - VoiceReplyPanel統合', () => {
       rerender(<EmailCard email={email} isExpanded={true} onToggle={onToggle} />);
 
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: /下書き/ })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /送信/ })).toBeInTheDocument();
       });
 
+      // スプリットボタンで下書きを選択→クリック
+      await user.click(screen.getByRole('button', { name: /選択肢を開く/ }));
+      await user.click(screen.getByRole('menuitem', { name: /下書き/ }));
       await user.click(screen.getByRole('button', { name: /下書き/ }));
 
       await waitFor(() => {
@@ -1181,10 +1202,10 @@ describe('EmailCard - VoiceReplyPanel統合', () => {
       });
       render(<EmailCard email={email} isExpanded={true} onToggle={onToggle} />);
 
-      // composed フェーズでは「確認」「送信」「下書き」ボタンが表示される
+      // composed フェーズでは「確認」「送信」スプリットボタン（下書き含む）が表示される
       expect(screen.getByRole('button', { name: /確認/ })).toBeInTheDocument();
       expect(screen.getByRole('button', { name: /送信/ })).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: /下書き/ })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /選択肢を開く/ })).toBeInTheDocument();
     });
 
     it('email.composedBodyがありrepliedAtもある場合、初期フェーズはidle', () => {
