@@ -179,7 +179,7 @@ class TestEmailProcessor:
 
             mock_tts = MagicMock()
             mock_tts.synthesize_and_upload = AsyncMock(
-                return_value=Ok("https://storage.example.com/audio.mp3")
+                return_value=Ok("audio/email123_20240115.wav")
             )
             mock_tts_class.return_value = mock_tts
 
@@ -505,7 +505,7 @@ class TestAIProcessingIntegration:
             # Mock TTS service
             mock_tts = MagicMock()
             mock_tts.synthesize_and_upload = AsyncMock(
-                return_value=Ok("https://storage.googleapis.com/bucket/audio.mp3")
+                return_value=Ok("audio/test_20240115.wav")
             )
             mock_tts_class.return_value = mock_tts
 
@@ -555,7 +555,7 @@ class TestAIProcessingIntegration:
 
             mock_tts = MagicMock()
             mock_tts.synthesize_and_upload = AsyncMock(
-                return_value=Ok("https://storage.googleapis.com/bucket/audio.mp3")
+                return_value=Ok("audio/test_20240115.wav")
             )
             mock_tts_class.return_value = mock_tts
 
@@ -591,7 +591,7 @@ class TestAIProcessingIntegration:
         ]
 
         converted_text = "やっほー先輩💖 報告書お願いだし！"
-        audio_url = "https://storage.googleapis.com/bucket/audio.mp3"
+        audio_url = "audio/test_20240115.wav"
 
         with (
             patch("src.services.email_processor.GeminiService") as mock_gemini_class,
@@ -783,7 +783,7 @@ class TestCharacterIntegration:
 
             mock_tts = MagicMock()
             mock_tts.synthesize_and_upload = AsyncMock(
-                return_value=Ok("https://storage.googleapis.com/bucket/audio.mp3")
+                return_value=Ok("audio/test_20240115.wav")
             )
             mock_tts_class.return_value = mock_tts
 
@@ -833,7 +833,7 @@ class TestCharacterIntegration:
 
             mock_tts = MagicMock()
             mock_tts.synthesize_and_upload = AsyncMock(
-                return_value=Ok("https://storage.googleapis.com/bucket/audio.mp3")
+                return_value=Ok("audio/test_20240115.wav")
             )
             mock_tts_class.return_value = mock_tts
 
@@ -880,7 +880,7 @@ class TestCharacterIntegration:
 
             mock_tts = MagicMock()
             mock_tts.synthesize_and_upload = AsyncMock(
-                return_value=Ok("https://storage.googleapis.com/bucket/audio.mp3")
+                return_value=Ok("audio/test_20240115.wav")
             )
             mock_tts_class.return_value = mock_tts
 
@@ -983,7 +983,7 @@ class TestCharacterIntegration:
 
             mock_tts = MagicMock()
             mock_tts.synthesize_and_upload = AsyncMock(
-                return_value=Ok("https://storage.googleapis.com/bucket/audio.mp3")
+                return_value=Ok("audio/test_20240115.wav")
             )
             mock_tts_class.return_value = mock_tts
 

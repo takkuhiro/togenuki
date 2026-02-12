@@ -260,8 +260,8 @@ resource "google_storage_bucket" "audio" {
   # Uniform bucket-level access
   uniform_bucket_level_access = true
 
-  # Public access prevention disabled (we want public access for hackathon)
-  public_access_prevention = "inherited"
+  # Enforce public access prevention (use signed URLs for access)
+  public_access_prevention = "enforced"
 
   # Versioning disabled for cost savings
   versioning {
@@ -284,11 +284,24 @@ resource "google_storage_bucket" "audio" {
   }
 }
 
-# Make bucket publicly readable (for hackathon - use signed URLs in production)
-resource "google_storage_bucket_iam_member" "audio_public" {
-  bucket = google_storage_bucket.audio.name
-  role   = "roles/storage.objectViewer"
-  member = "allUsers"
+# ============================================
+# IAM: Signed URL support (signBlob)
+# ============================================
+
+# Get default compute service account (used by Cloud Run)
+data "google_compute_default_service_account" "default" {}
+
+# Grant Token Creator role for signBlob API
+resource "google_project_iam_member" "cloud_run_token_creator" {
+  project = var.project_id
+  role    = "roles/iam.serviceAccountTokenCreator"
+  member  = "serviceAccount:${data.google_compute_default_service_account.default.email}"
+}
+
+# Enable IAM Credentials API for signBlob
+resource "google_project_service" "iamcredentials" {
+  service            = "iamcredentials.googleapis.com"
+  disable_on_destroy = false
 }
 
 # ============================================

@@ -24,6 +24,13 @@ from src.main import app
 from src.models import Contact, Email, User
 
 
+@pytest.fixture(autouse=True)
+def _patch_resolve_audio_url():
+    """Patch _resolve_audio_url to pass through the value in all integration tests."""
+    with patch("src.routers.emails._resolve_audio_url", side_effect=lambda x: x):
+        yield
+
+
 class TestEmailProcessingPipeline:
     """Integration tests for the complete email processing pipeline.
 
@@ -171,7 +178,7 @@ class TestEmailProcessingPipeline:
         ]
 
         converted_text = "やっほー先輩💖 上司さんからメール来てるし！報告書、明日までにお願いだって✨ 先輩ならできるっしょ！🔥"
-        audio_url = "https://storage.googleapis.com/togenuki-audio/test.mp3"
+        audio_url = "audio/test_20240115.wav"
 
         with (
             patch("src.services.email_processor.GmailApiClient") as mock_gmail_client,
@@ -283,7 +290,7 @@ class TestDashboardAndAudioPlayback:
                 "sender_email": "boss@company.com",
                 "subject": "至急！報告書について",
                 "converted_body": "やっほー先輩💖 報告書お願いだし！✨",
-                "audio_url": "https://storage.googleapis.com/togenuki-audio/audio1.mp3",
+                "audio_url": "audio/audio1.wav",
                 "is_processed": True,
                 "received_at": "2024-01-15T10:30:00+00:00",
                 "replied_at": None,
@@ -399,16 +406,13 @@ class TestDashboardAndAudioPlayback:
                 "sender_email": "new@example.com",
                 "subject": "Newer email",
                 "converted_body": "新しいメール",
-                "audio_url": "https://example.com/new.mp3",
+                "audio_url": "audio/new.wav",
                 "is_processed": True,
                 "received_at": "2024-01-15T12:00:00+00:00",
                 "replied_at": None,
                 "reply_body": None,
                 "reply_subject": None,
                 "reply_source": None,
-                "composed_body": None,
-                "composed_subject": None,
-                "google_draft_id": None,
                 "composed_body": None,
                 "composed_subject": None,
                 "google_draft_id": None,
@@ -419,7 +423,7 @@ class TestDashboardAndAudioPlayback:
                 "sender_email": "old@example.com",
                 "subject": "Older email",
                 "converted_body": "古いメール",
-                "audio_url": "https://example.com/old.mp3",
+                "audio_url": "audio/old.wav",
                 "is_processed": True,
                 "received_at": "2024-01-10T12:00:00+00:00",
                 "replied_at": None,
@@ -602,7 +606,7 @@ class TestGyaruConversionIntegration:
         converted = (
             "やっほー先輩💖 送信者さんからメール来てるし！明日の会議よろしくね〜✨"
         )
-        audio_url = "https://storage.example.com/audio.mp3"
+        audio_url = "audio/test_20240115.wav"
 
         with (
             patch("src.services.email_processor.GeminiService") as mock_gemini,
@@ -687,7 +691,7 @@ class TestTTSIntegration:
         mock_session.execute.side_effect = [mock_contact_result, mock_email_exists]
 
         converted = "変換後テキスト"
-        audio_url = "https://storage.googleapis.com/bucket/audio/test.mp3"
+        audio_url = "audio/test_20240115.wav"
 
         with (
             patch("src.services.email_processor.GeminiService") as mock_gemini,
@@ -1618,7 +1622,7 @@ class TestCharacterSelectionE2E:
         self._setup_db_mocks(mock_session, mock_user, mock_contact)
 
         converted_text = "やっほー先輩！ 上司さんから報告書よろしくだし！"
-        audio_url = "https://storage.googleapis.com/togenuki-audio/default.mp3"
+        audio_url = "audio/default_20240115.wav"
 
         with (
             patch("src.services.email_processor.GmailApiClient") as mock_gmail_client,
@@ -1692,7 +1696,7 @@ class TestCharacterSelectionE2E:
         converted_text = (
             "ご主人様、上司様より報告書のご提出をお願いしたいとのことでございます。"
         )
-        audio_url = "https://storage.googleapis.com/togenuki-audio/butler.mp3"
+        audio_url = "audio/butler_20240115.wav"
 
         with (
             patch("src.services.email_processor.GmailApiClient") as mock_gmail_client,
@@ -1784,7 +1788,7 @@ class TestCharacterSelectionE2E:
         ]
 
         gyaru_text = "やっほー先輩！ 報告書よろしくだし！"
-        gyaru_audio = "https://storage.googleapis.com/audio/gyaru.mp3"
+        gyaru_audio = "audio/gyaru_20240115.wav"
 
         with (
             patch("src.services.email_processor.GeminiService") as mock_gemini_1,
@@ -1845,7 +1849,7 @@ class TestCharacterSelectionE2E:
         ]
 
         butler_text = "ご主人様、会議の準備をお願いしたいとのことでございます。"
-        butler_audio = "https://storage.googleapis.com/audio/butler.mp3"
+        butler_audio = "audio/butler_20240115.wav"
 
         with (
             patch("src.services.email_processor.GeminiService") as mock_gemini_2,
@@ -1901,7 +1905,7 @@ class TestCharacterSelectionE2E:
         self._setup_db_mocks(mock_session, mock_user, mock_contact)
 
         converted_text = "やっほー先輩！"
-        audio_url = "https://storage.googleapis.com/togenuki-audio/fallback.mp3"
+        audio_url = "audio/fallback_20240115.wav"
 
         with (
             patch("src.services.email_processor.GmailApiClient") as mock_gmail_client,
