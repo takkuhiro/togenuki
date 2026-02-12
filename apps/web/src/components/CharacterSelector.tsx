@@ -3,7 +3,7 @@
  * Requirements: 5.1, 5.2, 5.3, 5.4
  */
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   type Character,
   fetchCharacters,
@@ -23,6 +23,8 @@ export function CharacterSelector() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [playingVoiceId, setPlayingVoiceId] = useState<string | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   // Fetch characters list and current selection on mount
   useEffect(() => {
@@ -58,6 +60,43 @@ export function CharacterSelector() {
       cancelled = true;
     };
   }, [idToken]);
+
+  // Cleanup audio on unmount
+  useEffect(() => {
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+    };
+  }, []);
+
+  const handlePlayVoice = useCallback(
+    (e: React.MouseEvent, characterId: string) => {
+      e.stopPropagation();
+
+      // If same character is playing, pause it
+      if (playingVoiceId === characterId && audioRef.current) {
+        audioRef.current.pause();
+        setPlayingVoiceId(null);
+        return;
+      }
+
+      // Stop previous audio
+      if (audioRef.current) {
+        audioRef.current.pause();
+      }
+
+      const audio = new Audio(`/${characterId}.wav`);
+      audio.addEventListener('ended', () => {
+        setPlayingVoiceId(null);
+      });
+      audioRef.current = audio;
+      audio.play();
+      setPlayingVoiceId(characterId);
+    },
+    [playingVoiceId]
+  );
 
   const handleSelect = useCallback(
     async (characterId: string) => {
@@ -104,25 +143,60 @@ export function CharacterSelector() {
       )}
       {isSaving && <p className="character-saving">保存中...</p>}
       <div className="character-cards">
-        {characters.map((character) => (
-          <button
-            key={character.id}
-            type="button"
-            data-testid="character-card"
-            className={`character-card${selectedId === character.id ? ' selected' : ''}`}
-            onClick={() => handleSelect(character.id)}
-            aria-pressed={selectedId === character.id}
-          >
-            <img
-              src={`/${character.id}.png`}
-              alt={character.displayName}
-              className="character-card-image"
-            />
-            <h4 className="character-card-name">{character.displayName}</h4>
-            <p className="character-card-description">{character.description}</p>
-          </button>
-        ))}
+        {characters.map((character) => {
+          return (
+            // biome-ignore lint/a11y/useSemanticElements: contains nested voice button
+            <div
+              key={character.id}
+              data-testid="character-card"
+              className={`character-card${selectedId === character.id ? ' selected' : ''}`}
+              role="button"
+              tabIndex={0}
+              onClick={() => handleSelect(character.id)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  handleSelect(character.id);
+                }
+              }}
+              aria-pressed={selectedId === character.id}
+            >
+              <img
+                src={`/${character.id}.png`}
+                alt={character.displayName}
+                className="character-card-image"
+              />
+              <h4 className="character-card-name">{character.displayName}</h4>
+              <p className="character-card-description">{character.description}</p>
+              <button
+                type="button"
+                data-testid="voice-play-button"
+                className={`voice-play-button${playingVoiceId === character.id ? ' playing' : ''}`}
+                aria-label={`${character.displayName}のボイスを${playingVoiceId === character.id ? '停止' : '再生'}`}
+                onClick={(e) => handlePlayVoice(e, character.id)}
+              >
+                {playingVoiceId === character.id ? <PauseIcon /> : <PlayIcon />}
+              </button>
+            </div>
+          );
+        })}
       </div>
     </div>
+  );
+}
+
+function PlayIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M8 5v14l11-7z" />
+    </svg>
+  );
+}
+
+function PauseIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
+    </svg>
   );
 }

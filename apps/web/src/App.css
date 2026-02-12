@@ -742,6 +742,35 @@ button:disabled {
   font-size: 0.75rem;
   color: #8C8C8C;
   line-height: 1.4;
+  margin-bottom: 0.5rem;
+}
+
+.voice-play-button {
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #4A6C74 0%, #5D8189 100%);
+  color: white;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 6px rgba(74, 108, 116, 0.3);
+  flex-shrink: 0;
+}
+
+.voice-play-button:hover {
+  background: linear-gradient(135deg, #3D5F67 0%, #527780 100%);
+  transform: scale(1.1);
+}
+
+.voice-play-button.playing {
+  background: linear-gradient(135deg, #D6A884 0%, #E0B998 100%);
+  box-shadow: 0 2px 6px rgba(214, 168, 132, 0.4);
+}
+
+.voice-play-button.playing:hover {
+  background: linear-gradient(135deg, #C89B77 0%, #D6A884 100%);
 }
 
 /* Contact Form */
