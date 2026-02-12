@@ -147,6 +147,7 @@ def parse_gmail_message(message: dict) -> dict:
 
     return {
         "google_message_id": message.get("id"),
+        "thread_id": message.get("threadId"),
         "sender_email": sender_email,
         "sender_name": sender_name,
         "subject": get_header_value(headers, "Subject"),
@@ -292,6 +293,37 @@ class GmailApiClient:
                 )
                 raise GmailApiError(
                     f"Failed to fetch message: {response.text}",
+                    status_code=response.status_code,
+                )
+
+            return cast(dict[str, Any], response.json())
+
+    async def fetch_thread(self, thread_id: str) -> dict[str, Any]:
+        """Fetch a thread with metadata from Gmail API.
+
+        Args:
+            thread_id: The Gmail thread ID
+
+        Returns:
+            Gmail thread response with messages metadata
+
+        Raises:
+            GmailApiError: If API call fails
+        """
+        url = f"{GMAIL_API_BASE_URL}/threads/{thread_id}"
+        params = {"format": "metadata"}
+
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                url, headers=self.headers, params=params, timeout=30.0
+            )
+
+            if response.status_code != 200:
+                logger.error(
+                    f"Gmail thread API error: {response.status_code} - {response.text}"
+                )
+                raise GmailApiError(
+                    f"Failed to fetch thread: {response.text}",
                     status_code=response.status_code,
                 )
 

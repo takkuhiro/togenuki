@@ -3,6 +3,7 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.auth.gmail_oauth import GmailOAuthService
 from src.auth.middleware import get_current_user
 from src.auth.schemas import FirebaseUser
 from src.database import get_db
@@ -11,8 +12,35 @@ from src.repositories.email_repository import (
     get_user_by_firebase_uid,
 )
 from src.schemas.email import EmailDTO, EmailsResponse
+from src.services.gmail_service import GmailApiClient
+from src.services.reply_sync_service import ReplySyncService
+from src.utils.logging import get_logger
+
+logger = get_logger(__name__)
 
 router = APIRouter()
+
+
+async def run_reply_sync(session: AsyncSession, firebase_uid: str) -> None:
+    """Run reply sync for a user. Errors are logged and swallowed."""
+    user = await get_user_by_firebase_uid(session, firebase_uid)
+    if not user or not user.gmail_refresh_token:
+        return
+
+    oauth_service = GmailOAuthService()
+    token_result = await oauth_service.ensure_valid_access_token(
+        current_token=user.gmail_access_token,
+        expires_at=user.gmail_token_expires_at,
+        refresh_token=user.gmail_refresh_token,
+    )
+    if not token_result:
+        return
+
+    gmail_client = GmailApiClient(token_result["access_token"])
+    sync_service = ReplySyncService()
+    updated = await sync_service.sync_reply_status(session, user, gmail_client)
+    if updated > 0:
+        logger.info(f"Reply sync: updated {updated} emails for user {firebase_uid}")
 
 
 async def get_user_emails(
@@ -49,6 +77,7 @@ async def get_user_emails(
             "replied_at": (email.replied_at.isoformat() if email.replied_at else None),
             "reply_body": email.reply_body,
             "reply_subject": email.reply_subject,
+            "reply_source": email.reply_source,
         }
         for email in emails
     ]
@@ -62,6 +91,7 @@ async def get_emails(
     """Get all emails for the authenticated user.
 
     Returns emails sorted by received_at in descending order (newest first).
+    Runs reply sync in the background before returning.
 
     Args:
         user: Authenticated Firebase user
@@ -70,6 +100,11 @@ async def get_emails(
     Returns:
         EmailsResponse with list of emails and total count
     """
+    try:
+        await run_reply_sync(session, user.uid)
+    except Exception:
+        logger.exception("Reply sync failed, continuing with email fetch")
+
     emails_data = await get_user_emails(session, user.uid)
 
     email_dtos = [
@@ -85,6 +120,7 @@ async def get_emails(
             repliedAt=email["replied_at"],
             replyBody=email["reply_body"],
             replySubject=email["reply_subject"],
+            replySource=email["reply_source"],
         )
         for email in emails_data
     ]

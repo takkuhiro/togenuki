@@ -127,6 +127,7 @@ class TestGmailService:
         result = parse_gmail_message(mock_gmail_message)
 
         assert result["google_message_id"] == "18d1234567890abc"
+        assert result["thread_id"] == "18d1234567890abc"
         assert result["sender_email"] == "boss@company.com"
         assert result["sender_name"] == "Boss"
         assert result["subject"] == "至急！レポート提出について"
@@ -361,6 +362,7 @@ class TestEmailStorage:
             "subject": "Test Subject",
             "original_body": "Test body content",
             "received_at": datetime.now(timezone.utc),
+            "thread_id": "18d1234567890abc",
         }
 
         await create_email_record(
@@ -374,6 +376,7 @@ class TestEmailStorage:
         added_email = mock_session.add.call_args[0][0]
         assert isinstance(added_email, Email)
         assert added_email.google_message_id == "18d1234567890abc"
+        assert added_email.google_thread_id == "18d1234567890abc"
         assert added_email.is_processed is False
 
     @pytest.mark.asyncio
@@ -519,6 +522,94 @@ class TestGmailApiClientSearchMessages:
                 await client.search_messages("from:boss@example.com")
 
             assert exc_info.value.status_code == 401
+
+
+class TestGmailApiClientFetchThread:
+    """Tests for GmailApiClient.fetch_thread method."""
+
+    @pytest.mark.asyncio
+    async def test_fetch_thread_returns_thread_data(self):
+        """fetch_thread should return thread metadata."""
+        from src.services.gmail_service import GmailApiClient
+
+        mock_thread_data = {
+            "id": "thread-abc",
+            "messages": [
+                {
+                    "id": "msg-1",
+                    "internalDate": "1704067200000",
+                    "labelIds": ["INBOX", "UNREAD"],
+                    "payload": {
+                        "headers": [
+                            {"name": "From", "value": "boss@company.com"},
+                        ],
+                    },
+                },
+                {
+                    "id": "msg-2",
+                    "internalDate": "1704070800000",
+                    "labelIds": ["SENT"],
+                    "payload": {
+                        "headers": [
+                            {"name": "From", "value": "user@example.com"},
+                        ],
+                    },
+                },
+            ],
+        }
+
+        with patch("httpx.AsyncClient") as mock_client_class:
+            mock_client = AsyncMock()
+            mock_client_class.return_value.__aenter__.return_value = mock_client
+            mock_response = MagicMock()
+            mock_response.status_code = 200
+            mock_response.json.return_value = mock_thread_data
+            mock_client.get.return_value = mock_response
+
+            client = GmailApiClient("test-access-token")
+            result = await client.fetch_thread("thread-abc")
+
+        assert result["id"] == "thread-abc"
+        assert len(result["messages"]) == 2
+
+    @pytest.mark.asyncio
+    async def test_fetch_thread_uses_metadata_format(self):
+        """fetch_thread should request format=metadata."""
+        from src.services.gmail_service import GmailApiClient
+
+        with patch("httpx.AsyncClient") as mock_client_class:
+            mock_client = AsyncMock()
+            mock_client_class.return_value.__aenter__.return_value = mock_client
+            mock_response = MagicMock()
+            mock_response.status_code = 200
+            mock_response.json.return_value = {"id": "thread-abc", "messages": []}
+            mock_client.get.return_value = mock_response
+
+            client = GmailApiClient("test-access-token")
+            await client.fetch_thread("thread-abc")
+
+        call_args = mock_client.get.call_args
+        assert call_args[1]["params"]["format"] == "metadata"
+
+    @pytest.mark.asyncio
+    async def test_fetch_thread_raises_on_api_error(self):
+        """fetch_thread should raise GmailApiError on API failure."""
+        from src.services.gmail_service import GmailApiClient, GmailApiError
+
+        with patch("httpx.AsyncClient") as mock_client_class:
+            mock_client = AsyncMock()
+            mock_client_class.return_value.__aenter__.return_value = mock_client
+            mock_response = MagicMock()
+            mock_response.status_code = 404
+            mock_response.text = "Not Found"
+            mock_client.get.return_value = mock_response
+
+            client = GmailApiClient("test-access-token")
+
+            with pytest.raises(GmailApiError) as exc_info:
+                await client.fetch_thread("nonexistent-thread")
+
+            assert exc_info.value.status_code == 404
 
 
 class TestGetMessageId:

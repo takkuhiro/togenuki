@@ -289,6 +289,7 @@ class TestDashboardAndAudioPlayback:
                 "replied_at": None,
                 "reply_body": None,
                 "reply_subject": None,
+                "reply_source": None,
             },
             {
                 "id": str(uuid7()),
@@ -302,6 +303,7 @@ class TestDashboardAndAudioPlayback:
                 "replied_at": None,
                 "reply_body": None,
                 "reply_subject": None,
+                "reply_source": None,
             },
         ]
 
@@ -397,6 +399,7 @@ class TestDashboardAndAudioPlayback:
                 "replied_at": None,
                 "reply_body": None,
                 "reply_subject": None,
+                "reply_source": None,
             },
             {
                 "id": str(uuid7()),
@@ -410,6 +413,7 @@ class TestDashboardAndAudioPlayback:
                 "replied_at": None,
                 "reply_body": None,
                 "reply_subject": None,
+                "reply_source": None,
             },
         ]
 

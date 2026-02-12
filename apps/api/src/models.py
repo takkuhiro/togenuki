@@ -153,6 +153,10 @@ class Email(Base):
         String(255), nullable=True
     )
 
+    # Gmail thread and reply source tracking
+    google_thread_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    reply_source: Mapped[str | None] = mapped_column(String(32), nullable=True)
+
     # Relationships
     user: Mapped["User"] = relationship("User", back_populates="emails")
     contact: Mapped[Optional["Contact"]] = relationship(

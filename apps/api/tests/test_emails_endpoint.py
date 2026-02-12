@@ -10,6 +10,125 @@ from src.auth.schemas import FirebaseUser
 from src.database import get_db
 
 
+class TestReplySyncIntegration:
+    """Tests for reply sync integration in GET /api/emails."""
+
+    @pytest.fixture
+    def mock_user(self) -> FirebaseUser:
+        """Create a mock authenticated user."""
+        return FirebaseUser(uid="test-uid-123", email="test@example.com")
+
+    @pytest.mark.asyncio
+    async def test_get_emails_calls_reply_sync(
+        self, mock_user: FirebaseUser
+    ) -> None:
+        """GET /api/emails should call reply sync before returning."""
+        from src.routers.emails import router
+
+        app = FastAPI()
+        app.include_router(router, prefix="/api")
+        mock_session = MagicMock()
+        app.dependency_overrides[get_db] = lambda: mock_session
+
+        mock_emails_data = [
+            {
+                "id": "019494a5-eb1c-7000-8000-000000000001",
+                "sender_name": "田中部長",
+                "sender_email": "tanaka@example.com",
+                "subject": "件名テスト1",
+                "converted_body": "変換後テキスト1",
+                "audio_url": None,
+                "is_processed": True,
+                "received_at": "2024-01-15T10:30:00+00:00",
+                "replied_at": None,
+                "reply_body": None,
+                "reply_subject": None,
+                "reply_source": None,
+            },
+        ]
+
+        with (
+            patch("src.auth.middleware.auth") as mock_auth,
+            patch(
+                "src.routers.emails.get_user_emails",
+                new=AsyncMock(return_value=mock_emails_data),
+            ),
+            patch("src.routers.emails.run_reply_sync") as mock_sync,
+        ):
+            mock_sync.return_value = None
+            mock_auth.verify_id_token.return_value = {
+                "uid": mock_user.uid,
+                "email": mock_user.email,
+            }
+
+            async with AsyncClient(
+                transport=ASGITransport(app=app), base_url="http://test"
+            ) as client:
+                response = await client.get(
+                    "/api/emails",
+                    headers={"Authorization": "Bearer valid_token"},
+                )
+
+        assert response.status_code == 200
+        mock_sync.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_get_emails_returns_data_even_when_sync_fails(
+        self, mock_user: FirebaseUser
+    ) -> None:
+        """GET /api/emails should return emails even if sync throws."""
+        from src.routers.emails import router
+
+        app = FastAPI()
+        app.include_router(router, prefix="/api")
+        mock_session = MagicMock()
+        app.dependency_overrides[get_db] = lambda: mock_session
+
+        mock_emails_data = [
+            {
+                "id": "019494a5-eb1c-7000-8000-000000000001",
+                "sender_name": "田中部長",
+                "sender_email": "tanaka@example.com",
+                "subject": "件名テスト1",
+                "converted_body": "変換後テキスト1",
+                "audio_url": None,
+                "is_processed": True,
+                "received_at": "2024-01-15T10:30:00+00:00",
+                "replied_at": None,
+                "reply_body": None,
+                "reply_subject": None,
+                "reply_source": None,
+            },
+        ]
+
+        with (
+            patch("src.auth.middleware.auth") as mock_auth,
+            patch(
+                "src.routers.emails.get_user_emails",
+                new=AsyncMock(return_value=mock_emails_data),
+            ),
+            patch(
+                "src.routers.emails.run_reply_sync",
+                new=AsyncMock(side_effect=Exception("Sync failed")),
+            ),
+        ):
+            mock_auth.verify_id_token.return_value = {
+                "uid": mock_user.uid,
+                "email": mock_user.email,
+            }
+
+            async with AsyncClient(
+                transport=ASGITransport(app=app), base_url="http://test"
+            ) as client:
+                response = await client.get(
+                    "/api/emails",
+                    headers={"Authorization": "Bearer valid_token"},
+                )
+
+        assert response.status_code == 200
+        assert len(response.json()["emails"]) == 1
+
+
 class TestEmailsEndpoint:
     """GET /api/emails endpoint tests."""
 
@@ -34,6 +153,7 @@ class TestEmailsEndpoint:
                 "replied_at": None,
                 "reply_body": None,
                 "reply_subject": None,
+                "reply_source": None,
             },
             {
                 "id": "019494a5-eb1c-7000-8000-000000000002",
@@ -47,6 +167,7 @@ class TestEmailsEndpoint:
                 "replied_at": None,
                 "reply_body": None,
                 "reply_subject": None,
+                "reply_source": None,
             },
         ]
 
@@ -243,6 +364,7 @@ class TestEmailsEndpoint:
             "isProcessed",
             "receivedAt",
             "repliedAt",
+            "replySource",
         ]
         for field in required_fields:
             assert field in email, f"Missing required field: {field}"
@@ -269,6 +391,7 @@ class TestEmailsEndpoint:
                 "replied_at": "2024-01-16T14:00:00+00:00",
                 "reply_body": "返信本文",
                 "reply_subject": "Re: 件名テスト1",
+                "reply_source": "togenuki",
             },
         ]
 
@@ -323,6 +446,7 @@ class TestEmailsEndpoint:
                 "replied_at": "2024-01-16T14:00:00+00:00",
                 "reply_body": "送信済みの返信本文",
                 "reply_subject": "Re: 件名テスト1",
+                "reply_source": "togenuki",
             },
         ]
 
