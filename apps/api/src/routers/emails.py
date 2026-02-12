@@ -1,11 +1,14 @@
 """Email API endpoints."""
 
+import google.auth
 from fastapi import APIRouter, Depends
+from google.cloud.storage import Client as StorageClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.auth.gmail_oauth import GmailOAuthService
 from src.auth.middleware import get_current_user
 from src.auth.schemas import FirebaseUser
+from src.config import get_settings
 from src.database import get_db
 from src.repositories.email_repository import (
     get_emails_by_user_id,
@@ -14,9 +17,49 @@ from src.repositories.email_repository import (
 from src.schemas.email import EmailDTO, EmailsResponse
 from src.services.gmail_service import GmailApiClient
 from src.services.reply_sync_service import ReplySyncService
+from src.utils.gcs_signer import extract_blob_path, generate_signed_url
 from src.utils.logging import get_logger
 
 logger = get_logger(__name__)
+
+_storage_client: StorageClient | None = None
+
+
+def _get_storage_client() -> StorageClient:
+    """Get or create a module-level storage client.
+
+    Uses cloud-platform scope so the credentials can also call
+    IAM signBlob API for generating signed URLs.
+    """
+    global _storage_client
+    if _storage_client is None:
+        credentials, project = google.auth.default(
+            scopes=["https://www.googleapis.com/auth/cloud-platform"]
+        )
+        _storage_client = StorageClient(credentials=credentials, project=project)
+    return _storage_client
+
+
+def _resolve_audio_url(audio_url: str | None) -> str | None:
+    """Convert a blob path or legacy public URL to a signed URL.
+
+    Args:
+        audio_url: The stored audio_url (blob path or legacy public URL)
+
+    Returns:
+        A signed URL string, or None if audio_url is None/empty
+    """
+    if not audio_url:
+        return None
+
+    settings = get_settings()
+    blob_path = extract_blob_path(audio_url, settings.gcs_bucket_name)
+    if blob_path is None:
+        return None
+
+    client = _get_storage_client()
+    return generate_signed_url(client, settings.gcs_bucket_name, blob_path)
+
 
 router = APIRouter()
 
@@ -117,7 +160,7 @@ async def get_emails(
             senderEmail=email["sender_email"],
             subject=email["subject"],
             convertedBody=email["converted_body"],
-            audioUrl=email["audio_url"],
+            audioUrl=_resolve_audio_url(email["audio_url"]),
             isProcessed=email["is_processed"],
             receivedAt=email["received_at"],
             repliedAt=email["replied_at"],

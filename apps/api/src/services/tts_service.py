@@ -189,9 +189,8 @@ class TTSService:
                 content_type="audio/wav",
             )
 
-            public_url: str = blob.public_url
-            logger.debug(f"Uploaded audio to {public_url}")
-            return public_url
+            logger.debug(f"Uploaded audio to {filename}")
+            return filename
 
         except Exception as e:
             logger.exception(f"GCS upload error: {e}")

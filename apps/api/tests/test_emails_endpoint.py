@@ -10,6 +10,13 @@ from src.auth.schemas import FirebaseUser
 from src.database import get_db
 
 
+@pytest.fixture(autouse=True)
+def _patch_resolve_audio_url():
+    """Patch _resolve_audio_url to pass through the value in all tests."""
+    with patch("src.routers.emails._resolve_audio_url", side_effect=lambda x: x):
+        yield
+
+
 class TestReplySyncIntegration:
     """Tests for reply sync integration in GET /api/emails."""
 

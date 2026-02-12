@@ -154,8 +154,8 @@ class TestGCSUpload:
     """Tests for GCS upload functionality."""
 
     @pytest.mark.asyncio
-    async def test_upload_returns_public_url(self):
-        """Test that upload returns a public URL."""
+    async def test_upload_returns_blob_path(self):
+        """Test that upload returns a blob path (not a public URL)."""
         from src.services.tts_service import TTSService
 
         with (
@@ -186,9 +186,6 @@ class TestGCSUpload:
             mock_storage_client = MagicMock()
             mock_bucket = MagicMock()
             mock_blob = MagicMock()
-            mock_blob.public_url = (
-                "https://storage.googleapis.com/test-bucket/audio/test.wav"
-            )
             mock_bucket.blob.return_value = mock_blob
             mock_storage_client.bucket.return_value = mock_bucket
             mock_storage.return_value = mock_storage_client
@@ -198,8 +195,10 @@ class TestGCSUpload:
             result = await service.synthesize_and_upload("テスト音声", email_id)
 
             assert result.is_ok()
-            url = result.unwrap()
-            assert "storage.googleapis.com" in url
+            blob_path = result.unwrap()
+            assert blob_path.startswith("audio/")
+            assert blob_path.endswith(".wav")
+            assert str(email_id) in blob_path
 
     @pytest.mark.asyncio
     async def test_filename_contains_email_id_and_timestamp(self):
