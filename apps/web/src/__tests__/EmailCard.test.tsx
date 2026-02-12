@@ -41,10 +41,12 @@ vi.mock('../hooks/useSpeechRecognition', () => ({
 // Mock reply API
 const mockComposeReply = vi.fn();
 const mockSendReply = vi.fn();
+const mockSaveDraft = vi.fn();
 
 vi.mock('../api/reply', () => ({
   composeReply: (...args: unknown[]) => mockComposeReply(...args),
   sendReply: (...args: unknown[]) => mockSendReply(...args),
+  saveDraft: (...args: unknown[]) => mockSaveDraft(...args),
 }));
 
 // Mock useAuth
@@ -91,6 +93,7 @@ describe('EmailCard - VoiceReplyPanel統合', () => {
     };
     mockComposeReply.mockReset();
     mockSendReply.mockReset();
+    mockSaveDraft.mockReset();
   });
 
   afterEach(() => {
@@ -416,13 +419,14 @@ describe('EmailCard - VoiceReplyPanel統合', () => {
       return { rerender, user };
     }
 
-    it('AudioPlayer、「音声入力」「確認」「送信」ボタンが全て並列表示される', async () => {
+    it('AudioPlayer、「音声入力」「確認」「送信」「下書き」ボタンが全て並列表示される', async () => {
       await renderComposedState();
 
       expect(screen.getByTestId('audio-player')).toBeInTheDocument();
       expect(screen.getByRole('button', { name: /音声入力/ })).toBeInTheDocument();
       expect(screen.getByRole('button', { name: /確認/ })).toBeInTheDocument();
       expect(screen.getByRole('button', { name: /送信/ })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /下書き/ })).toBeInTheDocument();
 
       // 全てが同じemail-card-actions内にある
       const actionsArea = screen.getByTestId('audio-player').closest('.email-card-actions');
@@ -430,6 +434,7 @@ describe('EmailCard - VoiceReplyPanel統合', () => {
       expect(actionsArea?.contains(screen.getByRole('button', { name: /音声入力/ }))).toBe(true);
       expect(actionsArea?.contains(screen.getByRole('button', { name: /確認/ }))).toBe(true);
       expect(actionsArea?.contains(screen.getByRole('button', { name: /送信/ }))).toBe(true);
+      expect(actionsArea?.contains(screen.getByRole('button', { name: /下書き/ }))).toBe(true);
     });
 
     it('「音声入力」ボタンで全状態リセット＋録音再開', async () => {
@@ -503,6 +508,35 @@ describe('EmailCard - VoiceReplyPanel統合', () => {
 
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
       expect(screen.getByRole('button', { name: /確認/ })).toBeInTheDocument();
+    });
+
+    it('ダイアログ内に「下書き」ボタンが表示される', async () => {
+      await renderComposedAndConfirm();
+
+      const dialog = screen.getByRole('dialog');
+      // ダイアログ内に「下書き」ボタンがあること
+      expect(dialog.textContent).toContain('下書き');
+      const buttons = screen.getAllByRole('button', { name: /下書き/ });
+      // ダイアログ内に下書きボタンが存在
+      expect(buttons.length).toBeGreaterThanOrEqual(1);
+    });
+
+    it('ダイアログ内「下書き」ボタンでsaveDraft APIが呼ばれる', async () => {
+      mockSaveDraft.mockResolvedValueOnce({
+        success: true,
+        googleDraftId: 'draft-789',
+      });
+
+      const { user } = await renderComposedAndConfirm();
+
+      const draftButtons = screen.getAllByRole('button', { name: /下書き/ });
+      const dialogDraftBtn = draftButtons[draftButtons.length - 1];
+      await user.click(dialogDraftBtn);
+
+      expect(mockSaveDraft).toHaveBeenCalledWith('test-token', 'email-123', {
+        composedBody: '清書されたメール本文',
+        composedSubject: 'Re: テスト件名',
+      });
     });
 
     it('ダイアログ内「送信」ボタンでsendReply APIが呼ばれる', async () => {
@@ -876,6 +910,153 @@ describe('EmailCard - VoiceReplyPanel統合', () => {
 
       expect(screen.queryByText('TogeNuki')).not.toBeInTheDocument();
       expect(screen.queryByText('Gmail')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('draft_saving / draft_saved フェーズ', () => {
+    async function renderComposedStateForDraft() {
+      mockComposeReply.mockResolvedValueOnce({
+        composedBody: '清書されたメール本文',
+        composedSubject: 'Re: テスト件名',
+      });
+
+      const email = createEmail({ isProcessed: true });
+      const user = userEvent.setup();
+
+      mockSpeechReturn = { ...mockSpeechReturn, isListening: false };
+      const { rerender } = render(
+        <EmailCard email={email} isExpanded={true} onToggle={onToggle} />
+      );
+
+      await user.click(screen.getByRole('button', { name: /音声入力/ }));
+
+      mockSpeechReturn = { ...mockSpeechReturn, isListening: true, transcript: '' };
+      rerender(<EmailCard email={email} isExpanded={true} onToggle={onToggle} />);
+
+      mockSpeechReturn = {
+        ...mockSpeechReturn,
+        isListening: false,
+        transcript: 'テスト',
+      };
+      rerender(<EmailCard email={email} isExpanded={true} onToggle={onToggle} />);
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /下書き/ })).toBeInTheDocument();
+      });
+
+      return { rerender, user };
+    }
+
+    it('「下書き」ボタンクリックでsaveDraft APIが呼ばれる', async () => {
+      mockSaveDraft.mockResolvedValueOnce({
+        success: true,
+        googleDraftId: 'draft-789',
+      });
+
+      const { user } = await renderComposedStateForDraft();
+
+      await user.click(screen.getByRole('button', { name: /下書き/ }));
+
+      expect(mockSaveDraft).toHaveBeenCalledWith('test-token', 'email-123', {
+        composedBody: '清書されたメール本文',
+        composedSubject: 'Re: テスト件名',
+      });
+    });
+
+    it('下書き保存中はボタンがdisabledでスピナーが表示される', async () => {
+      let resolveDraft: ((value: unknown) => void) | undefined;
+      mockSaveDraft.mockReturnValueOnce(
+        new Promise((resolve) => {
+          resolveDraft = resolve;
+        })
+      );
+
+      const { user } = await renderComposedStateForDraft();
+
+      await user.click(screen.getByRole('button', { name: /下書き/ }));
+
+      const draftBtn = screen.getByRole('button', { name: /下書き/ });
+      expect(draftBtn).toBeDisabled();
+      expect(draftBtn.querySelector('.processing-spinner')).toBeInTheDocument();
+
+      resolveDraft?.({ success: true, googleDraftId: 'draft-789' });
+    });
+
+    it('下書き保存完了後に「下書き保存済み」と表示される', async () => {
+      mockSaveDraft.mockResolvedValueOnce({
+        success: true,
+        googleDraftId: 'draft-789',
+      });
+
+      const { user } = await renderComposedStateForDraft();
+
+      await user.click(screen.getByRole('button', { name: /下書き/ }));
+
+      await waitFor(() => {
+        const savedBtn = screen.getByRole('button', { name: /下書き保存済み/ });
+        expect(savedBtn).toBeDisabled();
+      });
+    });
+
+    it('下書き保存完了後にonRepliedは呼ばれない', async () => {
+      mockSaveDraft.mockResolvedValueOnce({
+        success: true,
+        googleDraftId: 'draft-789',
+      });
+
+      const onReplied = vi.fn();
+      mockComposeReply.mockResolvedValueOnce({
+        composedBody: '清書されたメール本文',
+        composedSubject: 'Re: テスト件名',
+      });
+
+      const email = createEmail({ isProcessed: true });
+      const user = userEvent.setup();
+
+      mockSpeechReturn = { ...mockSpeechReturn, isListening: false };
+      const { rerender } = render(
+        <EmailCard email={email} isExpanded={true} onToggle={onToggle} onReplied={onReplied} />
+      );
+
+      await user.click(screen.getByRole('button', { name: /音声入力/ }));
+
+      mockSpeechReturn = { ...mockSpeechReturn, isListening: true, transcript: '' };
+      rerender(
+        <EmailCard email={email} isExpanded={true} onToggle={onToggle} onReplied={onReplied} />
+      );
+
+      mockSpeechReturn = {
+        ...mockSpeechReturn,
+        isListening: false,
+        transcript: 'テスト',
+      };
+      rerender(
+        <EmailCard email={email} isExpanded={true} onToggle={onToggle} onReplied={onReplied} />
+      );
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /下書き/ })).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByRole('button', { name: /下書き/ }));
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /下書き保存済み/ })).toBeInTheDocument();
+      });
+
+      expect(onReplied).not.toHaveBeenCalled();
+    });
+
+    it('下書き保存失敗時にエラーメッセージが表示される', async () => {
+      mockSaveDraft.mockRejectedValueOnce(new Error('下書き保存に失敗しました'));
+
+      const { user } = await renderComposedStateForDraft();
+
+      await user.click(screen.getByRole('button', { name: /下書き/ }));
+
+      await waitFor(() => {
+        expect(screen.getByText(/下書き保存に失敗/)).toBeInTheDocument();
+      });
     });
   });
 

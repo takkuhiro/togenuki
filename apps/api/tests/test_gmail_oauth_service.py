@@ -25,7 +25,7 @@ class TestGmailOAuthService:
 
     @pytest.mark.asyncio
     async def test_get_authorization_url_includes_required_scopes(self) -> None:
-        """Authorization URL should include gmail.readonly and gmail.send scopes."""
+        """Authorization URL should include gmail.readonly and gmail.compose scopes."""
         from src.auth.gmail_oauth import GmailOAuthService
 
         service = GmailOAuthService()

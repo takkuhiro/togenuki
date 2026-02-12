@@ -32,3 +32,19 @@ class SendReplyResponse(BaseModel):
 
     success: bool
     googleMessageId: str
+
+
+class SaveDraftRequest(BaseModel):
+    """Request body for POST /api/emails/{email_id}/save-draft endpoint."""
+
+    composedBody: str = Field(min_length=1)
+    composedSubject: str = Field(min_length=1)
+
+
+class SaveDraftResponse(BaseModel):
+    """Response model for save-draft endpoint."""
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    success: bool
+    googleDraftId: str

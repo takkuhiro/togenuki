@@ -5,7 +5,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { composeReply, sendReply } from '../api/reply';
+import { composeReply, saveDraft, sendReply } from '../api/reply';
 import { useAuth } from '../contexts/AuthContext';
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
 import type { Email } from '../types/email';
@@ -19,9 +19,11 @@ type ReplyPhase =
   | 'confirming'
   | 'sending'
   | 'sent'
+  | 'draft_saving'
+  | 'draft_saved'
   | 'error';
 
-type ErrorType = 'compose' | 'send' | 'empty';
+type ErrorType = 'compose' | 'send' | 'draft' | 'empty';
 
 export interface EmailCardProps {
   email: Email;
@@ -178,6 +180,25 @@ export function EmailCard({ email, isExpanded, onToggle, onReplied }: EmailCardP
     await handleSend();
   }, [handleSend]);
 
+  const handleSaveDraft = useCallback(async () => {
+    if (!idToken) return;
+
+    setPhase('draft_saving');
+    setError(null);
+
+    try {
+      await saveDraft(idToken, email.id, {
+        composedBody,
+        composedSubject,
+      });
+      setPhase('draft_saved');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '下書き保存に失敗しました');
+      setErrorType('draft');
+      setPhase('error');
+    }
+  }, [idToken, email.id, composedBody, composedSubject]);
+
   const handleFallbackCompose = useCallback(async () => {
     if (!idToken) return;
     if (!fallbackText.trim()) return;
@@ -249,6 +270,10 @@ export function EmailCard({ email, isExpanded, onToggle, onReplied }: EmailCardP
               <SendIcon />
               送信
             </button>
+            <button type="button" className="audio-player-button" onClick={handleSaveDraft}>
+              <DraftIcon />
+              下書き
+            </button>
           </div>
         );
 
@@ -281,6 +306,10 @@ export function EmailCard({ email, isExpanded, onToggle, onReplied }: EmailCardP
                   <BackIcon />
                   戻る
                 </button>
+                <button type="button" className="audio-player-button" onClick={handleSaveDraft}>
+                  <DraftIcon />
+                  下書き
+                </button>
                 <button type="button" className="audio-player-button" onClick={handleSend}>
                   <SendIcon />
                   送信
@@ -295,6 +324,22 @@ export function EmailCard({ email, isExpanded, onToggle, onReplied }: EmailCardP
           <button type="button" className="audio-player-button" disabled>
             <span className="processing-spinner" aria-hidden="true" />
             送信
+          </button>
+        );
+
+      case 'draft_saving':
+        return (
+          <button type="button" className="audio-player-button" disabled>
+            <span className="processing-spinner" aria-hidden="true" />
+            下書き
+          </button>
+        );
+
+      case 'draft_saved':
+        return (
+          <button type="button" className="audio-player-button" disabled>
+            <DraftIcon />
+            下書き保存済み
           </button>
         );
 
@@ -316,6 +361,11 @@ export function EmailCard({ email, isExpanded, onToggle, onReplied }: EmailCardP
               <button type="button" className="audio-player-button" onClick={handleRetrySend}>
                 <SendIcon />
                 再送信
+              </button>
+            ) : errorType === 'draft' ? (
+              <button type="button" className="audio-player-button" onClick={handleSaveDraft}>
+                <DraftIcon />
+                下書き再試行
               </button>
             ) : (
               <button
@@ -484,6 +534,14 @@ function BackIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
       <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z" />
+    </svg>
+  );
+}
+
+function DraftIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M21.99 8c0-.72-.37-1.35-.94-1.7L12 1 2.95 6.3C2.38 6.65 2 7.28 2 8v10c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2l-.01-10zM12 13L3.74 7.84 12 3l8.26 4.84L12 13z" />
     </svg>
   );
 }

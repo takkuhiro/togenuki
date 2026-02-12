@@ -35,6 +35,7 @@ class ReplyError(Enum):
     UNAUTHORIZED = "unauthorized"
     COMPOSE_FAILED = "compose_failed"
     SEND_FAILED = "send_failed"
+    DRAFT_FAILED = "draft_failed"
     TOKEN_EXPIRED = "token_expired"
     ALREADY_REPLIED = "already_replied"
 
@@ -52,6 +53,13 @@ class SendReplyResult:
     """Result of sending a reply email."""
 
     google_message_id: str
+
+
+@dataclass
+class SaveDraftResult:
+    """Result of saving a draft email."""
+
+    google_draft_id: str
 
 
 class ReplyService:
@@ -218,6 +226,79 @@ class ReplyService:
         await session.commit()
 
         return Ok(SendReplyResult(google_message_id=google_message_id))
+
+    async def save_draft(
+        self,
+        session: AsyncSession,
+        user: FirebaseUser,
+        email_id: UUID,
+        composed_body: str,
+        composed_subject: str,
+    ) -> Result[SaveDraftResult, ReplyError]:
+        """Save a composed reply email as a Gmail draft.
+
+        Args:
+            session: Database session
+            user: Authenticated Firebase user
+            email_id: ID of the email to reply to
+            composed_body: The composed email body
+            composed_subject: The composed email subject
+
+        Returns:
+            Result containing SaveDraftResult or ReplyError
+        """
+        # 1. Get user from DB
+        db_user = await get_user_by_firebase_uid(session, user.uid)
+        if not db_user:
+            return Err(ReplyError.UNAUTHORIZED)
+
+        # 2. Get email
+        email = await get_email_by_id(session, email_id)
+        if not email:
+            return Err(ReplyError.EMAIL_NOT_FOUND)
+
+        # 3. Verify ownership
+        if email.user_id != db_user.id:
+            return Err(ReplyError.UNAUTHORIZED)
+
+        # 4. Ensure valid OAuth token
+        token_result = await self.oauth_service.ensure_valid_access_token(
+            current_token=db_user.gmail_access_token,
+            expires_at=db_user.gmail_token_expires_at,
+            refresh_token=db_user.gmail_refresh_token,
+        )
+
+        if not token_result:
+            return Err(ReplyError.TOKEN_EXPIRED)
+
+        access_token = token_result["access_token"]
+
+        # 5. Create draft via Gmail API
+        try:
+            gmail_client = self.gmail_client_class(access_token)
+
+            # Fetch original message to get Message-ID and threadId
+            original_message = await gmail_client.fetch_message(email.google_message_id)
+            message_id = get_message_id(original_message)
+            thread_id = original_message.get("threadId", "")
+
+            in_reply_to = message_id or ""
+            references = message_id or ""
+
+            draft_result = await gmail_client.create_draft(
+                to=email.sender_email,
+                subject=composed_subject,
+                body=composed_body,
+                thread_id=thread_id,
+                in_reply_to=in_reply_to,
+                references=references,
+            )
+        except GmailApiError as e:
+            logger.error(f"Gmail draft creation failed for email {email_id}: {e}")
+            return Err(ReplyError.DRAFT_FAILED)
+
+        google_draft_id = draft_result.get("id", "")
+        return Ok(SaveDraftResult(google_draft_id=google_draft_id))
 
     @staticmethod
     def _generate_reply_subject(original_subject: str | None) -> str:

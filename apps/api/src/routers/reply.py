@@ -16,6 +16,8 @@ from src.database import get_db
 from src.schemas.reply import (
     ComposeReplyRequest,
     ComposeReplyResponse,
+    SaveDraftRequest,
+    SaveDraftResponse,
     SendReplyRequest,
     SendReplyResponse,
 )
@@ -36,6 +38,13 @@ SEND_ERROR_MAP: dict[ReplyError, int] = {
     ReplyError.SEND_FAILED: status.HTTP_503_SERVICE_UNAVAILABLE,
     ReplyError.TOKEN_EXPIRED: status.HTTP_503_SERVICE_UNAVAILABLE,
     ReplyError.ALREADY_REPLIED: status.HTTP_409_CONFLICT,
+}
+
+DRAFT_ERROR_MAP: dict[ReplyError, int] = {
+    ReplyError.EMAIL_NOT_FOUND: status.HTTP_404_NOT_FOUND,
+    ReplyError.UNAUTHORIZED: status.HTTP_403_FORBIDDEN,
+    ReplyError.DRAFT_FAILED: status.HTTP_503_SERVICE_UNAVAILABLE,
+    ReplyError.TOKEN_EXPIRED: status.HTTP_503_SERVICE_UNAVAILABLE,
 }
 
 
@@ -138,4 +147,54 @@ async def send_reply_endpoint(
     return SendReplyResponse(
         success=True,
         googleMessageId=send_result.google_message_id,
+    )
+
+
+@router.post(
+    "/emails/{email_id}/save-draft",
+    response_model=SaveDraftResponse,
+)
+async def save_draft_endpoint(
+    email_id: UUID,
+    request: SaveDraftRequest,
+    user: FirebaseUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> SaveDraftResponse:
+    """Save a composed reply email as a Gmail draft.
+
+    Args:
+        email_id: ID of the email to reply to
+        request: Request body with composedBody and composedSubject
+        user: Authenticated Firebase user
+        session: Database session
+
+    Returns:
+        SaveDraftResponse with success status and Google draft ID
+
+    Raises:
+        HTTPException 401: If not authenticated
+        HTTPException 404: If email not found
+        HTTPException 503: If Gmail API fails or token expired
+    """
+    reply_service = ReplyService()
+    result = await reply_service.save_draft(
+        session=session,
+        user=user,
+        email_id=email_id,
+        composed_body=request.composedBody,
+        composed_subject=request.composedSubject,
+    )
+
+    if result.is_err():
+        error = result.unwrap_err()
+        status_code = DRAFT_ERROR_MAP.get(error, status.HTTP_500_INTERNAL_SERVER_ERROR)
+        raise HTTPException(
+            status_code=status_code,
+            detail={"error": error.value},
+        )
+
+    draft_result = result.unwrap()
+    return SaveDraftResponse(
+        success=True,
+        googleDraftId=draft_result.google_draft_id,
     )
