@@ -187,6 +187,49 @@ async def delete_contact_context_by_contact_id(
         await session.delete(context)
 
 
+async def update_contact_context_patterns(
+    session: AsyncSession,
+    contact_id: UUID,
+    learned_patterns: str,
+) -> bool:
+    """Update learned_patterns in contact context.
+
+    Args:
+        session: Database session
+        contact_id: The contact's ID
+        learned_patterns: Updated JSON string with learned patterns
+
+    Returns:
+        True if updated, False if context not found
+    """
+    query = select(ContactContext).where(ContactContext.contact_id == contact_id)
+    result = await session.execute(query)
+    context = result.scalar_one_or_none()
+    if context is None:
+        return False
+
+    context.learned_patterns = learned_patterns
+    return True
+
+
+async def get_contact_context_by_contact_id(
+    session: AsyncSession,
+    contact_id: UUID,
+) -> ContactContext | None:
+    """Get contact context by contact ID.
+
+    Args:
+        session: Database session
+        contact_id: The contact's ID
+
+    Returns:
+        ContactContext if found, None otherwise
+    """
+    query = select(ContactContext).where(ContactContext.contact_id == contact_id)
+    result = await session.execute(query)
+    return result.scalar_one_or_none()
+
+
 async def get_user_by_id(
     session: AsyncSession,
     user_id: UUID,

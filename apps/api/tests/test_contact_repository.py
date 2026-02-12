@@ -393,3 +393,59 @@ class TestGetUserById:
         result = await get_user_by_id(mock_session, uuid7())
 
         assert result is None
+
+
+class TestUpdateContactContextPatterns:
+    """Tests for update_contact_context_patterns function."""
+
+    @pytest.mark.asyncio
+    async def test_updates_learned_patterns_when_context_exists(self) -> None:
+        """Should update learned_patterns when contact context exists."""
+        import json
+
+        from src.repositories.contact_repository import update_contact_context_patterns
+
+        contact_id = uuid7()
+        new_patterns = json.dumps(
+            {
+                "contactCharacteristics": {"tone": "formal"},
+                "userReplyPatterns": {"responseStyle": "polite"},
+                "userInstructions": ["メール末尾に「田中より」と署名を追加する"],
+            }
+        )
+
+        mock_context = MagicMock()
+        mock_context.learned_patterns = json.dumps(
+            {
+                "contactCharacteristics": {"tone": "formal"},
+                "userReplyPatterns": {"responseStyle": "polite"},
+            }
+        )
+
+        mock_session = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = mock_context
+        mock_session.execute = AsyncMock(return_value=mock_result)
+
+        result = await update_contact_context_patterns(
+            mock_session, contact_id, new_patterns
+        )
+
+        assert result is True
+        assert mock_context.learned_patterns == new_patterns
+
+    @pytest.mark.asyncio
+    async def test_returns_false_when_context_not_found(self) -> None:
+        """Should return False when no contact context exists."""
+        from src.repositories.contact_repository import update_contact_context_patterns
+
+        mock_session = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = None
+        mock_session.execute = AsyncMock(return_value=mock_result)
+
+        result = await update_contact_context_patterns(
+            mock_session, uuid7(), '{"userInstructions": ["test"]}'
+        )
+
+        assert result is False

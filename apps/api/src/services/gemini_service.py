@@ -193,6 +193,66 @@ class GeminiService:
             logger.exception(f"Gemini API error during business reply: {e}")
             return Err(GeminiError.API_ERROR)
 
+    async def format_instruction(
+        self,
+        raw_instruction: str,
+    ) -> Result[str, GeminiError]:
+        """Format a user's casual instruction into a clear email rule.
+
+        Args:
+            raw_instruction: User's casual instruction text
+
+        Returns:
+            Result containing formatted instruction or error
+        """
+        if not raw_instruction or not raw_instruction.strip():
+            logger.warning("Empty instruction provided for formatting")
+            return Err(GeminiError.INVALID_INPUT)
+
+        try:
+            system_instruction = """あなたはメール作成ルールの整形アシスタントです。
+ユーザーが口語的に伝えたメール作成の指示を、明確で簡潔なルールに整形してください。
+
+## ルール
+1. 指示の意図を正確に反映する
+2. 1文で簡潔にまとめる
+3. 「〜する」の形式で統一する
+4. ルール文のみを出力する。説明や前置きは不要"""
+
+            user_prompt = f"""以下のユーザー指示を整形してください:
+
+{raw_instruction}"""
+
+            response = await asyncio.to_thread(
+                self.client.models.generate_content,
+                model=self.model,
+                contents=user_prompt,
+                config=genai.types.GenerateContentConfig(
+                    system_instruction=system_instruction,
+                    temperature=0.2,
+                    max_output_tokens=256,
+                ),
+            )
+
+            formatted_text = response.text
+            if formatted_text is None:
+                logger.error("Gemini returned empty response for instruction formatting")
+                return Err(GeminiError.API_ERROR)
+
+            logger.info("Successfully formatted user instruction")
+            return Ok(formatted_text.strip())
+
+        except asyncio.TimeoutError:
+            logger.error("Gemini API request timed out during instruction formatting")
+            return Err(GeminiError.TIMEOUT)
+        except Exception as e:
+            error_str = str(e).lower()
+            if "429" in error_str or "exhausted" in error_str or "rate" in error_str:
+                logger.warning(f"Gemini API rate limited during instruction formatting: {e}")
+                return Err(GeminiError.RATE_LIMIT)
+            logger.exception(f"Gemini API error during instruction formatting: {e}")
+            return Err(GeminiError.API_ERROR)
+
     async def analyze_patterns(
         self,
         contact_name: str,

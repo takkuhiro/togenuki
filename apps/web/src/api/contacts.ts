@@ -133,6 +133,43 @@ export async function relearnContact(idToken: string, contactId: string): Promis
   return response.json();
 }
 
+/**
+ * Send an instruction for a contact.
+ *
+ * @param idToken - Firebase ID token for authentication
+ * @param contactId - ID of the contact to instruct
+ * @param instruction - Instruction text
+ * @returns Promise resolving to the updated Contact
+ * @throws Error if the request fails
+ */
+export async function instructContact(
+  idToken: string,
+  contactId: string,
+  instruction: string
+): Promise<Contact> {
+  const response = await fetch(`${API_BASE_URL}/contacts/${contactId}/instruct`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${idToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ instruction }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    if (response.status === 404) {
+      throw new Error('連絡先が見つかりません');
+    }
+    if (response.status === 409) {
+      throw new Error('この連絡先は学習が完了していません');
+    }
+    throw new Error(error.detail?.error || '指示の送信に失敗しました');
+  }
+
+  return response.json();
+}
+
 export async function retryLearning(idToken: string, contactId: string): Promise<Contact> {
   const response = await fetch(`${API_BASE_URL}/contacts/${contactId}/retry`, {
     method: 'POST',

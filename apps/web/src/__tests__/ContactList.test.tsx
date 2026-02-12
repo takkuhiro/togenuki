@@ -14,6 +14,7 @@ vi.mock('../api/contacts', () => ({
   deleteContact: vi.fn(),
   retryLearning: vi.fn(),
   relearnContact: vi.fn(),
+  instructContact: vi.fn(),
 }));
 
 // Mock AuthContext
@@ -569,6 +570,184 @@ describe('ContactList', () => {
       await waitFor(() => {
         expect(screen.getByText(/エラー/)).toBeInTheDocument();
       });
+    });
+  });
+
+  describe('指示機能', () => {
+    it('should show instruct button for completed contacts', async () => {
+      vi.mocked(contactApi.fetchContacts).mockResolvedValue({
+        contacts: mockContacts,
+        total: 3,
+      });
+
+      render(<ContactList />);
+
+      await waitFor(() => {
+        const tanakaCard = screen.getByText('田中部長').closest('[data-testid="contact-card"]');
+        expect(tanakaCard?.querySelector('[data-testid="instruct-button"]')).toBeInTheDocument();
+      });
+    });
+
+    it('should show instruct dialog when instruct button clicked', async () => {
+      vi.mocked(contactApi.fetchContacts).mockResolvedValue({
+        contacts: mockContacts,
+        total: 3,
+      });
+
+      const user = userEvent.setup();
+      render(<ContactList />);
+
+      await waitFor(() => {
+        expect(screen.getByText('田中部長')).toBeInTheDocument();
+      });
+
+      const instructButton = screen.getByTestId('instruct-button');
+      await user.click(instructButton);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('instruct-dialog')).toBeInTheDocument();
+      });
+    });
+
+    it('should have textarea and submit button in instruct dialog', async () => {
+      vi.mocked(contactApi.fetchContacts).mockResolvedValue({
+        contacts: mockContacts,
+        total: 3,
+      });
+
+      const user = userEvent.setup();
+      render(<ContactList />);
+
+      await waitFor(() => {
+        expect(screen.getByText('田中部長')).toBeInTheDocument();
+      });
+
+      const instructButton = screen.getByTestId('instruct-button');
+      await user.click(instructButton);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('instruct-textarea')).toBeInTheDocument();
+        expect(screen.getByTestId('instruct-submit')).toBeInTheDocument();
+      });
+    });
+
+    it('should call instructContact API when submitted', async () => {
+      vi.mocked(contactApi.fetchContacts).mockResolvedValue({
+        contacts: mockContacts,
+        total: 3,
+      });
+      vi.mocked(contactApi.instructContact).mockResolvedValue({
+        id: '1',
+        contactEmail: 'tanaka@example.com',
+        contactName: '田中部長',
+        gmailQuery: 'from:tanaka@example.com',
+        isLearningComplete: true,
+        learningFailedAt: null,
+        createdAt: '2024-01-15T10:30:00+00:00',
+        status: 'learning_complete' as const,
+      });
+
+      const user = userEvent.setup();
+      render(<ContactList />);
+
+      await waitFor(() => {
+        expect(screen.getByText('田中部長')).toBeInTheDocument();
+      });
+
+      const instructButton = screen.getByTestId('instruct-button');
+      await user.click(instructButton);
+
+      const textarea = screen.getByTestId('instruct-textarea');
+      await user.type(textarea, "文章の最後には'田中より'と追加して");
+
+      const submitButton = screen.getByTestId('instruct-submit');
+      await user.click(submitButton);
+
+      await waitFor(() => {
+        expect(contactApi.instructContact).toHaveBeenCalledWith(
+          'mock-token',
+          '1',
+          "文章の最後には'田中より'と追加して"
+        );
+      });
+    });
+
+    it('should close dialog when cancel button clicked', async () => {
+      vi.mocked(contactApi.fetchContacts).mockResolvedValue({
+        contacts: mockContacts,
+        total: 3,
+      });
+
+      const user = userEvent.setup();
+      render(<ContactList />);
+
+      await waitFor(() => {
+        expect(screen.getByText('田中部長')).toBeInTheDocument();
+      });
+
+      const instructButton = screen.getByTestId('instruct-button');
+      await user.click(instructButton);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('instruct-dialog')).toBeInTheDocument();
+      });
+
+      const cancelButton = screen.getByRole('button', { name: /キャンセル/ });
+      await user.click(cancelButton);
+
+      await waitFor(() => {
+        expect(screen.queryByTestId('instruct-dialog')).not.toBeInTheDocument();
+      });
+    });
+
+    it('should show error when instruct fails', async () => {
+      vi.mocked(contactApi.fetchContacts).mockResolvedValue({
+        contacts: mockContacts,
+        total: 3,
+      });
+      vi.mocked(contactApi.instructContact).mockRejectedValue(
+        new Error('指示の送信に失敗しました')
+      );
+
+      const user = userEvent.setup();
+      render(<ContactList />);
+
+      await waitFor(() => {
+        expect(screen.getByText('田中部長')).toBeInTheDocument();
+      });
+
+      const instructButton = screen.getByTestId('instruct-button');
+      await user.click(instructButton);
+
+      const textarea = screen.getByTestId('instruct-textarea');
+      await user.type(textarea, 'テスト指示');
+
+      const submitButton = screen.getByTestId('instruct-submit');
+      await user.click(submitButton);
+
+      await waitFor(() => {
+        expect(screen.getByText(/エラー/)).toBeInTheDocument();
+      });
+    });
+
+    it('should disable submit button when textarea is empty', async () => {
+      vi.mocked(contactApi.fetchContacts).mockResolvedValue({
+        contacts: mockContacts,
+        total: 3,
+      });
+
+      const user = userEvent.setup();
+      render(<ContactList />);
+
+      await waitFor(() => {
+        expect(screen.getByText('田中部長')).toBeInTheDocument();
+      });
+
+      const instructButton = screen.getByTestId('instruct-button');
+      await user.click(instructButton);
+
+      const submitButton = screen.getByTestId('instruct-submit');
+      expect(submitButton).toBeDisabled();
     });
   });
 });

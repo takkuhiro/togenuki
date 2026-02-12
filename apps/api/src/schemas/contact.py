@@ -48,6 +48,26 @@ class ContactResponse(BaseModel):
     status: str  # 'learning_started' | 'learning_complete' | 'learning_failed'
 
 
+class ContactInstructRequest(BaseModel):
+    """Request body for POST /api/contacts/{id}/instruct endpoint.
+
+    Attributes:
+        instruction: User instruction text, non-empty, max 1000 characters
+    """
+
+    instruction: str
+
+    @field_validator("instruction")
+    @classmethod
+    def validate_instruction(cls, v: str) -> str:
+        """Validate instruction is non-empty and within length limit."""
+        if not v or not v.strip():
+            raise ValueError("Instruction cannot be empty")
+        if len(v) > 1000:
+            raise ValueError("Instruction must be 1000 characters or less")
+        return v
+
+
 class ContactsListResponse(BaseModel):
     """Response model for GET /api/contacts endpoint."""
 

@@ -105,3 +105,89 @@ describe('ContactCard - 再学習ボタン', () => {
     });
   });
 });
+
+describe('ContactCard - 指示ボタン', () => {
+  describe('指示ボタンの表示条件', () => {
+    it('should show instruct button when status is learning_complete and onInstruct provided', () => {
+      const onInstruct = vi.fn();
+      render(
+        <ContactCard
+          contact={{
+            ...baseContact,
+            status: 'learning_complete',
+            isLearningComplete: true,
+            learningFailedAt: null,
+          }}
+          onDelete={vi.fn()}
+          onInstruct={onInstruct}
+        />
+      );
+
+      expect(screen.getByTestId('instruct-button')).toBeInTheDocument();
+      expect(screen.getByTestId('instruct-button')).toHaveTextContent('指示');
+    });
+
+    it('should not show instruct button when status is learning_started', () => {
+      render(
+        <ContactCard
+          contact={{
+            ...baseContact,
+            status: 'learning_started',
+            isLearningComplete: false,
+            learningFailedAt: null,
+          }}
+          onDelete={vi.fn()}
+          onInstruct={vi.fn()}
+        />
+      );
+
+      expect(screen.queryByTestId('instruct-button')).not.toBeInTheDocument();
+    });
+
+    it('should not show instruct button when status is learning_failed', () => {
+      render(
+        <ContactCard
+          contact={{
+            ...baseContact,
+            status: 'learning_failed',
+            isLearningComplete: false,
+            learningFailedAt: '2024-01-13T12:00:00+00:00',
+          }}
+          onDelete={vi.fn()}
+          onInstruct={vi.fn()}
+        />
+      );
+
+      expect(screen.queryByTestId('instruct-button')).not.toBeInTheDocument();
+    });
+
+    it('should not show instruct button when onInstruct callback is not provided', () => {
+      render(
+        <ContactCard
+          contact={{ ...baseContact, status: 'learning_complete', isLearningComplete: true }}
+          onDelete={vi.fn()}
+        />
+      );
+
+      expect(screen.queryByTestId('instruct-button')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('指示ボタンのクリック', () => {
+    it('should call onInstruct with contact id when clicked', async () => {
+      const onInstruct = vi.fn();
+      const user = userEvent.setup();
+
+      render(
+        <ContactCard
+          contact={{ ...baseContact, status: 'learning_complete', isLearningComplete: true }}
+          onDelete={vi.fn()}
+          onInstruct={onInstruct}
+        />
+      );
+
+      await user.click(screen.getByTestId('instruct-button'));
+      expect(onInstruct).toHaveBeenCalledWith('1');
+    });
+  });
+});

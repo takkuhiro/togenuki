@@ -4,7 +4,13 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { deleteContact, fetchContacts, relearnContact, retryLearning } from '../api/contacts';
+import {
+  deleteContact,
+  fetchContacts,
+  instructContact,
+  relearnContact,
+  retryLearning,
+} from '../api/contacts';
 import { useAuth } from '../contexts/AuthContext';
 import type { Contact } from '../types/contact';
 import { ContactCard } from './ContactCard';
@@ -80,6 +86,61 @@ function RelearnConfirmDialog({ contact, onConfirm, onCancel }: RelearnConfirmDi
   );
 }
 
+interface InstructDialogProps {
+  contact: Contact | null;
+  instructionText: string;
+  onTextChange: (text: string) => void;
+  onSubmit: () => void;
+  onCancel: () => void;
+}
+
+/**
+ * Dialog for entering user instructions for a contact.
+ */
+function InstructDialog({
+  contact,
+  instructionText,
+  onTextChange,
+  onSubmit,
+  onCancel,
+}: InstructDialogProps) {
+  if (!contact) return null;
+
+  const displayName = contact.contactName || contact.contactEmail;
+
+  return (
+    <div className="dialog-overlay" role="dialog" aria-modal="true" data-testid="instruct-dialog">
+      <div className="dialog instruct-dialog">
+        <p>「{displayName}」さんが宛先の場合の指示</p>
+        <p className="dialog-warning">メール作成時に適用するルールを入力してください。</p>
+        <textarea
+          className="instruct-textarea"
+          data-testid="instruct-textarea"
+          value={instructionText}
+          onChange={(e) => onTextChange(e.target.value)}
+          placeholder="例: 文章の最後には「田中より」と追加して"
+          rows={3}
+          maxLength={1000}
+        />
+        <div className="dialog-actions">
+          <button type="button" className="dialog-cancel" onClick={onCancel}>
+            キャンセル
+          </button>
+          <button
+            type="button"
+            className="instruct-submit"
+            data-testid="instruct-submit"
+            onClick={onSubmit}
+            disabled={!instructionText.trim()}
+          >
+            送信
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /**
  * Contact list component that fetches and displays all contacts for the user.
  *
@@ -99,6 +160,8 @@ export function ContactList() {
   const [deleteTarget, setDeleteTarget] = useState<Contact | null>(null);
   const [, setIsDeleting] = useState(false);
   const [relearnTarget, setRelearnTarget] = useState<Contact | null>(null);
+  const [instructTarget, setInstructTarget] = useState<Contact | null>(null);
+  const [instructionText, setInstructionText] = useState('');
   const pollingRef = useRef<number | null>(null);
 
   const loadContacts = useCallback(async () => {
@@ -214,6 +277,37 @@ export function ContactList() {
     setRelearnTarget(null);
   }, []);
 
+  const handleInstructClick = useCallback(
+    (contactId: string) => {
+      const contact = contacts.find((c) => c.id === contactId);
+      if (contact) {
+        setInstructTarget(contact);
+        setInstructionText('');
+      }
+    },
+    [contacts]
+  );
+
+  const handleInstructSubmit = useCallback(async () => {
+    if (!instructTarget || !idToken || !instructionText.trim()) return;
+
+    try {
+      await instructContact(idToken, instructTarget.id, instructionText.trim());
+      setInstructTarget(null);
+      setInstructionText('');
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '指示の送信に失敗しました');
+      setInstructTarget(null);
+      setInstructionText('');
+    }
+  }, [instructTarget, idToken, instructionText]);
+
+  const handleInstructCancel = useCallback(() => {
+    setInstructTarget(null);
+    setInstructionText('');
+  }, []);
+
   if (isLoading) {
     return (
       <div className="contact-list-loading">
@@ -252,6 +346,7 @@ export function ContactList() {
             onDelete={handleDeleteClick}
             onRetry={handleRetry}
             onRelearn={handleRelearnClick}
+            onInstruct={handleInstructClick}
           />
         ))}
       </div>
@@ -264,6 +359,13 @@ export function ContactList() {
         contact={relearnTarget}
         onConfirm={handleRelearnConfirm}
         onCancel={handleRelearnCancel}
+      />
+      <InstructDialog
+        contact={instructTarget}
+        instructionText={instructionText}
+        onTextChange={setInstructionText}
+        onSubmit={handleInstructSubmit}
+        onCancel={handleInstructCancel}
       />
     </>
   );
