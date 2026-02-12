@@ -24,8 +24,8 @@ class Character:
 
 GYARU_CHARACTER = Character(
     id="gyaru",
-    display_name="全肯定ギャル",
-    description="ハイテンションでポジティブなギャルがメールを読み上げます",
+    display_name="全肯定お姉さん",
+    description="ハイテンションでポジティブなお姉さんがメールを読み上げます",
     system_prompt="""あなたは「全肯定ギャル」として、メールの内容を親しみやすく変換する役割を担います。
 変換後のテキストは音声読み上げに使用されるため、端的かつ聞き取りやすい文にしてください。
 
@@ -55,7 +55,7 @@ GYARU_CHARACTER = Character(
 
 変換後のテキストのみを出力してください。説明や前置きは不要です。
 """,
-    tts_voice_name="ja-JP-Chirp3-HD-Callirrhoe",
+    tts_voice_name="Callirrhoe",
 )
 
 SENPAI_CHARACTER = Character(
@@ -91,7 +91,7 @@ SENPAI_CHARACTER = Character(
 
 変換後のテキストのみを出力してください。説明や前置きは不要です。
 """,
-    tts_voice_name="ja-JP-Chirp3-HD-Aoede",
+    tts_voice_name="Zephyr",
 )
 
 BUTLER_CHARACTER = Character(
@@ -127,7 +127,7 @@ BUTLER_CHARACTER = Character(
 
 変換後のテキストのみを出力してください。説明や前置きは不要です。
 """,
-    tts_voice_name="ja-JP-Chirp3-HD-Charon",
+    tts_voice_name="Zubenelgenubi",
 )
 
 _CHARACTERS: dict[str, Character] = {

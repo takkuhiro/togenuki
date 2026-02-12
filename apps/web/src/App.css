@@ -29,11 +29,24 @@ body {
   text-align: center;
 }
 
+.login-container {
+  background-image: url('/banner_wo_char.jpeg');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
 .loading-container h1,
 .login-container h1 {
   font-size: 2rem;
   color: #4A6C74;
   margin-bottom: 0.5rem;
+}
+
+.login-container h1 {
+  color: white;
+  font-size: 2.5rem;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
 .app-description {
@@ -44,6 +57,9 @@ body {
 .error-message {
   color: #dc3545;
   margin-bottom: 1rem;
+  background-color: rgba(255, 255, 255, 0.85);
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
 }
 
 /* Header */
@@ -156,8 +172,10 @@ button:disabled {
 }
 
 .login-button {
-  background-color: #4A6C74;
-  color: white;
+  background-color: rgba(255, 255, 255, 0.9);
+  color: #4A6C74;
+  font-weight: 600;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
 }
 
 .gmail-button {

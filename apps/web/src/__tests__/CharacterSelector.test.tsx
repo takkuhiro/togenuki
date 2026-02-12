@@ -53,8 +53,8 @@ vi.stubGlobal(
 const mockCharacters = [
   {
     id: 'gyaru',
-    displayName: '全肯定ギャル',
-    description: 'ハイテンションでポジティブなギャルがメールを読み上げます',
+    displayName: '全肯定お姉さん',
+    description: 'ハイテンションでポジティブなお姉さんがメールを読み上げます',
   },
   {
     id: 'senpai',
@@ -88,7 +88,7 @@ describe('CharacterSelector', () => {
       render(<CharacterSelector />);
 
       await waitFor(() => {
-        expect(screen.getByText('全肯定ギャル')).toBeInTheDocument();
+        expect(screen.getByText('全肯定お姉さん')).toBeInTheDocument();
         expect(screen.getByText('優しい先輩')).toBeInTheDocument();
         expect(screen.getByText('冷静な執事')).toBeInTheDocument();
       });
@@ -191,10 +191,10 @@ describe('CharacterSelector', () => {
       render(<CharacterSelector />);
 
       await waitFor(() => {
-        expect(screen.getByText('全肯定ギャル')).toBeInTheDocument();
+        expect(screen.getByText('全肯定お姉さん')).toBeInTheDocument();
       });
 
-      await user.click(getCard('全肯定ギャル'));
+      await user.click(getCard('全肯定お姉さん'));
 
       expect(characterApi.updateCharacter).not.toHaveBeenCalled();
     });
@@ -232,7 +232,7 @@ describe('CharacterSelector', () => {
       render(<CharacterSelector />);
 
       await waitFor(() => {
-        expect(screen.getByText('全肯定ギャル')).toBeInTheDocument();
+        expect(screen.getByText('全肯定お姉さん')).toBeInTheDocument();
       });
 
       return user;
