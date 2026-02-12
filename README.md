@@ -1,12 +1,6 @@
 <p align="center">
-  <img src="assets/banner.png" alt="TogeNuki" width="600" />
+  <img src="assets/banner_github.png" alt="TogeNuki" width="600" />
 </p>
-
-<p align="center">
-  リモートワークでの「メールが怖い」からおさらば！
-</p>
-
----
 
 ## TogeNuki とは
 
