@@ -10,5 +10,8 @@ node_modules/
 # OS
 .DS_Store
 
-# Other
+# Document
 docs/BLOG_STRUCTURE.md
+
+# Character assets
+assets/characters/

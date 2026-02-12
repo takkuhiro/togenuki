@@ -919,9 +919,6 @@ button:disabled {
 
 /* Contact Management Page */
 .contacts-page {
-  display: flex;
-  flex-direction: column;
-  gap: 2rem;
   padding-bottom: 2rem;
 }
 
@@ -949,6 +946,7 @@ button:disabled {
   font-size: 1.25rem;
   font-weight: 600;
   color: #4A6C74;
+  margin-top: 2rem;
   margin-bottom: 0.75rem;
 }
 
