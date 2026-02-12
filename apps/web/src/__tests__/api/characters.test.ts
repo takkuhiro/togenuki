@@ -16,7 +16,7 @@ describe('characters API', () => {
     it('should send GET request to characters endpoint without auth', async () => {
       const mockResponse = {
         characters: [
-          { id: 'gyaru', displayName: '全肯定ギャル', description: 'desc1' },
+          { id: 'gyaru', displayName: '全肯定お姉さん', description: 'desc1' },
           { id: 'senpai', displayName: '優しい先輩', description: 'desc2' },
           { id: 'butler', displayName: '冷静な執事', description: 'desc3' },
         ],
@@ -50,7 +50,7 @@ describe('characters API', () => {
 
   describe('fetchCurrentCharacter', () => {
     it('should send GET request with auth header', async () => {
-      const mockResponse = { id: 'gyaru', displayName: '全肯定ギャル', description: 'desc1' };
+      const mockResponse = { id: 'gyaru', displayName: '全肯定お姉さん', description: 'desc1' };
 
       const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue({
         ok: true,

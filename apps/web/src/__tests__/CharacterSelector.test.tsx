@@ -24,11 +24,37 @@ vi.mock('../contexts/AuthContext', () => ({
   })),
 }));
 
+// Mock HTMLAudioElement
+const mockPlay = vi.fn().mockResolvedValue(undefined);
+const mockPause = vi.fn();
+const mockAudioInstances: Array<{
+  src: string;
+  play: ReturnType<typeof vi.fn>;
+  pause: ReturnType<typeof vi.fn>;
+  addEventListener: ReturnType<typeof vi.fn>;
+  removeEventListener: ReturnType<typeof vi.fn>;
+}> = [];
+
+vi.stubGlobal(
+  'Audio',
+  vi.fn().mockImplementation((src: string) => {
+    const instance = {
+      src,
+      play: mockPlay,
+      pause: mockPause,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    };
+    mockAudioInstances.push(instance);
+    return instance;
+  })
+);
+
 const mockCharacters = [
   {
     id: 'gyaru',
-    displayName: '全肯定ギャル',
-    description: 'ハイテンションでポジティブなギャルがメールを読み上げます',
+    displayName: '全肯定お姉さん',
+    description: 'ハイテンションでポジティブなお姉さんがメールを読み上げます',
   },
   {
     id: 'senpai',
@@ -49,6 +75,7 @@ function getCard(name: string): HTMLElement {
 describe('CharacterSelector', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockAudioInstances.length = 0;
   });
 
   describe('キャラクター一覧表示 (Requirement 5.1, 5.3)', () => {
@@ -61,7 +88,7 @@ describe('CharacterSelector', () => {
       render(<CharacterSelector />);
 
       await waitFor(() => {
-        expect(screen.getByText('全肯定ギャル')).toBeInTheDocument();
+        expect(screen.getByText('全肯定お姉さん')).toBeInTheDocument();
         expect(screen.getByText('優しい先輩')).toBeInTheDocument();
         expect(screen.getByText('冷静な執事')).toBeInTheDocument();
       });
@@ -164,10 +191,10 @@ describe('CharacterSelector', () => {
       render(<CharacterSelector />);
 
       await waitFor(() => {
-        expect(screen.getByText('全肯定ギャル')).toBeInTheDocument();
+        expect(screen.getByText('全肯定お姉さん')).toBeInTheDocument();
       });
 
-      await user.click(getCard('全肯定ギャル'));
+      await user.click(getCard('全肯定お姉さん'));
 
       expect(characterApi.updateCharacter).not.toHaveBeenCalled();
     });
@@ -191,6 +218,78 @@ describe('CharacterSelector', () => {
       await waitFor(() => {
         expect(screen.getByText('保存中...')).toBeInTheDocument();
       });
+    });
+  });
+
+  describe('ボイスサンプル再生', () => {
+    async function renderWithCharacters() {
+      vi.mocked(characterApi.fetchCharacters).mockResolvedValue({
+        characters: mockCharacters,
+      });
+      vi.mocked(characterApi.fetchCurrentCharacter).mockResolvedValue(mockCharacters[0]);
+
+      const user = userEvent.setup();
+      render(<CharacterSelector />);
+
+      await waitFor(() => {
+        expect(screen.getByText('全肯定お姉さん')).toBeInTheDocument();
+      });
+
+      return user;
+    }
+
+    function getVoiceButtons() {
+      return screen.getAllByTestId('voice-play-button');
+    }
+
+    it('should render a voice play button for each character', async () => {
+      await renderWithCharacters();
+
+      expect(getVoiceButtons()).toHaveLength(3);
+    });
+
+    it('should play audio when voice button is clicked', async () => {
+      const user = await renderWithCharacters();
+
+      await user.click(getVoiceButtons()[0]);
+
+      expect(Audio).toHaveBeenCalledWith('/gyaru.wav');
+      expect(mockPlay).toHaveBeenCalled();
+    });
+
+    it('should stop previous audio when playing a different character', async () => {
+      const user = await renderWithCharacters();
+
+      // Play gyaru
+      await user.click(getVoiceButtons()[0]);
+      expect(Audio).toHaveBeenCalledWith('/gyaru.wav');
+
+      // Play senpai - should pause previous
+      await user.click(getVoiceButtons()[1]);
+      expect(mockPause).toHaveBeenCalled();
+      expect(Audio).toHaveBeenCalledWith('/senpai.wav');
+    });
+
+    it('should pause audio when clicking the same voice button while playing', async () => {
+      const user = await renderWithCharacters();
+
+      // Play
+      await user.click(getVoiceButtons()[0]);
+      expect(mockPlay).toHaveBeenCalledTimes(1);
+
+      // Pause (click same button again)
+      await user.click(getVoiceButtons()[0]);
+      expect(mockPause).toHaveBeenCalled();
+    });
+
+    it('should not trigger character selection when clicking voice button', async () => {
+      const user = await renderWithCharacters();
+
+      // Click voice button for senpai (not currently selected)
+      await user.click(getVoiceButtons()[1]);
+
+      // updateCharacter should NOT be called
+      expect(characterApi.updateCharacter).not.toHaveBeenCalled();
     });
   });
 

@@ -1,22 +1,27 @@
 """TTS Service for Text-to-Speech and GCS Upload.
 
-This service uses Google Cloud Text-to-Speech to convert text to audio
+This service uses Gemini 2.5 Flash Preview TTS to convert text to audio
 and uploads the result to Google Cloud Storage.
 """
 
 import asyncio
+import io
+import wave
 from datetime import datetime, timezone
 from enum import Enum
 from uuid import UUID
 
-from google.cloud import texttospeech
+from google import genai
 from google.cloud.storage import Client as StorageClient
+from google.genai import types
 from result import Err, Ok, Result
 
 from src.config import get_settings
 from src.utils.logging import get_logger
 
 logger = get_logger(__name__)
+
+TTS_MODEL = "gemini-2.5-flash-preview-tts"
 
 
 class TTSError(Enum):
@@ -34,6 +39,22 @@ class UploadError(Exception):
     pass
 
 
+def _pcm_to_wav(
+    pcm_data: bytes,
+    channels: int = 1,
+    rate: int = 24000,
+    sample_width: int = 2,
+) -> bytes:
+    """Convert raw PCM data to WAV format."""
+    buf = io.BytesIO()
+    with wave.open(buf, "wb") as wf:
+        wf.setnchannels(channels)
+        wf.setsampwidth(sample_width)
+        wf.setframerate(rate)
+        wf.writeframes(pcm_data)
+    return buf.getvalue()
+
+
 class TTSService:
     """Service for text-to-speech synthesis and GCS upload."""
 
@@ -42,16 +63,16 @@ class TTSService:
         settings = get_settings()
         self.bucket_name = settings.gcs_bucket_name
         self.voice_name = settings.tts_voice_name
-        self.language_code = settings.tts_language_code
-        self._tts_client: texttospeech.TextToSpeechClient | None = None
+        self.api_key = settings.gemini_api_key
+        self._genai_client: genai.Client | None = None
         self._storage_client: StorageClient | None = None
 
     @property
-    def tts_client(self) -> texttospeech.TextToSpeechClient:
-        """Get or create the TTS client."""
-        if self._tts_client is None:
-            self._tts_client = texttospeech.TextToSpeechClient()
-        return self._tts_client
+    def genai_client(self) -> genai.Client:
+        """Get or create the Gemini client."""
+        if self._genai_client is None:
+            self._genai_client = genai.Client(api_key=self.api_key)
+        return self._genai_client
 
     @property
     def storage_client(self) -> StorageClient:
@@ -102,43 +123,39 @@ class TTSService:
             return Err(TTSError.API_ERROR)
 
     async def _synthesize(self, text: str, voice_name: str | None = None) -> bytes:
-        """Synthesize text to audio bytes.
+        """Synthesize text to audio bytes using Gemini TTS.
 
         Args:
             text: Text to synthesize
             voice_name: Optional voice name override. Falls back to settings if None.
 
         Returns:
-            Audio content as bytes
+            Audio content as WAV bytes
 
         Raises:
             Exception: If synthesis fails
         """
         try:
-            # Build the synthesis request
-            synthesis_input = texttospeech.SynthesisInput(text=text)
-
             effective_voice_name = voice_name or self.voice_name
-            voice = texttospeech.VoiceSelectionParams(
-                language_code=self.language_code,
-                name=effective_voice_name,
-            )
 
-            audio_config = texttospeech.AudioConfig(
-                audio_encoding=texttospeech.AudioEncoding.MP3,
-                # speaking_rate=1.0, # Chirp3-HD-Callirrhoeの場合は不要
-                # pitch=2.0,  # Chirp3-HD-Callirrhoeの場合は不要
-            )
-
-            # Call TTS API (sync call wrapped for async)
             response = await asyncio.to_thread(
-                self.tts_client.synthesize_speech,
-                input=synthesis_input,
-                voice=voice,
-                audio_config=audio_config,
+                self.genai_client.models.generate_content,
+                model=TTS_MODEL,
+                contents=text,
+                config=types.GenerateContentConfig(
+                    response_modalities=["AUDIO"],
+                    speech_config=types.SpeechConfig(
+                        voice_config=types.VoiceConfig(
+                            prebuilt_voice_config=types.PrebuiltVoiceConfig(
+                                voice_name=effective_voice_name,
+                            )
+                        )
+                    ),
+                ),
             )
 
-            return response.audio_content
+            pcm_data = response.candidates[0].content.parts[0].inline_data.data
+            return _pcm_to_wav(pcm_data)
 
         except asyncio.TimeoutError:
             raise
@@ -157,24 +174,21 @@ class TTSService:
             Public URL of uploaded file
 
         Raises:
-            TTSError: If upload fails
+            UploadError: If upload fails
         """
         try:
-            # Generate filename: {email_id}_{timestamp}.mp3
             timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
-            filename = f"audio/{email_id}_{timestamp}.mp3"
+            filename = f"audio/{email_id}_{timestamp}.wav"
 
-            # Upload to GCS
             bucket = self.storage_client.bucket(self.bucket_name)
             blob = bucket.blob(filename)
 
             await asyncio.to_thread(
                 blob.upload_from_string,
                 audio_content,
-                content_type="audio/mpeg",
+                content_type="audio/wav",
             )
 
-            # Return public URL
             public_url: str = blob.public_url
             logger.debug(f"Uploaded audio to {public_url}")
             return public_url

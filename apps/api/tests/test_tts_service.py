@@ -1,7 +1,7 @@
 """Tests for TTS Service (Text-to-Speech).
 
-Tests for the Cloud TTS and GCS integration that handles:
-- Text-to-speech synthesis using Google Cloud TTS
+Tests for the Gemini TTS and GCS integration that handles:
+- Text-to-speech synthesis using Gemini 2.5 Flash Preview TTS
 - Audio file upload to Cloud Storage
 - Public URL generation
 """
@@ -20,33 +20,30 @@ class TestTTSService:
         from src.services.tts_service import TTSService
 
         with (
-            patch("src.services.tts_service.texttospeech"),
             patch("src.services.tts_service.StorageClient"),
             patch("src.services.tts_service.get_settings") as mock_settings,
         ):
             mock_settings.return_value.gcs_bucket_name = "test-bucket"
-            mock_settings.return_value.tts_voice_name = "ja-JP-Chirp3-HD-Callirrhoe"
-            mock_settings.return_value.tts_language_code = "ja-JP"
+            mock_settings.return_value.tts_voice_name = "Callirrhoe"
+            mock_settings.return_value.gemini_api_key = "test-key"
 
             service = TTSService()
             assert service is not None
 
-    def test_tts_service_uses_japanese_female_voice(self):
-        """Test that TTS uses Japanese female voice."""
+    def test_tts_service_uses_configured_voice(self):
+        """Test that TTS uses the configured voice name."""
         from src.services.tts_service import TTSService
 
         with (
-            patch("src.services.tts_service.texttospeech"),
             patch("src.services.tts_service.StorageClient"),
             patch("src.services.tts_service.get_settings") as mock_settings,
         ):
             mock_settings.return_value.gcs_bucket_name = "test-bucket"
-            mock_settings.return_value.tts_voice_name = "ja-JP-Chirp3-HD-Callirrhoe"
-            mock_settings.return_value.tts_language_code = "ja-JP"
+            mock_settings.return_value.tts_voice_name = "Callirrhoe"
+            mock_settings.return_value.gemini_api_key = "test-key"
 
             service = TTSService()
-            assert service.voice_name == "ja-JP-Chirp3-HD-Callirrhoe"
-            assert service.language_code == "ja-JP"
+            assert service.voice_name == "Callirrhoe"
 
 
 class TestSynthesizeAudio:
@@ -54,30 +51,40 @@ class TestSynthesizeAudio:
 
     @pytest.mark.asyncio
     async def test_synthesize_returns_audio_bytes(self):
-        """Test that synthesize returns audio bytes."""
+        """Test that synthesize returns audio bytes (WAV format)."""
         from src.services.tts_service import TTSService
 
         with (
-            patch("src.services.tts_service.texttospeech") as mock_tts,
+            patch("src.services.tts_service.genai") as mock_genai,
             patch("src.services.tts_service.StorageClient"),
             patch("src.services.tts_service.get_settings") as mock_settings,
         ):
             mock_settings.return_value.gcs_bucket_name = "test-bucket"
-            mock_settings.return_value.tts_voice_name = "ja-JP-Chirp3-HD-Callirrhoe"
-            mock_settings.return_value.tts_language_code = "ja-JP"
+            mock_settings.return_value.tts_voice_name = "Callirrhoe"
+            mock_settings.return_value.gemini_api_key = "test-key"
 
-            # Mock TTS client response
+            # Mock Gemini TTS response
             mock_client = MagicMock()
+            mock_inline_data = MagicMock()
+            mock_inline_data.data = b"\x00" * 4800  # fake PCM data
+            mock_part = MagicMock()
+            mock_part.inline_data = mock_inline_data
+            mock_content = MagicMock()
+            mock_content.parts = [mock_part]
+            mock_candidate = MagicMock()
+            mock_candidate.content = mock_content
             mock_response = MagicMock()
-            mock_response.audio_content = b"fake-audio-content"
-            mock_client.synthesize_speech.return_value = mock_response
-            mock_tts.TextToSpeechClient.return_value = mock_client
+            mock_response.candidates = [mock_candidate]
+            mock_client.models.generate_content.return_value = mock_response
+            mock_genai.Client.return_value = mock_client
 
             service = TTSService()
-            result = await service._synthesize("やっほー先輩💖 ウチだよ〜！")
+            result = await service._synthesize("やっほー先輩！ ウチだよ〜！")
 
             assert result is not None
             assert len(result) > 0
+            # WAV files start with "RIFF" header
+            assert result[:4] == b"RIFF"
 
     @pytest.mark.asyncio
     async def test_synthesize_with_empty_text_returns_error(self):
@@ -85,19 +92,62 @@ class TestSynthesizeAudio:
         from src.services.tts_service import TTSError, TTSService
 
         with (
-            patch("src.services.tts_service.texttospeech"),
+            patch("src.services.tts_service.genai"),
             patch("src.services.tts_service.StorageClient"),
             patch("src.services.tts_service.get_settings") as mock_settings,
         ):
             mock_settings.return_value.gcs_bucket_name = "test-bucket"
-            mock_settings.return_value.tts_voice_name = "ja-JP-Chirp3-HD-Callirrhoe"
-            mock_settings.return_value.tts_language_code = "ja-JP"
+            mock_settings.return_value.tts_voice_name = "Callirrhoe"
+            mock_settings.return_value.gemini_api_key = "test-key"
 
             service = TTSService()
             result = await service.synthesize_and_upload("", uuid7())
 
             assert result.is_err()
             assert result.unwrap_err() == TTSError.INVALID_INPUT
+
+    @pytest.mark.asyncio
+    async def test_synthesize_calls_gemini_with_correct_config(self):
+        """Test that synthesize calls Gemini TTS with correct voice config."""
+        from src.services.tts_service import TTS_MODEL, TTSService
+
+        with (
+            patch("src.services.tts_service.genai") as mock_genai,
+            patch("src.services.tts_service.types") as mock_types,
+            patch("src.services.tts_service.StorageClient"),
+            patch("src.services.tts_service.get_settings") as mock_settings,
+        ):
+            mock_settings.return_value.gcs_bucket_name = "test-bucket"
+            mock_settings.return_value.tts_voice_name = "Callirrhoe"
+            mock_settings.return_value.gemini_api_key = "test-key"
+
+            # Mock Gemini TTS response
+            mock_client = MagicMock()
+            mock_inline_data = MagicMock()
+            mock_inline_data.data = b"\x00" * 4800
+            mock_part = MagicMock()
+            mock_part.inline_data = mock_inline_data
+            mock_content = MagicMock()
+            mock_content.parts = [mock_part]
+            mock_candidate = MagicMock()
+            mock_candidate.content = mock_content
+            mock_response = MagicMock()
+            mock_response.candidates = [mock_candidate]
+            mock_client.models.generate_content.return_value = mock_response
+            mock_genai.Client.return_value = mock_client
+
+            service = TTSService()
+            await service._synthesize("テスト音声")
+
+            # Verify generate_content was called with TTS model
+            mock_client.models.generate_content.assert_called_once()
+            call_kwargs = mock_client.models.generate_content.call_args
+            assert call_kwargs.kwargs["model"] == TTS_MODEL
+
+            # Verify voice config was constructed
+            mock_types.PrebuiltVoiceConfig.assert_called_once_with(
+                voice_name="Callirrhoe",
+            )
 
 
 class TestGCSUpload:
@@ -109,27 +159,35 @@ class TestGCSUpload:
         from src.services.tts_service import TTSService
 
         with (
-            patch("src.services.tts_service.texttospeech") as mock_tts,
+            patch("src.services.tts_service.genai") as mock_genai,
             patch("src.services.tts_service.StorageClient") as mock_storage,
             patch("src.services.tts_service.get_settings") as mock_settings,
         ):
             mock_settings.return_value.gcs_bucket_name = "test-bucket"
-            mock_settings.return_value.tts_voice_name = "ja-JP-Chirp3-HD-Callirrhoe"
-            mock_settings.return_value.tts_language_code = "ja-JP"
+            mock_settings.return_value.tts_voice_name = "Callirrhoe"
+            mock_settings.return_value.gemini_api_key = "test-key"
 
-            # Mock TTS
-            mock_tts_client = MagicMock()
+            # Mock Gemini TTS
+            mock_client = MagicMock()
+            mock_inline_data = MagicMock()
+            mock_inline_data.data = b"\x00" * 4800
+            mock_part = MagicMock()
+            mock_part.inline_data = mock_inline_data
+            mock_content = MagicMock()
+            mock_content.parts = [mock_part]
+            mock_candidate = MagicMock()
+            mock_candidate.content = mock_content
             mock_response = MagicMock()
-            mock_response.audio_content = b"fake-audio-content"
-            mock_tts_client.synthesize_speech.return_value = mock_response
-            mock_tts.TextToSpeechClient.return_value = mock_tts_client
+            mock_response.candidates = [mock_candidate]
+            mock_client.models.generate_content.return_value = mock_response
+            mock_genai.Client.return_value = mock_client
 
             # Mock GCS
             mock_storage_client = MagicMock()
             mock_bucket = MagicMock()
             mock_blob = MagicMock()
             mock_blob.public_url = (
-                "https://storage.googleapis.com/test-bucket/audio/test.mp3"
+                "https://storage.googleapis.com/test-bucket/audio/test.wav"
             )
             mock_bucket.blob.return_value = mock_blob
             mock_storage_client.bucket.return_value = mock_bucket
@@ -142,34 +200,41 @@ class TestGCSUpload:
             assert result.is_ok()
             url = result.unwrap()
             assert "storage.googleapis.com" in url
-            assert ".mp3" in url or "test" in url
 
     @pytest.mark.asyncio
     async def test_filename_contains_email_id_and_timestamp(self):
-        """Test that filename follows {email_id}_{timestamp}.mp3 pattern."""
+        """Test that filename follows {email_id}_{timestamp}.wav pattern."""
         from src.services.tts_service import TTSService
 
         with (
-            patch("src.services.tts_service.texttospeech") as mock_tts,
+            patch("src.services.tts_service.genai") as mock_genai,
             patch("src.services.tts_service.StorageClient") as mock_storage,
             patch("src.services.tts_service.get_settings") as mock_settings,
         ):
             mock_settings.return_value.gcs_bucket_name = "test-bucket"
-            mock_settings.return_value.tts_voice_name = "ja-JP-Chirp3-HD-Callirrhoe"
-            mock_settings.return_value.tts_language_code = "ja-JP"
+            mock_settings.return_value.tts_voice_name = "Callirrhoe"
+            mock_settings.return_value.gemini_api_key = "test-key"
 
-            # Mock TTS
-            mock_tts_client = MagicMock()
+            # Mock Gemini TTS
+            mock_client = MagicMock()
+            mock_inline_data = MagicMock()
+            mock_inline_data.data = b"\x00" * 4800
+            mock_part = MagicMock()
+            mock_part.inline_data = mock_inline_data
+            mock_content = MagicMock()
+            mock_content.parts = [mock_part]
+            mock_candidate = MagicMock()
+            mock_candidate.content = mock_content
             mock_response = MagicMock()
-            mock_response.audio_content = b"fake-audio-content"
-            mock_tts_client.synthesize_speech.return_value = mock_response
-            mock_tts.TextToSpeechClient.return_value = mock_tts_client
+            mock_response.candidates = [mock_candidate]
+            mock_client.models.generate_content.return_value = mock_response
+            mock_genai.Client.return_value = mock_client
 
             # Mock GCS
             mock_storage_client = MagicMock()
             mock_bucket = MagicMock()
             mock_blob = MagicMock()
-            mock_blob.public_url = "https://storage.googleapis.com/test-bucket/test.mp3"
+            mock_blob.public_url = "https://storage.googleapis.com/test-bucket/test.wav"
             mock_bucket.blob.return_value = mock_blob
             mock_storage_client.bucket.return_value = mock_bucket
             mock_storage.return_value = mock_storage_client
@@ -181,7 +246,7 @@ class TestGCSUpload:
             # Verify blob was created with correct filename pattern
             blob_call = mock_bucket.blob.call_args[0][0]
             assert str(email_id) in blob_call
-            assert ".mp3" in blob_call
+            assert ".wav" in blob_call
 
 
 class TestVoiceNameParameter:
@@ -193,41 +258,49 @@ class TestVoiceNameParameter:
         from src.services.tts_service import TTSService
 
         with (
-            patch("src.services.tts_service.texttospeech") as mock_tts,
+            patch("src.services.tts_service.genai") as mock_genai,
+            patch("src.services.tts_service.types") as mock_types,
             patch("src.services.tts_service.StorageClient") as mock_storage,
             patch("src.services.tts_service.get_settings") as mock_settings,
         ):
             mock_settings.return_value.gcs_bucket_name = "test-bucket"
-            mock_settings.return_value.tts_voice_name = "ja-JP-Chirp3-HD-Callirrhoe"
-            mock_settings.return_value.tts_language_code = "ja-JP"
+            mock_settings.return_value.tts_voice_name = "Callirrhoe"
+            mock_settings.return_value.gemini_api_key = "test-key"
 
-            # Mock TTS
-            mock_tts_client = MagicMock()
+            # Mock Gemini TTS
+            mock_client = MagicMock()
+            mock_inline_data = MagicMock()
+            mock_inline_data.data = b"\x00" * 4800
+            mock_part = MagicMock()
+            mock_part.inline_data = mock_inline_data
+            mock_content = MagicMock()
+            mock_content.parts = [mock_part]
+            mock_candidate = MagicMock()
+            mock_candidate.content = mock_content
             mock_response = MagicMock()
-            mock_response.audio_content = b"fake-audio-content"
-            mock_tts_client.synthesize_speech.return_value = mock_response
-            mock_tts.TextToSpeechClient.return_value = mock_tts_client
+            mock_response.candidates = [mock_candidate]
+            mock_client.models.generate_content.return_value = mock_response
+            mock_genai.Client.return_value = mock_client
 
             # Mock GCS
             mock_storage_client = MagicMock()
             mock_bucket = MagicMock()
             mock_blob = MagicMock()
-            mock_blob.public_url = "https://storage.googleapis.com/test-bucket/test.mp3"
+            mock_blob.public_url = "https://storage.googleapis.com/test-bucket/test.wav"
             mock_bucket.blob.return_value = mock_blob
             mock_storage_client.bucket.return_value = mock_bucket
             mock_storage.return_value = mock_storage_client
 
             service = TTSService()
-            custom_voice = "ja-JP-Chirp3-HD-Charon"
+            custom_voice = "Zubenelgenubi"
             result = await service.synthesize_and_upload(
                 "テスト音声", uuid7(), voice_name=custom_voice
             )
 
             assert result.is_ok()
-            # Verify VoiceSelectionParams was called with the custom voice
-            mock_tts.VoiceSelectionParams.assert_called_once_with(
-                language_code="ja-JP",
-                name=custom_voice,
+            # Verify PrebuiltVoiceConfig was called with the custom voice
+            mock_types.PrebuiltVoiceConfig.assert_called_once_with(
+                voice_name=custom_voice,
             )
 
     @pytest.mark.asyncio
@@ -236,26 +309,35 @@ class TestVoiceNameParameter:
         from src.services.tts_service import TTSService
 
         with (
-            patch("src.services.tts_service.texttospeech") as mock_tts,
+            patch("src.services.tts_service.genai") as mock_genai,
+            patch("src.services.tts_service.types") as mock_types,
             patch("src.services.tts_service.StorageClient") as mock_storage,
             patch("src.services.tts_service.get_settings") as mock_settings,
         ):
             mock_settings.return_value.gcs_bucket_name = "test-bucket"
-            mock_settings.return_value.tts_voice_name = "ja-JP-Chirp3-HD-Callirrhoe"
-            mock_settings.return_value.tts_language_code = "ja-JP"
+            mock_settings.return_value.tts_voice_name = "Callirrhoe"
+            mock_settings.return_value.gemini_api_key = "test-key"
 
-            # Mock TTS
-            mock_tts_client = MagicMock()
+            # Mock Gemini TTS
+            mock_client = MagicMock()
+            mock_inline_data = MagicMock()
+            mock_inline_data.data = b"\x00" * 4800
+            mock_part = MagicMock()
+            mock_part.inline_data = mock_inline_data
+            mock_content = MagicMock()
+            mock_content.parts = [mock_part]
+            mock_candidate = MagicMock()
+            mock_candidate.content = mock_content
             mock_response = MagicMock()
-            mock_response.audio_content = b"fake-audio-content"
-            mock_tts_client.synthesize_speech.return_value = mock_response
-            mock_tts.TextToSpeechClient.return_value = mock_tts_client
+            mock_response.candidates = [mock_candidate]
+            mock_client.models.generate_content.return_value = mock_response
+            mock_genai.Client.return_value = mock_client
 
             # Mock GCS
             mock_storage_client = MagicMock()
             mock_bucket = MagicMock()
             mock_blob = MagicMock()
-            mock_blob.public_url = "https://storage.googleapis.com/test-bucket/test.mp3"
+            mock_blob.public_url = "https://storage.googleapis.com/test-bucket/test.wav"
             mock_bucket.blob.return_value = mock_blob
             mock_storage_client.bucket.return_value = mock_bucket
             mock_storage.return_value = mock_storage_client
@@ -266,10 +348,9 @@ class TestVoiceNameParameter:
             )
 
             assert result.is_ok()
-            # Verify VoiceSelectionParams was called with default settings voice
-            mock_tts.VoiceSelectionParams.assert_called_once_with(
-                language_code="ja-JP",
-                name="ja-JP-Chirp3-HD-Callirrhoe",
+            # Verify PrebuiltVoiceConfig was called with default settings voice
+            mock_types.PrebuiltVoiceConfig.assert_called_once_with(
+                voice_name="Callirrhoe",
             )
 
 
@@ -282,17 +363,19 @@ class TestTTSErrorHandling:
         from src.services.tts_service import TTSError, TTSService
 
         with (
-            patch("src.services.tts_service.texttospeech") as mock_tts,
+            patch("src.services.tts_service.genai") as mock_genai,
             patch("src.services.tts_service.StorageClient"),
             patch("src.services.tts_service.get_settings") as mock_settings,
         ):
             mock_settings.return_value.gcs_bucket_name = "test-bucket"
-            mock_settings.return_value.tts_voice_name = "ja-JP-Chirp3-HD-Callirrhoe"
-            mock_settings.return_value.tts_language_code = "ja-JP"
+            mock_settings.return_value.tts_voice_name = "Callirrhoe"
+            mock_settings.return_value.gemini_api_key = "test-key"
 
             mock_client = MagicMock()
-            mock_client.synthesize_speech.side_effect = Exception("TTS API Error")
-            mock_tts.TextToSpeechClient.return_value = mock_client
+            mock_client.models.generate_content.side_effect = Exception(
+                "TTS API Error"
+            )
+            mock_genai.Client.return_value = mock_client
 
             service = TTSService()
             result = await service.synthesize_and_upload("テスト", uuid7())
@@ -306,20 +389,28 @@ class TestTTSErrorHandling:
         from src.services.tts_service import TTSError, TTSService
 
         with (
-            patch("src.services.tts_service.texttospeech") as mock_tts,
+            patch("src.services.tts_service.genai") as mock_genai,
             patch("src.services.tts_service.StorageClient") as mock_storage,
             patch("src.services.tts_service.get_settings") as mock_settings,
         ):
             mock_settings.return_value.gcs_bucket_name = "test-bucket"
-            mock_settings.return_value.tts_voice_name = "ja-JP-Chirp3-HD-Callirrhoe"
-            mock_settings.return_value.tts_language_code = "ja-JP"
+            mock_settings.return_value.tts_voice_name = "Callirrhoe"
+            mock_settings.return_value.gemini_api_key = "test-key"
 
-            # Mock TTS success
-            mock_tts_client = MagicMock()
+            # Mock Gemini TTS success
+            mock_client = MagicMock()
+            mock_inline_data = MagicMock()
+            mock_inline_data.data = b"\x00" * 4800
+            mock_part = MagicMock()
+            mock_part.inline_data = mock_inline_data
+            mock_content = MagicMock()
+            mock_content.parts = [mock_part]
+            mock_candidate = MagicMock()
+            mock_candidate.content = mock_content
             mock_response = MagicMock()
-            mock_response.audio_content = b"fake-audio-content"
-            mock_tts_client.synthesize_speech.return_value = mock_response
-            mock_tts.TextToSpeechClient.return_value = mock_tts_client
+            mock_response.candidates = [mock_candidate]
+            mock_client.models.generate_content.return_value = mock_response
+            mock_genai.Client.return_value = mock_client
 
             # Mock GCS failure
             mock_storage_client = MagicMock()
@@ -344,20 +435,38 @@ class TestTTSErrorHandling:
         from src.services.tts_service import TTSError, TTSService
 
         with (
-            patch("src.services.tts_service.texttospeech") as mock_tts,
+            patch("src.services.tts_service.genai") as mock_genai,
             patch("src.services.tts_service.StorageClient"),
             patch("src.services.tts_service.get_settings") as mock_settings,
         ):
             mock_settings.return_value.gcs_bucket_name = "test-bucket"
-            mock_settings.return_value.tts_voice_name = "ja-JP-Chirp3-HD-Callirrhoe"
-            mock_settings.return_value.tts_language_code = "ja-JP"
+            mock_settings.return_value.tts_voice_name = "Callirrhoe"
+            mock_settings.return_value.gemini_api_key = "test-key"
 
             mock_client = MagicMock()
-            mock_client.synthesize_speech.side_effect = asyncio.TimeoutError()
-            mock_tts.TextToSpeechClient.return_value = mock_client
+            mock_client.models.generate_content.side_effect = asyncio.TimeoutError()
+            mock_genai.Client.return_value = mock_client
 
             service = TTSService()
             result = await service.synthesize_and_upload("テスト", uuid7())
 
             assert result.is_err()
             assert result.unwrap_err() == TTSError.TIMEOUT
+
+
+class TestPcmToWav:
+    """Tests for PCM to WAV conversion."""
+
+    def test_pcm_to_wav_produces_valid_wav(self):
+        """Test that _pcm_to_wav produces valid WAV data."""
+        from src.services.tts_service import _pcm_to_wav
+
+        pcm_data = b"\x00" * 4800  # 0.1 seconds of silence at 24kHz
+        wav_data = _pcm_to_wav(pcm_data)
+
+        # WAV files start with "RIFF" header
+        assert wav_data[:4] == b"RIFF"
+        # WAV files contain "WAVE" format identifier
+        assert wav_data[8:12] == b"WAVE"
+        # WAV data should be larger than PCM (includes headers)
+        assert len(wav_data) > len(pcm_data)

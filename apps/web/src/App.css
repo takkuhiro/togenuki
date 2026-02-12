@@ -29,11 +29,24 @@ body {
   text-align: center;
 }
 
+.login-container {
+  background-image: url('/banner_wo_char.jpeg');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
 .loading-container h1,
 .login-container h1 {
   font-size: 2rem;
   color: #4A6C74;
   margin-bottom: 0.5rem;
+}
+
+.login-container h1 {
+  color: white;
+  font-size: 2.5rem;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
 .app-description {
@@ -44,6 +57,9 @@ body {
 .error-message {
   color: #dc3545;
   margin-bottom: 1rem;
+  background-color: rgba(255, 255, 255, 0.85);
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
 }
 
 /* Header */
@@ -156,8 +172,10 @@ button:disabled {
 }
 
 .login-button {
-  background-color: #4A6C74;
-  color: white;
+  background-color: rgba(255, 255, 255, 0.9);
+  color: #4A6C74;
+  font-weight: 600;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
 }
 
 .gmail-button {
@@ -742,6 +760,35 @@ button:disabled {
   font-size: 0.75rem;
   color: #8C8C8C;
   line-height: 1.4;
+  margin-bottom: 0.5rem;
+}
+
+.voice-play-button {
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #4A6C74 0%, #5D8189 100%);
+  color: white;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 6px rgba(74, 108, 116, 0.3);
+  flex-shrink: 0;
+}
+
+.voice-play-button:hover {
+  background: linear-gradient(135deg, #3D5F67 0%, #527780 100%);
+  transform: scale(1.1);
+}
+
+.voice-play-button.playing {
+  background: linear-gradient(135deg, #D6A884 0%, #E0B998 100%);
+  box-shadow: 0 2px 6px rgba(214, 168, 132, 0.4);
+}
+
+.voice-play-button.playing:hover {
+  background: linear-gradient(135deg, #C89B77 0%, #D6A884 100%);
 }
 
 /* Contact Form */
@@ -919,9 +966,6 @@ button:disabled {
 
 /* Contact Management Page */
 .contacts-page {
-  display: flex;
-  flex-direction: column;
-  gap: 2rem;
   padding-bottom: 2rem;
 }
 
@@ -949,6 +993,7 @@ button:disabled {
   font-size: 1.25rem;
   font-weight: 600;
   color: #4A6C74;
+  margin-top: 2rem;
   margin-bottom: 0.75rem;
 }
 

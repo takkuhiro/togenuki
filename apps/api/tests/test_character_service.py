@@ -64,7 +64,7 @@ class TestGetCharacter:
 
         char = get_character("gyaru")
         assert char.id == "gyaru"
-        assert char.display_name == "全肯定ギャル"
+        assert char.display_name == "全肯定お姉さん"
 
     def test_get_character_returns_senpai_for_senpai_id(self):
         """get_character('senpai') should return the senpai character."""
@@ -186,30 +186,21 @@ class TestCharacterTtsVoiceNames:
         from src.services.character_service import get_character
 
         char = get_character("gyaru")
-        assert "Callirrhoe" in char.tts_voice_name
+        assert char.tts_voice_name == "Callirrhoe"
 
-    def test_senpai_uses_aoede_voice(self):
-        """Senpai character should use Aoede TTS voice."""
+    def test_senpai_uses_zephyr_voice(self):
+        """Senpai character should use Zephyr TTS voice."""
         from src.services.character_service import get_character
 
         char = get_character("senpai")
-        assert "Aoede" in char.tts_voice_name
+        assert char.tts_voice_name == "Zephyr"
 
-    def test_butler_uses_charon_voice(self):
-        """Butler character should use Charon TTS voice."""
+    def test_butler_uses_zubenelgenubi_voice(self):
+        """Butler character should use Zubenelgenubi TTS voice."""
         from src.services.character_service import get_character
 
         char = get_character("butler")
-        assert "Charon" in char.tts_voice_name
-
-    def test_all_voices_are_chirp3_hd_japanese(self):
-        """All TTS voice names should be Chirp3-HD Japanese voices."""
-        from src.services.character_service import get_all_characters
-
-        for char in get_all_characters():
-            assert char.tts_voice_name.startswith("ja-JP-Chirp3-HD-"), (
-                f"{char.id} voice should be Chirp3-HD Japanese"
-            )
+        assert char.tts_voice_name == "Zubenelgenubi"
 
 
 class TestCharacterDescriptions:

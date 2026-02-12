@@ -35,3 +35,6 @@ coverage
 
 # deploy commands
 deploy.sh
+
+# voice assets
+public/*.wav

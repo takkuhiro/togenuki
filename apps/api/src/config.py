@@ -34,9 +34,8 @@ class Settings(BaseSettings):
     gemini_api_key: str = ""
     gemini_model: str = "gemini-2.5-flash"
 
-    # Cloud TTS settings
-    tts_voice_name: str = "ja-JP-Chirp3-HD-Callirrhoe"
-    tts_language_code: str = "ja-JP"
+    # Gemini TTS settings
+    tts_voice_name: str = "Callirrhoe"
 
     # Cloud Storage settings
     gcs_bucket_name: str = "togenuki-audio"
