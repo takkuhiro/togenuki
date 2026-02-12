@@ -139,7 +139,7 @@ describe('EmailList', () => {
 
       render(<EmailList />);
 
-      expect(screen.getByText('読み込み中...')).toBeInTheDocument();
+      expect(document.querySelector('.email-list-loading .loading-icon')).toBeInTheDocument();
     });
   });
 
