@@ -19,6 +19,15 @@ from result import Err, Ok
 from src.services.gemini_service import GeminiError
 
 
+def _make_mock_get_db(mock_session: MagicMock):
+    """Create a mock get_db async generator that yields the given session."""
+
+    async def mock_get_db():
+        yield mock_session
+
+    return mock_get_db
+
+
 class TestProcessInstruction:
     """Tests for InstructionService.process_instruction."""
 
@@ -66,6 +75,10 @@ class TestProcessInstruction:
 
         with (
             patch(
+                "src.services.instruction_service.get_db",
+                new=_make_mock_get_db(mock_session),
+            ),
+            patch(
                 "src.services.instruction_service.GeminiService"
             ) as mock_gemini_cls,
             patch(
@@ -81,7 +94,6 @@ class TestProcessInstruction:
 
             service = InstructionService()
             await service.process_instruction(
-                session=mock_session,
                 contact_id=contact_id,
                 instruction="文章の最後には'田中より'と追加して",
             )
@@ -109,6 +121,10 @@ class TestProcessInstruction:
 
         with (
             patch(
+                "src.services.instruction_service.get_db",
+                new=_make_mock_get_db(mock_session),
+            ),
+            patch(
                 "src.services.instruction_service.GeminiService"
             ) as mock_gemini_cls,
             patch(
@@ -124,7 +140,6 @@ class TestProcessInstruction:
 
             service = InstructionService()
             await service.process_instruction(
-                session=mock_session,
                 contact_id=contact_id,
                 instruction="敬語はです・ます調で",
             )
@@ -151,6 +166,10 @@ class TestProcessInstruction:
 
         with (
             patch(
+                "src.services.instruction_service.get_db",
+                new=_make_mock_get_db(mock_session),
+            ),
+            patch(
                 "src.services.instruction_service.GeminiService"
             ) as mock_gemini_cls,
             patch(
@@ -166,7 +185,6 @@ class TestProcessInstruction:
 
             service = InstructionService()
             await service.process_instruction(
-                session=mock_session,
                 contact_id=contact_id,
                 instruction="テスト指示",
             )
@@ -191,6 +209,10 @@ class TestProcessInstruction:
 
         with (
             patch(
+                "src.services.instruction_service.get_db",
+                new=_make_mock_get_db(mock_session),
+            ),
+            patch(
                 "src.services.instruction_service.GeminiService"
             ) as mock_gemini_cls,
             patch(
@@ -206,7 +228,6 @@ class TestProcessInstruction:
 
             service = InstructionService()
             await service.process_instruction(
-                session=mock_session,
                 contact_id=contact_id,
                 instruction="テスト指示",
             )
@@ -228,6 +249,10 @@ class TestProcessInstruction:
 
         with (
             patch(
+                "src.services.instruction_service.get_db",
+                new=_make_mock_get_db(mock_session),
+            ),
+            patch(
                 "src.services.instruction_service.GeminiService"
             ) as mock_gemini_cls,
             patch(
@@ -240,7 +265,6 @@ class TestProcessInstruction:
 
             service = InstructionService()
             await service.process_instruction(
-                session=mock_session,
                 contact_id=contact_id,
                 instruction="テスト指示",
             )
@@ -271,6 +295,10 @@ class TestProcessInstruction:
 
         with (
             patch(
+                "src.services.instruction_service.get_db",
+                new=_make_mock_get_db(mock_session),
+            ),
+            patch(
                 "src.services.instruction_service.GeminiService"
             ) as mock_gemini_cls,
             patch(
@@ -286,7 +314,6 @@ class TestProcessInstruction:
 
             service = InstructionService()
             await service.process_instruction(
-                session=mock_session,
                 contact_id=contact_id,
                 instruction="署名を追加して",
             )
@@ -332,6 +359,10 @@ class TestProcessInstructionLearningStatus:
 
         with (
             patch(
+                "src.services.instruction_service.get_db",
+                new=_make_mock_get_db(mock_session),
+            ),
+            patch(
                 "src.services.instruction_service.GeminiService"
             ) as mock_gemini_cls,
             patch(
@@ -351,7 +382,6 @@ class TestProcessInstructionLearningStatus:
 
             service = InstructionService()
             await service.process_instruction(
-                session=mock_session,
                 contact_id=contact_id,
                 instruction="テスト指示",
             )
@@ -375,6 +405,10 @@ class TestProcessInstructionLearningStatus:
 
         with (
             patch(
+                "src.services.instruction_service.get_db",
+                new=_make_mock_get_db(mock_session),
+            ),
+            patch(
                 "src.services.instruction_service.GeminiService"
             ) as mock_gemini_cls,
             patch(
@@ -394,7 +428,6 @@ class TestProcessInstructionLearningStatus:
 
             service = InstructionService()
             await service.process_instruction(
-                session=mock_session,
                 contact_id=contact_id,
                 instruction="テスト指示",
             )
@@ -424,6 +457,10 @@ class TestProcessInstructionLearningStatus:
 
         with (
             patch(
+                "src.services.instruction_service.get_db",
+                new=_make_mock_get_db(mock_session),
+            ),
+            patch(
                 "src.services.instruction_service.GeminiService"
             ) as mock_gemini_cls,
             patch(
@@ -443,7 +480,6 @@ class TestProcessInstructionLearningStatus:
 
             service = InstructionService()
             await service.process_instruction(
-                session=mock_session,
                 contact_id=contact_id,
                 instruction="テスト指示",
             )

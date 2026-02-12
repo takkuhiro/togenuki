@@ -1110,6 +1110,27 @@ button:disabled {
   background-color: #EAE7E1;
 }
 
+.nav-back-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  color: #6B7280;
+  text-decoration: none;
+  font-size: 0.875rem;
+  font-weight: 500;
+  padding: 0.375rem 0.75rem;
+  border: 1px solid #D1D5DB;
+  border-radius: 8px;
+  background-color: #F2F0EB;
+  transition: color 0.2s ease, background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.nav-back-button:hover {
+  color: #4A6C74;
+  background-color: #F3F4F6;
+  border-color: #9CA3AF;
+}
+
 /* Responsive */
 @media (min-width: 768px) {
   .header-content,

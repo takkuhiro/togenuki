@@ -11,8 +11,8 @@ from datetime import UTC, datetime
 from uuid import UUID
 
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.database import get_db
 from src.models import ContactContext
 from src.repositories.contact_repository import (
     update_contact_context_patterns,
@@ -29,7 +29,6 @@ class InstructionService:
 
     async def process_instruction(
         self,
-        session: AsyncSession,
         contact_id: UUID,
         instruction: str,
     ) -> None:
@@ -42,68 +41,68 @@ class InstructionService:
         5. Update contact context in DB
 
         Args:
-            session: Database session
             contact_id: The contact's ID
             instruction: Raw user instruction text
         """
-        # Get contact context
-        query = select(ContactContext).where(ContactContext.contact_id == contact_id)
-        result = await session.execute(query)
-        context = result.scalar_one_or_none()
+        async for session in get_db():
+            # Get contact context
+            query = select(ContactContext).where(ContactContext.contact_id == contact_id)
+            result = await session.execute(query)
+            context = result.scalar_one_or_none()
 
-        if context is None:
-            logger.warning(f"No contact context found for contact {contact_id}")
-            return
+            if context is None:
+                logger.warning(f"No contact context found for contact {contact_id}")
+                return
 
-        # Format instruction via Gemini
-        gemini_service = GeminiService()
-        format_result = await gemini_service.format_instruction(instruction)
+            # Format instruction via Gemini
+            gemini_service = GeminiService()
+            format_result = await gemini_service.format_instruction(instruction)
 
-        if format_result.is_err():
-            logger.error(
-                f"Failed to format instruction for contact {contact_id}: "
-                f"{format_result.unwrap_err()}"
+            if format_result.is_err():
+                logger.error(
+                    f"Failed to format instruction for contact {contact_id}: "
+                    f"{format_result.unwrap_err()}"
+                )
+                await update_contact_learning_status(
+                    session, contact_id, is_complete=True, failed_at=datetime.now(UTC)
+                )
+                await session.commit()
+                return
+
+            formatted_instruction = format_result.unwrap()
+
+            # Parse existing learned_patterns and append instruction
+            # Strip markdown code block markers (```json ... ```) that Gemini may add
+            raw_patterns = context.learned_patterns
+            stripped = re.sub(r"^```(?:json)?\s*\n?", "", raw_patterns.strip())
+            stripped = re.sub(r"\n?```\s*$", "", stripped)
+            try:
+                patterns = json.loads(stripped)
+            except (json.JSONDecodeError, TypeError):
+                logger.error(
+                    f"Failed to parse learned_patterns for contact {contact_id}"
+                )
+                await update_contact_learning_status(
+                    session, contact_id, is_complete=True, failed_at=datetime.now(UTC)
+                )
+                await session.commit()
+                return
+
+            if "userInstructions" not in patterns:
+                patterns["userInstructions"] = []
+
+            patterns["userInstructions"].append(formatted_instruction)
+
+            # Update contact context
+            updated_patterns = json.dumps(patterns, ensure_ascii=False)
+            await update_contact_context_patterns(
+                session, contact_id, updated_patterns
             )
             await update_contact_learning_status(
-                session, contact_id, is_complete=True, failed_at=datetime.now(UTC)
+                session, contact_id, is_complete=True
             )
             await session.commit()
-            return
 
-        formatted_instruction = format_result.unwrap()
-
-        # Parse existing learned_patterns and append instruction
-        # Strip markdown code block markers (```json ... ```) that Gemini may add
-        raw_patterns = context.learned_patterns
-        stripped = re.sub(r"^```(?:json)?\s*\n?", "", raw_patterns.strip())
-        stripped = re.sub(r"\n?```\s*$", "", stripped)
-        try:
-            patterns = json.loads(stripped)
-        except (json.JSONDecodeError, TypeError):
-            logger.error(
-                f"Failed to parse learned_patterns for contact {contact_id}"
+            logger.info(
+                f"Successfully added instruction for contact {contact_id}"
             )
-            await update_contact_learning_status(
-                session, contact_id, is_complete=True, failed_at=datetime.now(UTC)
-            )
-            await session.commit()
-            return
-
-        if "userInstructions" not in patterns:
-            patterns["userInstructions"] = []
-
-        patterns["userInstructions"].append(formatted_instruction)
-
-        # Update contact context
-        updated_patterns = json.dumps(patterns, ensure_ascii=False)
-        await update_contact_context_patterns(
-            session, contact_id, updated_patterns
-        )
-        await update_contact_learning_status(
-            session, contact_id, is_complete=True
-        )
-        await session.commit()
-
-        logger.info(
-            f"Successfully added instruction for contact {contact_id}"
-        )

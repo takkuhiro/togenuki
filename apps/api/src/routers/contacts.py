@@ -395,7 +395,6 @@ async def instruct_contact_endpoint(
     instruction_service = InstructionService()
     background_tasks.add_task(
         instruction_service.process_instruction,
-        session=session,
         contact_id=contact_id,
         instruction=request.instruction,
     )
