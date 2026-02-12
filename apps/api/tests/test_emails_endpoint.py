@@ -19,9 +19,7 @@ class TestReplySyncIntegration:
         return FirebaseUser(uid="test-uid-123", email="test@example.com")
 
     @pytest.mark.asyncio
-    async def test_get_emails_calls_reply_sync(
-        self, mock_user: FirebaseUser
-    ) -> None:
+    async def test_get_emails_calls_reply_sync(self, mock_user: FirebaseUser) -> None:
         """GET /api/emails should call reply sync before returning."""
         from src.routers.emails import router
 
@@ -44,6 +42,9 @@ class TestReplySyncIntegration:
                 "reply_body": None,
                 "reply_subject": None,
                 "reply_source": None,
+                "composed_body": None,
+                "composed_subject": None,
+                "google_draft_id": None,
             },
         ]
 
@@ -98,6 +99,9 @@ class TestReplySyncIntegration:
                 "reply_body": None,
                 "reply_subject": None,
                 "reply_source": None,
+                "composed_body": None,
+                "composed_subject": None,
+                "google_draft_id": None,
             },
         ]
 
@@ -154,6 +158,9 @@ class TestEmailsEndpoint:
                 "reply_body": None,
                 "reply_subject": None,
                 "reply_source": None,
+                "composed_body": None,
+                "composed_subject": None,
+                "google_draft_id": None,
             },
             {
                 "id": "019494a5-eb1c-7000-8000-000000000002",
@@ -168,6 +175,9 @@ class TestEmailsEndpoint:
                 "reply_body": None,
                 "reply_subject": None,
                 "reply_source": None,
+                "composed_body": None,
+                "composed_subject": None,
+                "google_draft_id": None,
             },
         ]
 
@@ -392,6 +402,9 @@ class TestEmailsEndpoint:
                 "reply_body": "返信本文",
                 "reply_subject": "Re: 件名テスト1",
                 "reply_source": "togenuki",
+                "composed_body": None,
+                "composed_subject": None,
+                "google_draft_id": None,
             },
         ]
 
@@ -447,6 +460,9 @@ class TestEmailsEndpoint:
                 "reply_body": "送信済みの返信本文",
                 "reply_subject": "Re: 件名テスト1",
                 "reply_source": "togenuki",
+                "composed_body": None,
+                "composed_subject": None,
+                "google_draft_id": None,
             },
         ]
 

@@ -11,7 +11,9 @@ node_modules/
 .DS_Store
 
 # Document
+docs/BLOG.md
 docs/BLOG_STRUCTURE.md
+docs/VIDEO_STRUCTURE.md
 
 # Character assets
 assets/characters/

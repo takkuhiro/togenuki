@@ -9,7 +9,7 @@ Tests for the instruction processing service that:
 """
 
 import json
-from datetime import UTC, datetime
+from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import UUID
 
@@ -78,9 +78,7 @@ class TestProcessInstruction:
                 "src.services.instruction_service.get_db",
                 new=_make_mock_get_db(mock_session),
             ),
-            patch(
-                "src.services.instruction_service.GeminiService"
-            ) as mock_gemini_cls,
+            patch("src.services.instruction_service.GeminiService") as mock_gemini_cls,
             patch(
                 "src.services.instruction_service.update_contact_context_patterns",
                 new=AsyncMock(return_value=True),
@@ -104,7 +102,10 @@ class TestProcessInstruction:
             updated_patterns = json.loads(call_args[0][2])
             assert "userInstructions" in updated_patterns
             assert len(updated_patterns["userInstructions"]) == 1
-            assert updated_patterns["userInstructions"][0] == "メール末尾に「田中より」と署名を追加する"
+            assert (
+                updated_patterns["userInstructions"][0]
+                == "メール末尾に「田中より」と署名を追加する"
+            )
 
     @pytest.mark.asyncio
     async def test_process_instruction_appends_to_existing_instructions(
@@ -124,9 +125,7 @@ class TestProcessInstruction:
                 "src.services.instruction_service.get_db",
                 new=_make_mock_get_db(mock_session),
             ),
-            patch(
-                "src.services.instruction_service.GeminiService"
-            ) as mock_gemini_cls,
+            patch("src.services.instruction_service.GeminiService") as mock_gemini_cls,
             patch(
                 "src.services.instruction_service.update_contact_context_patterns",
                 new=AsyncMock(return_value=True),
@@ -149,7 +148,10 @@ class TestProcessInstruction:
             updated_patterns = json.loads(call_args[0][2])
             assert len(updated_patterns["userInstructions"]) == 2
             assert updated_patterns["userInstructions"][0] == "既存の指示1"
-            assert updated_patterns["userInstructions"][1] == "敬語は「です・ます」調に統一する"
+            assert (
+                updated_patterns["userInstructions"][1]
+                == "敬語は「です・ます」調に統一する"
+            )
 
     @pytest.mark.asyncio
     async def test_process_instruction_preserves_existing_patterns(
@@ -169,9 +171,7 @@ class TestProcessInstruction:
                 "src.services.instruction_service.get_db",
                 new=_make_mock_get_db(mock_session),
             ),
-            patch(
-                "src.services.instruction_service.GeminiService"
-            ) as mock_gemini_cls,
+            patch("src.services.instruction_service.GeminiService") as mock_gemini_cls,
             patch(
                 "src.services.instruction_service.update_contact_context_patterns",
                 new=AsyncMock(return_value=True),
@@ -212,9 +212,7 @@ class TestProcessInstruction:
                 "src.services.instruction_service.get_db",
                 new=_make_mock_get_db(mock_session),
             ),
-            patch(
-                "src.services.instruction_service.GeminiService"
-            ) as mock_gemini_cls,
+            patch("src.services.instruction_service.GeminiService") as mock_gemini_cls,
             patch(
                 "src.services.instruction_service.update_contact_context_patterns",
                 new=AsyncMock(return_value=True),
@@ -252,9 +250,7 @@ class TestProcessInstruction:
                 "src.services.instruction_service.get_db",
                 new=_make_mock_get_db(mock_session),
             ),
-            patch(
-                "src.services.instruction_service.GeminiService"
-            ) as mock_gemini_cls,
+            patch("src.services.instruction_service.GeminiService") as mock_gemini_cls,
             patch(
                 "src.services.instruction_service.update_contact_context_patterns",
                 new=AsyncMock(return_value=True),
@@ -289,7 +285,9 @@ class TestProcessInstruction:
 
         mock_session = MagicMock()
         mock_result = MagicMock()
-        mock_result.scalar_one_or_none.return_value = mock_context_with_markdown_codeblock
+        mock_result.scalar_one_or_none.return_value = (
+            mock_context_with_markdown_codeblock
+        )
         mock_session.execute = AsyncMock(return_value=mock_result)
         mock_session.commit = AsyncMock()
 
@@ -298,9 +296,7 @@ class TestProcessInstruction:
                 "src.services.instruction_service.get_db",
                 new=_make_mock_get_db(mock_session),
             ),
-            patch(
-                "src.services.instruction_service.GeminiService"
-            ) as mock_gemini_cls,
+            patch("src.services.instruction_service.GeminiService") as mock_gemini_cls,
             patch(
                 "src.services.instruction_service.update_contact_context_patterns",
                 new=AsyncMock(return_value=True),
@@ -322,7 +318,9 @@ class TestProcessInstruction:
             call_args = mock_update.call_args
             updated_patterns = json.loads(call_args[0][2])
             assert "userInstructions" in updated_patterns
-            assert updated_patterns["userInstructions"][0] == "メール末尾に署名を追加する"
+            assert (
+                updated_patterns["userInstructions"][0] == "メール末尾に署名を追加する"
+            )
             assert updated_patterns["contactCharacteristics"]["tone"] == "formal"
 
 
@@ -362,9 +360,7 @@ class TestProcessInstructionLearningStatus:
                 "src.services.instruction_service.get_db",
                 new=_make_mock_get_db(mock_session),
             ),
-            patch(
-                "src.services.instruction_service.GeminiService"
-            ) as mock_gemini_cls,
+            patch("src.services.instruction_service.GeminiService") as mock_gemini_cls,
             patch(
                 "src.services.instruction_service.update_contact_context_patterns",
                 new=AsyncMock(return_value=True),
@@ -408,9 +404,7 @@ class TestProcessInstructionLearningStatus:
                 "src.services.instruction_service.get_db",
                 new=_make_mock_get_db(mock_session),
             ),
-            patch(
-                "src.services.instruction_service.GeminiService"
-            ) as mock_gemini_cls,
+            patch("src.services.instruction_service.GeminiService") as mock_gemini_cls,
             patch(
                 "src.services.instruction_service.update_contact_context_patterns",
                 new=AsyncMock(return_value=True),
@@ -460,9 +454,7 @@ class TestProcessInstructionLearningStatus:
                 "src.services.instruction_service.get_db",
                 new=_make_mock_get_db(mock_session),
             ),
-            patch(
-                "src.services.instruction_service.GeminiService"
-            ) as mock_gemini_cls,
+            patch("src.services.instruction_service.GeminiService") as mock_gemini_cls,
             patch(
                 "src.services.instruction_service.update_contact_context_patterns",
                 new=AsyncMock(return_value=True),

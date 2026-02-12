@@ -78,6 +78,9 @@ async def get_user_emails(
             "reply_body": email.reply_body,
             "reply_subject": email.reply_subject,
             "reply_source": email.reply_source,
+            "composed_body": email.composed_body,
+            "composed_subject": email.composed_subject,
+            "google_draft_id": email.google_draft_id,
         }
         for email in emails
     ]
@@ -121,6 +124,9 @@ async def get_emails(
             replyBody=email["reply_body"],
             replySubject=email["reply_subject"],
             replySource=email["reply_source"],
+            composedBody=email["composed_body"],
+            composedSubject=email["composed_subject"],
+            googleDraftId=email["google_draft_id"],
         )
         for email in emails_data
     ]

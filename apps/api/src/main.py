@@ -6,6 +6,7 @@ from src.auth.firebase_admin import initialize_firebase
 from src.config import get_settings
 from src.routers.characters import router as characters_router
 from src.routers.contacts import router as contacts_router
+from src.routers.cron import router as cron_router
 from src.routers.emails import router as emails_router
 from src.routers.gmail_oauth import router as gmail_oauth_router
 from src.routers.gmail_watch import router as gmail_watch_router
@@ -35,6 +36,7 @@ app.include_router(gmail_oauth_router, prefix="/api/auth/gmail")
 app.include_router(reply_router, prefix="/api")
 app.include_router(gmail_watch_router)
 app.include_router(webhook_router)
+app.include_router(cron_router)
 
 
 @app.get("/")

@@ -137,3 +137,13 @@ variable "gemini_api_key" {
   type        = string
   sensitive   = true
 }
+
+# ============================================
+# Cloud Scheduler Configuration
+# ============================================
+
+variable "scheduler_secret" {
+  description = "Shared secret for Cloud Scheduler to authenticate with the API"
+  type        = string
+  sensitive   = true
+}

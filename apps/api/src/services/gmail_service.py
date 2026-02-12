@@ -429,3 +429,66 @@ class GmailApiClient:
                 )
 
             return cast(dict[str, Any], response.json())
+
+    async def create_draft(
+        self,
+        to: str,
+        subject: str,
+        body: str,
+        thread_id: str,
+        in_reply_to: str,
+        references: str,
+    ) -> dict[str, Any]:
+        """Create a draft reply email via Gmail API.
+
+        Constructs a MIME message with reply headers and saves it
+        as a draft using Gmail API drafts.create endpoint.
+
+        Args:
+            to: Recipient email address
+            subject: Email subject
+            body: Email body text
+            thread_id: Gmail thread ID to reply in
+            in_reply_to: Message-ID of the original email
+            references: References header value
+
+        Returns:
+            Gmail API draft response (id, message)
+
+        Raises:
+            GmailApiError: If API call fails
+        """
+        mime_message = MIMEText(body, "plain", "utf-8")
+        mime_message["To"] = to
+        mime_message["Subject"] = subject
+        mime_message["In-Reply-To"] = in_reply_to
+        mime_message["References"] = references
+
+        raw = base64.urlsafe_b64encode(mime_message.as_bytes()).decode("utf-8")
+
+        url = f"{GMAIL_API_BASE_URL}/drafts"
+        request_body = {
+            "message": {
+                "raw": raw,
+                "threadId": thread_id,
+            },
+        }
+
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                url,
+                headers=self.headers,
+                json=request_body,
+                timeout=30.0,
+            )
+
+            if response.status_code != 200:
+                logger.error(
+                    f"Gmail draft API error: {response.status_code} - {response.text}"
+                )
+                raise GmailApiError(
+                    f"Failed to create draft: {response.text}",
+                    status_code=response.status_code,
+                )
+
+            return cast(dict[str, Any], response.json())

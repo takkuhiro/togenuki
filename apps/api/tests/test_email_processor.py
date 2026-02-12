@@ -150,6 +150,8 @@ class TestEmailProcessor:
         mock_gmail_message: dict,
     ):
         """Test that email is created for message from registered contact."""
+        from result import Ok
+
         from src.services.email_processor import EmailProcessorService
 
         mock_session = AsyncMock()
@@ -167,10 +169,24 @@ class TestEmailProcessor:
             mock_email_exists_result,
         ]
 
-        processor = EmailProcessorService(mock_session)
-        result = await processor._process_single_message(
-            mock_user.id, mock_gmail_message
-        )
+        with (
+            patch("src.services.email_processor.GeminiService") as mock_gemini_class,
+            patch("src.services.email_processor.TTSService") as mock_tts_class,
+        ):
+            mock_gemini = MagicMock()
+            mock_gemini.convert_email = AsyncMock(return_value=Ok("変換済みテキスト"))
+            mock_gemini_class.return_value = mock_gemini
+
+            mock_tts = MagicMock()
+            mock_tts.synthesize_and_upload = AsyncMock(
+                return_value=Ok("https://storage.example.com/audio.mp3")
+            )
+            mock_tts_class.return_value = mock_tts
+
+            processor = EmailProcessorService(mock_session)
+            result = await processor._process_single_message(
+                mock_user.id, mock_gmail_message
+            )
 
         assert result.processed is True
         # Note: email_id is None because we're not actually saving to DB in tests
@@ -247,7 +263,10 @@ class TestEmailProcessor:
         mock_gmail_message: dict,
     ):
         """Test that new email has is_processed=false initially."""
+        from result import Err
+
         from src.services.email_processor import EmailProcessorService
+        from src.services.gemini_service import GeminiError
 
         mock_session = AsyncMock()
 
@@ -262,8 +281,22 @@ class TestEmailProcessor:
             mock_email_exists_result,
         ]
 
-        processor = EmailProcessorService(mock_session)
-        await processor._process_single_message(mock_user.id, mock_gmail_message)
+        with (
+            patch("src.services.email_processor.GeminiService") as mock_gemini_class,
+            patch("src.services.email_processor.TTSService") as mock_tts_class,
+        ):
+            # Gemini fails so is_processed stays False
+            mock_gemini = MagicMock()
+            mock_gemini.convert_email = AsyncMock(
+                return_value=Err(GeminiError.API_ERROR)
+            )
+            mock_gemini_class.return_value = mock_gemini
+
+            mock_tts = MagicMock()
+            mock_tts_class.return_value = mock_tts
+
+            processor = EmailProcessorService(mock_session)
+            await processor._process_single_message(mock_user.id, mock_gmail_message)
 
         # Check the email added to session has is_processed=False
         added_email = mock_session.add.call_args[0][0]

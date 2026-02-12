@@ -775,3 +775,101 @@ class TestGmailApiClientSendMessage:
                 )
 
             assert exc_info.value.status_code == 403
+
+
+class TestGmailApiClientCreateDraft:
+    """Tests for GmailApiClient.create_draft method."""
+
+    @pytest.mark.asyncio
+    async def test_create_draft_constructs_correct_request(self):
+        """create_draft should build a MIME message and call drafts.create API."""
+        import json
+        from email import message_from_bytes
+        from email.header import decode_header
+
+        from src.services.gmail_service import GmailApiClient
+
+        with patch("httpx.AsyncClient") as mock_client_class:
+            mock_client = AsyncMock()
+            mock_client_class.return_value.__aenter__.return_value = mock_client
+            mock_response = MagicMock()
+            mock_response.status_code = 200
+            mock_response.json.return_value = {
+                "id": "draft-123",
+                "message": {
+                    "id": "msg-draft-456",
+                    "threadId": "thread-abc",
+                    "labelIds": ["DRAFT"],
+                },
+            }
+            mock_client.post.return_value = mock_response
+
+            client = GmailApiClient("test-access-token")
+            result = await client.create_draft(
+                to="boss@company.com",
+                subject="Re: 報告書について",
+                body="お疲れ様です。報告書を提出いたします。",
+                thread_id="thread-abc",
+                in_reply_to="<original-msg@mail.gmail.com>",
+                references="<original-msg@mail.gmail.com>",
+            )
+
+            assert result["id"] == "draft-123"
+
+            # Verify the POST request was made correctly
+            mock_client.post.assert_called_once()
+            call_args = mock_client.post.call_args
+
+            # Verify URL
+            assert "drafts" in call_args[0][0]
+
+            # Verify the request body structure
+            request_body = call_args[1].get("json") or call_args[1].get("content")
+            if isinstance(request_body, str):
+                request_body = json.loads(request_body)
+
+            assert "message" in request_body
+            assert "raw" in request_body["message"]
+            assert "threadId" in request_body["message"]
+            assert request_body["message"]["threadId"] == "thread-abc"
+
+            # Decode the raw MIME message
+            raw_bytes = base64.urlsafe_b64decode(request_body["message"]["raw"] + "==")
+            mime_msg = message_from_bytes(raw_bytes)
+
+            assert mime_msg["To"] == "boss@company.com"
+            decoded_subject_parts = decode_header(mime_msg["Subject"])
+            decoded_subject = "".join(
+                part.decode(enc or "utf-8") if isinstance(part, bytes) else part
+                for part, enc in decoded_subject_parts
+            )
+            assert decoded_subject == "Re: 報告書について"
+            assert mime_msg["In-Reply-To"] == "<original-msg@mail.gmail.com>"
+            assert mime_msg["References"] == "<original-msg@mail.gmail.com>"
+
+    @pytest.mark.asyncio
+    async def test_create_draft_raises_on_api_error(self):
+        """create_draft should raise GmailApiError on API failure."""
+        from src.services.gmail_service import GmailApiClient, GmailApiError
+
+        with patch("httpx.AsyncClient") as mock_client_class:
+            mock_client = AsyncMock()
+            mock_client_class.return_value.__aenter__.return_value = mock_client
+            mock_response = MagicMock()
+            mock_response.status_code = 403
+            mock_response.text = "Insufficient Permission"
+            mock_client.post.return_value = mock_response
+
+            client = GmailApiClient("test-access-token")
+
+            with pytest.raises(GmailApiError) as exc_info:
+                await client.create_draft(
+                    to="test@example.com",
+                    subject="Re: Test",
+                    body="Test reply",
+                    thread_id="thread-1",
+                    in_reply_to="<msg@example.com>",
+                    references="<msg@example.com>",
+                )
+
+            assert exc_info.value.status_code == 403

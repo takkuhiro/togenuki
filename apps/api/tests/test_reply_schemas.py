@@ -110,3 +110,59 @@ class TestSendReplyResponse:
         data = resp.model_dump(by_alias=True)
         assert "success" in data
         assert "googleMessageId" in data
+
+
+class TestSaveDraftRequest:
+    """Tests for SaveDraftRequest schema."""
+
+    def test_valid_request(self):
+        """Valid composedBody and composedSubject should be accepted."""
+        from src.schemas.reply import SaveDraftRequest
+
+        req = SaveDraftRequest(
+            composedBody="お疲れ様です。承知いたしました。",
+            composedSubject="Re: 報告書について",
+        )
+        assert req.composedBody == "お疲れ様です。承知いたしました。"
+        assert req.composedSubject == "Re: 報告書について"
+
+    def test_empty_composed_body_raises_validation_error(self):
+        """Empty composedBody should raise ValidationError (min_length=1)."""
+        from src.schemas.reply import SaveDraftRequest
+
+        with pytest.raises(ValidationError):
+            SaveDraftRequest(composedBody="", composedSubject="Re: テスト")
+
+    def test_empty_composed_subject_raises_validation_error(self):
+        """Empty composedSubject should raise ValidationError (min_length=1)."""
+        from src.schemas.reply import SaveDraftRequest
+
+        with pytest.raises(ValidationError):
+            SaveDraftRequest(composedBody="本文", composedSubject="")
+
+
+class TestSaveDraftResponse:
+    """Tests for SaveDraftResponse schema."""
+
+    def test_valid_response(self):
+        """Should create response with success and googleDraftId."""
+        from src.schemas.reply import SaveDraftResponse
+
+        resp = SaveDraftResponse(
+            success=True,
+            googleDraftId="draft-789",
+        )
+        assert resp.success is True
+        assert resp.googleDraftId == "draft-789"
+
+    def test_serialization_uses_camel_case(self):
+        """Serialized output should use camelCase keys."""
+        from src.schemas.reply import SaveDraftResponse
+
+        resp = SaveDraftResponse(
+            success=True,
+            googleDraftId="draft-789",
+        )
+        data = resp.model_dump(by_alias=True)
+        assert "success" in data
+        assert "googleDraftId" in data

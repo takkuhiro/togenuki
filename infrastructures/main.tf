@@ -191,6 +191,16 @@ resource "google_cloud_run_v2_service" "api" {
         value = var.gemini_api_key
       }
 
+      env {
+        name  = "PROJECT_ID"
+        value = var.project_id
+      }
+
+      env {
+        name  = "SCHEDULER_SECRET"
+        value = var.scheduler_secret
+      }
+
       # Cloud SQL connection
       volume_mounts {
         name       = "cloudsql"
@@ -346,4 +356,41 @@ resource "google_cloud_run_v2_service_iam_member" "web_public" {
   location = google_cloud_run_v2_service.web.location
   role     = "roles/run.invoker"
   member   = "allUsers"
+}
+
+# ============================================
+# Cloud Scheduler (Gmail Watch Renewal)
+# ============================================
+
+resource "google_project_service" "cloudscheduler" {
+  service            = "cloudscheduler.googleapis.com"
+  disable_on_destroy = false
+}
+
+resource "google_cloud_scheduler_job" "renew_gmail_watches" {
+  name        = "renew-gmail-watches"
+  description = "Renews Gmail Watch for all users every 6 days"
+  region      = var.region
+  schedule    = "0 0 */6 * *"
+  time_zone   = "UTC"
+
+  http_target {
+    http_method = "POST"
+    uri         = "${google_cloud_run_v2_service.api.uri}/api/cron/renew-gmail-watches"
+    headers = {
+      "Content-Type"       = "application/json"
+      "X-Scheduler-Secret" = var.scheduler_secret
+    }
+  }
+
+  retry_config {
+    retry_count          = 3
+    min_backoff_duration = "30s"
+    max_backoff_duration = "3600s"
+  }
+
+  depends_on = [
+    google_project_service.cloudscheduler,
+    google_cloud_run_v2_service.api,
+  ]
 }

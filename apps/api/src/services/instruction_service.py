@@ -46,7 +46,9 @@ class InstructionService:
         """
         async for session in get_db():
             # Get contact context
-            query = select(ContactContext).where(ContactContext.contact_id == contact_id)
+            query = select(ContactContext).where(
+                ContactContext.contact_id == contact_id
+            )
             result = await session.execute(query)
             context = result.scalar_one_or_none()
 
@@ -95,14 +97,8 @@ class InstructionService:
 
             # Update contact context
             updated_patterns = json.dumps(patterns, ensure_ascii=False)
-            await update_contact_context_patterns(
-                session, contact_id, updated_patterns
-            )
-            await update_contact_learning_status(
-                session, contact_id, is_complete=True
-            )
+            await update_contact_context_patterns(session, contact_id, updated_patterns)
+            await update_contact_learning_status(session, contact_id, is_complete=True)
             await session.commit()
 
-            logger.info(
-                f"Successfully added instruction for contact {contact_id}"
-            )
+            logger.info(f"Successfully added instruction for contact {contact_id}")

@@ -140,9 +140,7 @@ class ReplySyncService:
                 internal_date = message.get("internalDate")
                 if internal_date:
                     ts = int(internal_date) / 1000
-                    sent_timestamps.append(
-                        datetime.fromtimestamp(ts, tz=timezone.utc)
-                    )
+                    sent_timestamps.append(datetime.fromtimestamp(ts, tz=timezone.utc))
         return sent_timestamps
 
     @staticmethod

@@ -18,6 +18,9 @@ export interface Email {
   replyBody: string | null;
   replySubject: string | null;
   replySource: 'togenuki' | 'gmail' | null;
+  composedBody: string | null;
+  composedSubject: string | null;
+  googleDraftId: string | null;
 }
 
 /**

@@ -236,7 +236,9 @@ class GeminiService:
 
             formatted_text = response.text
             if formatted_text is None:
-                logger.error("Gemini returned empty response for instruction formatting")
+                logger.error(
+                    "Gemini returned empty response for instruction formatting"
+                )
                 return Err(GeminiError.API_ERROR)
 
             logger.info("Successfully formatted user instruction")
@@ -248,7 +250,9 @@ class GeminiService:
         except Exception as e:
             error_str = str(e).lower()
             if "429" in error_str or "exhausted" in error_str or "rate" in error_str:
-                logger.warning(f"Gemini API rate limited during instruction formatting: {e}")
+                logger.warning(
+                    f"Gemini API rate limited during instruction formatting: {e}"
+                )
                 return Err(GeminiError.RATE_LIMIT)
             logger.exception(f"Gemini API error during instruction formatting: {e}")
             return Err(GeminiError.API_ERROR)

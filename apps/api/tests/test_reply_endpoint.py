@@ -503,3 +503,239 @@ class TestSendReplyEndpoint:
 
         assert response.status_code == 503
         assert response.json()["detail"]["error"] == "token_expired"
+
+
+class TestSaveDraftEndpoint:
+    """Tests for POST /api/emails/{email_id}/save-draft endpoint."""
+
+    @pytest.fixture
+    def mock_user(self) -> FirebaseUser:
+        """Create a mock authenticated user."""
+        return FirebaseUser(uid="test-uid-123", email="test@example.com")
+
+    @pytest.fixture
+    def mock_session(self) -> MagicMock:
+        """Create a mock database session."""
+        session = MagicMock()
+        session.commit = AsyncMock()
+        session.refresh = AsyncMock()
+        return session
+
+    @pytest.mark.asyncio
+    async def test_save_draft_without_auth_returns_401(
+        self, mock_session: MagicMock
+    ) -> None:
+        """Request without authentication should return 401."""
+        from src.routers.reply import router
+
+        app = FastAPI()
+        app.include_router(router, prefix="/api")
+        app.dependency_overrides[get_db] = lambda: mock_session
+
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://test"
+        ) as client:
+            response = await client.post(
+                "/api/emails/019494a5-eb1c-7000-8000-000000000001/save-draft",
+                json={
+                    "composedBody": "お疲れ様です。",
+                    "composedSubject": "Re: テスト",
+                },
+            )
+
+        assert response.status_code == 401
+        assert response.json()["detail"]["error"] == "missing_token"
+
+    @pytest.mark.asyncio
+    async def test_save_draft_success_returns_200(
+        self,
+        mock_user: FirebaseUser,
+        mock_session: MagicMock,
+    ) -> None:
+        """Successful save-draft should return 200 with success and draftId."""
+        from result import Ok
+
+        from src.routers.reply import router
+        from src.services.reply_service import SaveDraftResult
+
+        app = FastAPI()
+        app.include_router(router, prefix="/api")
+        app.dependency_overrides[get_db] = lambda: mock_session
+
+        mock_reply_service = MagicMock()
+        mock_reply_service.save_draft = AsyncMock(
+            return_value=Ok(SaveDraftResult(google_draft_id="draft-789"))
+        )
+
+        with (
+            patch("src.auth.middleware.auth") as mock_auth,
+            patch(
+                "src.routers.reply.ReplyService",
+                return_value=mock_reply_service,
+            ),
+        ):
+            mock_auth.verify_id_token.return_value = {
+                "uid": mock_user.uid,
+                "email": mock_user.email,
+            }
+
+            async with AsyncClient(
+                transport=ASGITransport(app=app), base_url="http://test"
+            ) as client:
+                response = await client.post(
+                    "/api/emails/019494a5-eb1c-7000-8000-000000000001/save-draft",
+                    json={
+                        "composedBody": "お疲れ様です。承知いたしました。",
+                        "composedSubject": "Re: 報告書について",
+                    },
+                    headers={"Authorization": "Bearer valid_token"},
+                )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        assert data["googleDraftId"] == "draft-789"
+
+    @pytest.mark.asyncio
+    async def test_save_draft_email_not_found_returns_404(
+        self,
+        mock_user: FirebaseUser,
+        mock_session: MagicMock,
+    ) -> None:
+        """save-draft with non-existent email should return 404."""
+        from result import Err
+
+        from src.routers.reply import router
+        from src.services.reply_service import ReplyError
+
+        app = FastAPI()
+        app.include_router(router, prefix="/api")
+        app.dependency_overrides[get_db] = lambda: mock_session
+
+        mock_reply_service = MagicMock()
+        mock_reply_service.save_draft = AsyncMock(
+            return_value=Err(ReplyError.EMAIL_NOT_FOUND)
+        )
+
+        with (
+            patch("src.auth.middleware.auth") as mock_auth,
+            patch(
+                "src.routers.reply.ReplyService",
+                return_value=mock_reply_service,
+            ),
+        ):
+            mock_auth.verify_id_token.return_value = {
+                "uid": mock_user.uid,
+                "email": mock_user.email,
+            }
+
+            async with AsyncClient(
+                transport=ASGITransport(app=app), base_url="http://test"
+            ) as client:
+                response = await client.post(
+                    "/api/emails/019494a5-eb1c-7000-8000-000000000099/save-draft",
+                    json={
+                        "composedBody": "本文",
+                        "composedSubject": "Re: テスト",
+                    },
+                    headers={"Authorization": "Bearer valid_token"},
+                )
+
+        assert response.status_code == 404
+        assert response.json()["detail"]["error"] == "email_not_found"
+
+    @pytest.mark.asyncio
+    async def test_save_draft_draft_failed_returns_503(
+        self,
+        mock_user: FirebaseUser,
+        mock_session: MagicMock,
+    ) -> None:
+        """save-draft with Gmail API failure should return 503."""
+        from result import Err
+
+        from src.routers.reply import router
+        from src.services.reply_service import ReplyError
+
+        app = FastAPI()
+        app.include_router(router, prefix="/api")
+        app.dependency_overrides[get_db] = lambda: mock_session
+
+        mock_reply_service = MagicMock()
+        mock_reply_service.save_draft = AsyncMock(
+            return_value=Err(ReplyError.DRAFT_FAILED)
+        )
+
+        with (
+            patch("src.auth.middleware.auth") as mock_auth,
+            patch(
+                "src.routers.reply.ReplyService",
+                return_value=mock_reply_service,
+            ),
+        ):
+            mock_auth.verify_id_token.return_value = {
+                "uid": mock_user.uid,
+                "email": mock_user.email,
+            }
+
+            async with AsyncClient(
+                transport=ASGITransport(app=app), base_url="http://test"
+            ) as client:
+                response = await client.post(
+                    "/api/emails/019494a5-eb1c-7000-8000-000000000001/save-draft",
+                    json={
+                        "composedBody": "本文",
+                        "composedSubject": "Re: テスト",
+                    },
+                    headers={"Authorization": "Bearer valid_token"},
+                )
+
+        assert response.status_code == 503
+        assert response.json()["detail"]["error"] == "draft_failed"
+
+    @pytest.mark.asyncio
+    async def test_save_draft_token_expired_returns_503(
+        self,
+        mock_user: FirebaseUser,
+        mock_session: MagicMock,
+    ) -> None:
+        """save-draft with expired token should return 503."""
+        from result import Err
+
+        from src.routers.reply import router
+        from src.services.reply_service import ReplyError
+
+        app = FastAPI()
+        app.include_router(router, prefix="/api")
+        app.dependency_overrides[get_db] = lambda: mock_session
+
+        mock_reply_service = MagicMock()
+        mock_reply_service.save_draft = AsyncMock(
+            return_value=Err(ReplyError.TOKEN_EXPIRED)
+        )
+
+        with (
+            patch("src.auth.middleware.auth") as mock_auth,
+            patch(
+                "src.routers.reply.ReplyService",
+                return_value=mock_reply_service,
+            ),
+        ):
+            mock_auth.verify_id_token.return_value = {
+                "uid": mock_user.uid,
+                "email": mock_user.email,
+            }
+
+            async with AsyncClient(
+                transport=ASGITransport(app=app), base_url="http://test"
+            ) as client:
+                response = await client.post(
+                    "/api/emails/019494a5-eb1c-7000-8000-000000000001/save-draft",
+                    json={
+                        "composedBody": "本文",
+                        "composedSubject": "Re: テスト",
+                    },
+                    headers={"Authorization": "Bearer valid_token"},
+                )
+
+        assert response.status_code == 503
+        assert response.json()["detail"]["error"] == "token_expired"

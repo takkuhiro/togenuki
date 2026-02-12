@@ -1160,7 +1160,9 @@ class TestContactsEndpoint:
         )
 
         mock_context = MagicMock()
-        mock_context.learned_patterns = '{"contactCharacteristics": {}, "userReplyPatterns": {}}'
+        mock_context.learned_patterns = (
+            '{"contactCharacteristics": {}, "userReplyPatterns": {}}'
+        )
 
         with (
             patch("src.auth.middleware.auth") as mock_auth,

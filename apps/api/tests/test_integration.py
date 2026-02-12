@@ -290,6 +290,9 @@ class TestDashboardAndAudioPlayback:
                 "reply_body": None,
                 "reply_subject": None,
                 "reply_source": None,
+                "composed_body": None,
+                "composed_subject": None,
+                "google_draft_id": None,
             },
             {
                 "id": str(uuid7()),
@@ -304,6 +307,9 @@ class TestDashboardAndAudioPlayback:
                 "reply_body": None,
                 "reply_subject": None,
                 "reply_source": None,
+                "composed_body": None,
+                "composed_subject": None,
+                "google_draft_id": None,
             },
         ]
 
@@ -400,6 +406,12 @@ class TestDashboardAndAudioPlayback:
                 "reply_body": None,
                 "reply_subject": None,
                 "reply_source": None,
+                "composed_body": None,
+                "composed_subject": None,
+                "google_draft_id": None,
+                "composed_body": None,
+                "composed_subject": None,
+                "google_draft_id": None,
             },
             {
                 "id": str(uuid7()),
@@ -414,6 +426,9 @@ class TestDashboardAndAudioPlayback:
                 "reply_body": None,
                 "reply_subject": None,
                 "reply_source": None,
+                "composed_body": None,
+                "composed_subject": None,
+                "google_draft_id": None,
             },
         ]
 
