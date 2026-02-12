@@ -120,3 +120,12 @@ output "gcs_audio_bucket_url" {
   description = "GCS bucket URL"
   value       = google_storage_bucket.audio.url
 }
+
+# ============================================
+# Cloud Scheduler Outputs
+# ============================================
+
+output "scheduler_job_name" {
+  description = "Cloud Scheduler job name for Gmail watch renewal"
+  value       = google_cloud_scheduler_job.renew_gmail_watches.name
+}

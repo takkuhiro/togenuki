@@ -40,6 +40,9 @@ class Settings(BaseSettings):
     # Cloud Storage settings
     gcs_bucket_name: str = "togenuki-audio"
 
+    # Cloud Scheduler
+    scheduler_secret: str = ""
+
 
 @lru_cache
 def get_settings() -> Settings:
