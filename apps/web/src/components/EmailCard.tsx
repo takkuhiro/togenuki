@@ -364,6 +364,11 @@ export function EmailCard({ email, isExpanded, onToggle, onReplied }: EmailCardP
           <h3 className="email-card-subject">{email.subject || '(件名なし)'}</h3>
         </div>
         <div className="email-card-header-meta">
+          {email.repliedAt && email.replySource && (
+            <span className={`reply-source-badge reply-source-badge--${email.replySource}`}>
+              {email.replySource === 'togenuki' ? 'TogeNuki' : 'Gmail'}
+            </span>
+          )}
           <span className="email-card-date">{formatDate(email.receivedAt)}</span>
           <span className={`email-card-chevron ${isExpanded ? 'email-card-chevron--up' : ''}`}>
             ▼

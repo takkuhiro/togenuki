@@ -523,6 +523,7 @@ class TestSendReply:
             assert mock_email.reply_subject == "Re: 報告書について"
             assert mock_email.replied_at is not None
             assert mock_email.reply_google_message_id == "sent-msg-456"
+            assert mock_email.reply_source == "togenuki"
 
             # session.commit() が呼ばれたことを検証
             mock_session.commit.assert_awaited_once()

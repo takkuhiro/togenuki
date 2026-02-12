@@ -22,6 +22,7 @@ class EmailDTO(BaseModel):
     repliedAt: str | None
     replyBody: str | None
     replySubject: str | None
+    replySource: str | None
 
 
 class EmailsResponse(BaseModel):

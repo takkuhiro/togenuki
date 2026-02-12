@@ -17,6 +17,7 @@ export interface Email {
   repliedAt: string | null;
   replyBody: string | null;
   replySubject: string | null;
+  replySource: 'togenuki' | 'gmail' | null;
 }
 
 /**

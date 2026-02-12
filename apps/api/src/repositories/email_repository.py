@@ -91,6 +91,7 @@ async def create_email_record(
         user_id=user_id,
         contact_id=contact_id,
         google_message_id=email_data["google_message_id"],
+        google_thread_id=email_data.get("thread_id"),
         sender_email=email_data["sender_email"],
         sender_name=email_data.get("sender_name"),
         subject=email_data.get("subject"),

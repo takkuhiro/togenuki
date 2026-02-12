@@ -34,6 +34,7 @@ const mockEmails = [
     repliedAt: null,
     replyBody: null,
     replySubject: null,
+    replySource: null,
   },
   {
     id: '2',
@@ -47,6 +48,7 @@ const mockEmails = [
     repliedAt: null,
     replyBody: null,
     replySubject: null,
+    replySource: null,
   },
 ];
 
@@ -63,6 +65,7 @@ const mockEmailsWithReplied = [
     repliedAt: null,
     replyBody: null,
     replySubject: null,
+    replySource: null,
   },
   {
     id: '2',
@@ -76,6 +79,7 @@ const mockEmailsWithReplied = [
     repliedAt: '2024-01-15T12:00:00+00:00',
     replyBody: '返信本文2',
     replySubject: 'Re: 週報提出のお願い',
+    replySource: 'togenuki' as const,
   },
   {
     id: '3',
@@ -89,6 +93,7 @@ const mockEmailsWithReplied = [
     repliedAt: '2024-01-14T10:00:00+00:00',
     replyBody: '返信本文3',
     replySubject: 'Re: 会議室予約の件',
+    replySource: 'gmail' as const,
   },
 ];
 

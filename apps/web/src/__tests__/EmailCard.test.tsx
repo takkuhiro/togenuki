@@ -67,6 +67,7 @@ function createEmail(overrides: Partial<Email> = {}): Email {
     repliedAt: null,
     replyBody: null,
     replySubject: null,
+    replySource: null,
     ...overrides,
   };
 }
@@ -817,6 +818,64 @@ describe('EmailCard - VoiceReplyPanel統合', () => {
 
       await user.click(screen.getByRole('button', { name: /閉じる/ }));
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('返信元バッジ表示', () => {
+    it('replySource=togenukiの場合、TogeNukiバッジが表示される', () => {
+      const email = createEmail({
+        isProcessed: true,
+        repliedAt: '2024-01-16T14:00:00+00:00',
+        replyBody: '返信本文',
+        replySubject: 'Re: テスト件名',
+        replySource: 'togenuki',
+      });
+      render(<EmailCard email={email} isExpanded={true} onToggle={onToggle} />);
+
+      const badge = screen.getByText('TogeNuki');
+      expect(badge).toBeInTheDocument();
+      expect(badge).toHaveClass('reply-source-badge--togenuki');
+    });
+
+    it('replySource=gmailの場合、Gmailバッジが表示される', () => {
+      const email = createEmail({
+        isProcessed: true,
+        repliedAt: '2024-01-16T14:00:00+00:00',
+        replyBody: null,
+        replySubject: null,
+        replySource: 'gmail',
+      });
+      render(<EmailCard email={email} isExpanded={false} onToggle={onToggle} />);
+
+      const badge = screen.getByText('Gmail');
+      expect(badge).toBeInTheDocument();
+      expect(badge).toHaveClass('reply-source-badge--gmail');
+    });
+
+    it('replySourceがnullの場合、バッジは表示されない', () => {
+      const email = createEmail({
+        isProcessed: true,
+        repliedAt: '2024-01-16T14:00:00+00:00',
+        replyBody: '返信本文',
+        replySubject: 'Re: テスト件名',
+        replySource: null,
+      });
+      render(<EmailCard email={email} isExpanded={true} onToggle={onToggle} />);
+
+      expect(screen.queryByText('TogeNuki')).not.toBeInTheDocument();
+      expect(screen.queryByText('Gmail')).not.toBeInTheDocument();
+    });
+
+    it('未返信メールにはバッジが表示されない', () => {
+      const email = createEmail({
+        isProcessed: true,
+        repliedAt: null,
+        replySource: null,
+      });
+      render(<EmailCard email={email} isExpanded={true} onToggle={onToggle} />);
+
+      expect(screen.queryByText('TogeNuki')).not.toBeInTheDocument();
+      expect(screen.queryByText('Gmail')).not.toBeInTheDocument();
     });
   });
 
