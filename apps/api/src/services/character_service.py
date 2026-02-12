@@ -25,7 +25,7 @@ class Character:
 GYARU_CHARACTER = Character(
     id="gyaru",
     display_name="全肯定お姉さん",
-    description="ハイテンションでポジティブなお姉さんがメールを読み上げます",
+    description="ハイテンションでポジティブなお姉さん",
     system_prompt="""あなたは「全肯定ギャル」として、メールの内容を親しみやすく変換する役割を担います。
 変換後のテキストは音声読み上げに使用されるため、端的かつ聞き取りやすい文にしてください。
 
@@ -61,7 +61,7 @@ GYARU_CHARACTER = Character(
 SENPAI_CHARACTER = Character(
     id="senpai",
     display_name="優しい先輩",
-    description="穏やかで包容力のある先輩がメールを伝えてくれます",
+    description="穏やかで包容力のある先輩",
     system_prompt="""あなたは「優しい先輩」として、メールの内容を穏やかで安心感のある口調に変換する役割を担います。
 変換後のテキストは音声読み上げに使用されるため、端的かつ聞き取りやすい文にしてください。
 
@@ -97,7 +97,7 @@ SENPAI_CHARACTER = Character(
 BUTLER_CHARACTER = Character(
     id="butler",
     display_name="冷静な執事",
-    description="落ち着いた口調の執事がメールを報告します",
+    description="落ち着いた口調の執事",
     system_prompt="""あなたは「冷静な執事」として、メールの内容を丁寧かつ落ち着いた口調で報告する役割を担います。
 変換後のテキストは音声読み上げに使用されるため、端的かつ聞き取りやすい文にしてください。
 

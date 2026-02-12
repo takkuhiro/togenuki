@@ -20,8 +20,9 @@
 apps/web/src/
 ├── main.tsx           # エントリーポイント
 ├── App.tsx            # ルートコンポーネント
+├── assets/            # 画像等の静的アセット
 ├── components/        # 再利用可能なUIコンポーネント
-├── pages/             # ページコンポーネント
+├── pages/             # ページコンポーネント（ルート単位）
 ├── contexts/          # React Context (認証等)
 ├── api/               # API呼び出しモジュール
 ├── hooks/             # カスタムReact Hooks
@@ -103,7 +104,8 @@ import './App.css';
 - **副作用**: useRef等でインスタンスを保持し、クリーンアップを確実に行う
 - **カスタムフック**: ブラウザAPI統合（Web Speech API等）は`hooks/`に専用フックとして切り出し、可用性チェック・フォールバックを内包
 - **UIフェーズ管理**: 複雑なUI操作フロー（例: 録音→清書→確認→送信）はフェーズ型（`type Phase = 'idle' | 'recording' | ...`）で状態遷移を管理
-- **APIモジュール**: `api/`配下は機能単位で1ファイル（例: `reply.ts`）。リクエスト/レスポンス型とfetch関数をセットでエクスポート
+- **APIモジュール**: `api/`配下は機能単位で1ファイル（例: `reply.ts`, `characters.ts`）。リクエスト/レスポンス型とfetch関数をセットでエクスポート
+- **SVGアイコン**: 小さなアイコンはコンポーネントファイル内にインラインSVG関数コンポーネントとして定義。外部アイコンライブラリ（`react-icons`）はヘッダー等の共通UIで使用
 
 ### Backend Module Pattern
 
@@ -113,6 +115,10 @@ import './App.css';
 - `schemas/<feature>.py` - Pydantic リクエスト/レスポンスモデル
 
 複数サービスを横断する場合は、オーケストレーションサービスとして独立（例: `reply_service.py` が `gemini_service` + `gmail_service` を調整）
+
+DB不要のドメイン（例: キャラクター定義）は、Repositoryを省略しServiceのみで完結可能（インメモリdataclass定義）
+
+非同期同期サービス（例: `reply_sync_service.py`）: 外部APIからの状態同期を行う独立サービス。`asyncio.gather`でバッチ処理
 
 ---
 _Document patterns, not file trees. New files following patterns shouldn't require updates_

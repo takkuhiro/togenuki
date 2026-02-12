@@ -1106,6 +1106,298 @@ class TestContactsEndpoint:
         assert response.status_code == 409
         assert response.json()["detail"]["error"] == "not_completed"
 
+    # ----------------------------
+    # POST /api/contacts/{id}/instruct Tests
+    # ----------------------------
+
+    @pytest.mark.asyncio
+    async def test_instruct_without_auth_returns_401(
+        self, mock_session: MagicMock
+    ) -> None:
+        """Request without authentication should return 401."""
+        from src.routers.contacts import router
+
+        app = FastAPI()
+        app.include_router(router, prefix="/api")
+        app.dependency_overrides[get_db] = lambda: mock_session
+
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://test"
+        ) as client:
+            response = await client.post(
+                "/api/contacts/019494a5-eb1c-7000-8000-000000000002/instruct",
+                json={"instruction": "テスト指示"},
+            )
+
+        assert response.status_code == 401
+
+    @pytest.mark.asyncio
+    async def test_instruct_completed_contact_returns_202(
+        self,
+        mock_user: FirebaseUser,
+        mock_session: MagicMock,
+        mock_user_model: MagicMock,
+    ) -> None:
+        """Instructing a completed contact should return 202 Accepted."""
+        from datetime import datetime, timezone
+
+        from src.routers.contacts import router
+
+        app = FastAPI()
+        app.include_router(router, prefix="/api")
+        app.dependency_overrides[get_db] = lambda: mock_session
+
+        completed_contact = MagicMock()
+        completed_contact.id = UUID("019494a5-eb1c-7000-8000-000000000002")
+        completed_contact.user_id = UUID("019494a5-eb1c-7000-8000-000000000001")
+        completed_contact.contact_email = "boss@example.com"
+        completed_contact.contact_name = "上司太郎"
+        completed_contact.gmail_query = "from:boss@example.com"
+        completed_contact.is_learning_complete = True
+        completed_contact.learning_failed_at = None
+        completed_contact.created_at = datetime(
+            2024, 1, 15, 10, 30, 0, tzinfo=timezone.utc
+        )
+
+        mock_context = MagicMock()
+        mock_context.learned_patterns = '{"contactCharacteristics": {}, "userReplyPatterns": {}}'
+
+        with (
+            patch("src.auth.middleware.auth") as mock_auth,
+            patch(
+                "src.routers.contacts.get_user_by_firebase_uid",
+                new=AsyncMock(return_value=mock_user_model),
+            ),
+            patch(
+                "src.routers.contacts.get_contact_by_id",
+                new=AsyncMock(return_value=completed_contact),
+            ),
+            patch(
+                "src.routers.contacts.get_contact_context_by_contact_id",
+                new=AsyncMock(return_value=mock_context),
+            ),
+            patch(
+                "src.routers.contacts.update_contact_learning_status",
+                new=AsyncMock(),
+            ),
+            patch("src.routers.contacts.InstructionService"),
+        ):
+            mock_auth.verify_id_token.return_value = {
+                "uid": mock_user.uid,
+                "email": mock_user.email,
+            }
+
+            async with AsyncClient(
+                transport=ASGITransport(app=app), base_url="http://test"
+            ) as client:
+                response = await client.post(
+                    f"/api/contacts/{completed_contact.id}/instruct",
+                    json={"instruction": "文章の最後には'田中より'と追加して"},
+                    headers={"Authorization": "Bearer valid_token"},
+                )
+
+        assert response.status_code == 202
+        data = response.json()
+        assert data["contactEmail"] == "boss@example.com"
+
+    @pytest.mark.asyncio
+    async def test_instruct_not_found_returns_404(
+        self,
+        mock_user: FirebaseUser,
+        mock_session: MagicMock,
+        mock_user_model: MagicMock,
+    ) -> None:
+        """Instructing a non-existent contact should return 404."""
+        from src.routers.contacts import router
+
+        app = FastAPI()
+        app.include_router(router, prefix="/api")
+        app.dependency_overrides[get_db] = lambda: mock_session
+
+        with (
+            patch("src.auth.middleware.auth") as mock_auth,
+            patch(
+                "src.routers.contacts.get_user_by_firebase_uid",
+                new=AsyncMock(return_value=mock_user_model),
+            ),
+            patch(
+                "src.routers.contacts.get_contact_by_id",
+                new=AsyncMock(return_value=None),
+            ),
+        ):
+            mock_auth.verify_id_token.return_value = {
+                "uid": mock_user.uid,
+                "email": mock_user.email,
+            }
+
+            async with AsyncClient(
+                transport=ASGITransport(app=app), base_url="http://test"
+            ) as client:
+                response = await client.post(
+                    "/api/contacts/019494a5-eb1c-7000-8000-000000000099/instruct",
+                    json={"instruction": "テスト指示"},
+                    headers={"Authorization": "Bearer valid_token"},
+                )
+
+        assert response.status_code == 404
+        assert response.json()["detail"]["error"] == "not_found"
+
+    @pytest.mark.asyncio
+    async def test_instruct_other_user_returns_403(
+        self,
+        mock_user: FirebaseUser,
+        mock_session: MagicMock,
+        mock_user_model: MagicMock,
+    ) -> None:
+        """Instructing another user's contact should return 403."""
+        from src.routers.contacts import router
+
+        app = FastAPI()
+        app.include_router(router, prefix="/api")
+        app.dependency_overrides[get_db] = lambda: mock_session
+
+        other_user_contact = MagicMock()
+        other_user_contact.id = UUID("019494a5-eb1c-7000-8000-000000000099")
+        other_user_contact.user_id = UUID("019494a5-eb1c-7000-8000-000000000999")
+
+        with (
+            patch("src.auth.middleware.auth") as mock_auth,
+            patch(
+                "src.routers.contacts.get_user_by_firebase_uid",
+                new=AsyncMock(return_value=mock_user_model),
+            ),
+            patch(
+                "src.routers.contacts.get_contact_by_id",
+                new=AsyncMock(return_value=other_user_contact),
+            ),
+        ):
+            mock_auth.verify_id_token.return_value = {
+                "uid": mock_user.uid,
+                "email": mock_user.email,
+            }
+
+            async with AsyncClient(
+                transport=ASGITransport(app=app), base_url="http://test"
+            ) as client:
+                response = await client.post(
+                    f"/api/contacts/{other_user_contact.id}/instruct",
+                    json={"instruction": "テスト指示"},
+                    headers={"Authorization": "Bearer valid_token"},
+                )
+
+        assert response.status_code == 403
+        assert response.json()["detail"]["error"] == "forbidden"
+
+    @pytest.mark.asyncio
+    async def test_instruct_not_completed_returns_409(
+        self,
+        mock_user: FirebaseUser,
+        mock_session: MagicMock,
+        mock_user_model: MagicMock,
+    ) -> None:
+        """Instructing a contact that is not learning_complete should return 409."""
+        from datetime import datetime, timezone
+
+        from src.routers.contacts import router
+
+        app = FastAPI()
+        app.include_router(router, prefix="/api")
+        app.dependency_overrides[get_db] = lambda: mock_session
+
+        learning_contact = MagicMock()
+        learning_contact.id = UUID("019494a5-eb1c-7000-8000-000000000002")
+        learning_contact.user_id = UUID("019494a5-eb1c-7000-8000-000000000001")
+        learning_contact.is_learning_complete = False
+        learning_contact.learning_failed_at = None
+        learning_contact.created_at = datetime(
+            2024, 1, 15, 10, 30, 0, tzinfo=timezone.utc
+        )
+
+        with (
+            patch("src.auth.middleware.auth") as mock_auth,
+            patch(
+                "src.routers.contacts.get_user_by_firebase_uid",
+                new=AsyncMock(return_value=mock_user_model),
+            ),
+            patch(
+                "src.routers.contacts.get_contact_by_id",
+                new=AsyncMock(return_value=learning_contact),
+            ),
+        ):
+            mock_auth.verify_id_token.return_value = {
+                "uid": mock_user.uid,
+                "email": mock_user.email,
+            }
+
+            async with AsyncClient(
+                transport=ASGITransport(app=app), base_url="http://test"
+            ) as client:
+                response = await client.post(
+                    f"/api/contacts/{learning_contact.id}/instruct",
+                    json={"instruction": "テスト指示"},
+                    headers={"Authorization": "Bearer valid_token"},
+                )
+
+        assert response.status_code == 409
+        assert response.json()["detail"]["error"] == "not_completed"
+
+    @pytest.mark.asyncio
+    async def test_instruct_no_context_returns_409(
+        self,
+        mock_user: FirebaseUser,
+        mock_session: MagicMock,
+        mock_user_model: MagicMock,
+    ) -> None:
+        """Instructing a contact without context should return 409."""
+        from datetime import datetime, timezone
+
+        from src.routers.contacts import router
+
+        app = FastAPI()
+        app.include_router(router, prefix="/api")
+        app.dependency_overrides[get_db] = lambda: mock_session
+
+        completed_contact = MagicMock()
+        completed_contact.id = UUID("019494a5-eb1c-7000-8000-000000000002")
+        completed_contact.user_id = UUID("019494a5-eb1c-7000-8000-000000000001")
+        completed_contact.is_learning_complete = True
+        completed_contact.learning_failed_at = None
+        completed_contact.created_at = datetime(
+            2024, 1, 15, 10, 30, 0, tzinfo=timezone.utc
+        )
+
+        with (
+            patch("src.auth.middleware.auth") as mock_auth,
+            patch(
+                "src.routers.contacts.get_user_by_firebase_uid",
+                new=AsyncMock(return_value=mock_user_model),
+            ),
+            patch(
+                "src.routers.contacts.get_contact_by_id",
+                new=AsyncMock(return_value=completed_contact),
+            ),
+            patch(
+                "src.routers.contacts.get_contact_context_by_contact_id",
+                new=AsyncMock(return_value=None),
+            ),
+        ):
+            mock_auth.verify_id_token.return_value = {
+                "uid": mock_user.uid,
+                "email": mock_user.email,
+            }
+
+            async with AsyncClient(
+                transport=ASGITransport(app=app), base_url="http://test"
+            ) as client:
+                response = await client.post(
+                    f"/api/contacts/{completed_contact.id}/instruct",
+                    json={"instruction": "テスト指示"},
+                    headers={"Authorization": "Bearer valid_token"},
+                )
+
+        assert response.status_code == 409
+        assert response.json()["detail"]["error"] == "no_context"
+
     @pytest.mark.asyncio
     async def test_relearn_failed_contact_returns_409(
         self,

@@ -4,6 +4,7 @@
  */
 
 import { useCallback, useEffect, useState } from 'react';
+import { AiOutlineLoading3Quarters } from 'react-icons/ai';
 import { fetchEmails } from '../api/emails';
 import { useAuth } from '../contexts/AuthContext';
 import type { Email } from '../types/email';
@@ -66,8 +67,7 @@ export function EmailList() {
   if (isLoading) {
     return (
       <div className="email-list-loading">
-        <span className="loading-spinner" aria-hidden="true" />
-        <p>読み込み中...</p>
+        <AiOutlineLoading3Quarters className="loading-icon" aria-hidden="true" />
       </div>
     );
   }

@@ -578,3 +578,100 @@ class TestAnalyzePatterns:
 
             assert result.is_err()
             assert result.unwrap_err() == GeminiError.RATE_LIMIT
+
+
+class TestFormatInstruction:
+    """Tests for format_instruction method."""
+
+    @pytest.mark.asyncio
+    async def test_format_instruction_returns_formatted_text(self):
+        """format_instruction should return formatted instruction text."""
+        from src.services.gemini_service import GeminiService
+
+        with (
+            patch("src.services.gemini_service.get_settings") as mock_settings,
+            patch("src.services.gemini_service.genai") as mock_genai,
+        ):
+            mock_settings.return_value.gemini_api_key = "test-api-key"
+            mock_settings.return_value.gemini_model = None
+            mock_client = MagicMock()
+            mock_genai.Client.return_value = mock_client
+
+            mock_response = MagicMock()
+            mock_response.text = "メール末尾に「田中より」と署名を追加する"
+            mock_client.models.generate_content = MagicMock(return_value=mock_response)
+
+            service = GeminiService()
+            result = await service.format_instruction(
+                "文章の最後には'田中より'と追加して"
+            )
+
+            assert result.is_ok()
+            formatted = result.unwrap()
+            assert isinstance(formatted, str)
+            assert len(formatted) > 0
+
+    @pytest.mark.asyncio
+    async def test_format_instruction_with_empty_text_returns_error(self):
+        """format_instruction should return INVALID_INPUT for empty text."""
+        from src.services.gemini_service import GeminiError, GeminiService
+
+        with (
+            patch("src.services.gemini_service.get_settings") as mock_settings,
+            patch("src.services.gemini_service.genai"),
+        ):
+            mock_settings.return_value.gemini_api_key = "test-api-key"
+            mock_settings.return_value.gemini_model = None
+
+            service = GeminiService()
+            result = await service.format_instruction("")
+
+            assert result.is_err()
+            assert result.unwrap_err() == GeminiError.INVALID_INPUT
+
+    @pytest.mark.asyncio
+    async def test_format_instruction_handles_api_error(self):
+        """format_instruction should handle API errors gracefully."""
+        from src.services.gemini_service import GeminiError, GeminiService
+
+        with (
+            patch("src.services.gemini_service.get_settings") as mock_settings,
+            patch("src.services.gemini_service.genai") as mock_genai,
+        ):
+            mock_settings.return_value.gemini_api_key = "test-api-key"
+            mock_settings.return_value.gemini_model = None
+            mock_client = MagicMock()
+            mock_genai.Client.return_value = mock_client
+            mock_client.models.generate_content = MagicMock(
+                side_effect=Exception("API Error")
+            )
+
+            service = GeminiService()
+            result = await service.format_instruction("テスト指示")
+
+            assert result.is_err()
+            assert result.unwrap_err() == GeminiError.API_ERROR
+
+    @pytest.mark.asyncio
+    async def test_format_instruction_handles_empty_response(self):
+        """format_instruction should return API_ERROR when response text is None."""
+        from src.services.gemini_service import GeminiError, GeminiService
+
+        with (
+            patch("src.services.gemini_service.get_settings") as mock_settings,
+            patch("src.services.gemini_service.genai") as mock_genai,
+        ):
+            mock_settings.return_value.gemini_api_key = "test-api-key"
+            mock_settings.return_value.gemini_model = None
+            mock_client = MagicMock()
+            mock_genai.Client.return_value = mock_client
+
+            mock_response = MagicMock()
+            mock_response.text = None
+            mock_client.models.generate_content = MagicMock(return_value=mock_response)
+
+            service = GeminiService()
+            result = await service.format_instruction("テスト指示")
+
+            assert result.is_err()
+            assert result.unwrap_err() == GeminiError.API_ERROR

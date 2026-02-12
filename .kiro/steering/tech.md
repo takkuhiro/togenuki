@@ -83,6 +83,9 @@ alembic upgrade head                              # マイグレーション適�
 - **Result型パターン**: サービス層の外部API呼び出しは`result`ライブラリで`Result[T]`型を返却。Routerでエラーマッピング
 - **UUID v7採用**: 時系列ソート可能なUUIDをPKに使用
 - **サービスオーケストレーション**: 複数サービスを横断する処理（例: 返信=Gemini清書→Gmail送信）は専用オーケストレーションサービスで調整
+- **キャラクター定義はインメモリ**: キャラクター（変換口調+TTS音声）はPython dataclass（frozen）で定義。DB不要、コード変更でのみ追加
+- **Gmailスレッド返信**: `reply_service`が`In-Reply-To`/`References`ヘッダーを付与し、Gmailスレッドに返信を紐付け
+- **返信状態同期**: `reply_sync_service`がGmailスレッドを非同期でチェックし、Gmail直接返信を検出（`reply_source`フィールドで経路識別）
 
 ---
 _Document standards and patterns, not every dependency_

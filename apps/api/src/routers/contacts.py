@@ -6,6 +6,7 @@ Provides endpoints for:
 - DELETE /api/contacts/{id} - Delete a contact
 - POST /api/contacts/{id}/retry - Retry failed learning
 - POST /api/contacts/{id}/relearn - Relearn completed contact
+- POST /api/contacts/{id}/instruct - Add user instruction to contact
 """
 
 from uuid import UUID
@@ -22,15 +23,18 @@ from src.repositories.contact_repository import (
     delete_contact,
     delete_contact_context_by_contact_id,
     get_contact_by_id,
+    get_contact_context_by_contact_id,
     get_contacts_by_user_id,
     update_contact_learning_status,
 )
 from src.repositories.email_repository import get_user_by_firebase_uid
 from src.schemas.contact import (
     ContactCreateRequest,
+    ContactInstructRequest,
     ContactResponse,
     ContactsListResponse,
 )
+from src.services.instruction_service import InstructionService
 from src.services.learning_service import LearningService
 
 router = APIRouter()
@@ -306,6 +310,93 @@ async def relearn_contact_endpoint(
         learning_service.process_learning,
         contact_id=contact.id,
         user_id=db_user.id,
+    )
+
+    return contact_to_response(contact)
+
+
+@router.post(
+    "/contacts/{contact_id}/instruct",
+    response_model=ContactResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+)
+async def instruct_contact_endpoint(
+    contact_id: UUID,
+    request: ContactInstructRequest,
+    background_tasks: BackgroundTasks,
+    user: FirebaseUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> ContactResponse:
+    """Add a user instruction to a completed contact.
+
+    Formats the instruction via Gemini and appends it to the contact's
+    learned_patterns as a userInstructions entry.
+
+    Args:
+        contact_id: The contact's UUID
+        request: Instruction request body
+        background_tasks: FastAPI BackgroundTasks for async processing
+        user: Authenticated Firebase user
+        session: Database session
+
+    Returns:
+        ContactResponse with current status (202 Accepted)
+
+    Raises:
+        HTTPException 401: If not authenticated
+        HTTPException 403: If trying to instruct another user's contact
+        HTTPException 404: If contact not found
+        HTTPException 409: If contact learning is not complete or no context exists
+    """
+    db_user = await get_user_by_firebase_uid(session, user.uid)
+    if db_user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={"error": "unauthorized"},
+        )
+
+    contact = await get_contact_by_id(session, contact_id)
+    if contact is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"error": "not_found"},
+        )
+
+    if contact.user_id != db_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"error": "forbidden"},
+        )
+
+    if not contact.is_learning_complete:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={"error": "not_completed"},
+        )
+
+    # Check that contact context exists
+    context = await get_contact_context_by_contact_id(session, contact_id)
+    if context is None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={"error": "no_context"},
+        )
+
+    # Reset learning status to "learning_started" before background processing
+    await update_contact_learning_status(
+        session=session,
+        contact_id=contact_id,
+        is_complete=False,
+    )
+    await session.commit()
+    await session.refresh(contact)
+
+    # Process instruction in background
+    instruction_service = InstructionService()
+    background_tasks.add_task(
+        instruction_service.process_instruction,
+        contact_id=contact_id,
+        instruction=request.instruction,
     )
 
     return contact_to_response(contact)

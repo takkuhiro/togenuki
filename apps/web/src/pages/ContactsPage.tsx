@@ -33,8 +33,9 @@ export function ContactsPage() {
     <div className="contacts-page">
       <div className="contacts-header">
         <h2>連絡先管理</h2>
-        <Link to="/emails" className="nav-icon-link" aria-label="ダッシュボードへ戻る">
-          <IoArrowBackOutline size={20} />
+        <Link to="/emails" className="nav-back-button" aria-label="ダッシュボードへ戻る">
+          <IoArrowBackOutline size={18} />
+          <span>戻る</span>
         </Link>
       </div>
 
