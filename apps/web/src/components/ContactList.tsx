@@ -54,88 +54,121 @@ function DeleteConfirmDialog({ contact, onConfirm, onCancel }: DeleteConfirmDial
   );
 }
 
-interface RelearnConfirmDialogProps {
+type LearnMode = 'select' | 'relearn' | 'instruct';
+
+interface LearnDialogProps {
   contact: Contact | null;
-  onConfirm: () => void;
-  onCancel: () => void;
-}
-
-/**
- * Confirmation dialog for contact relearning.
- */
-function RelearnConfirmDialog({ contact, onConfirm, onCancel }: RelearnConfirmDialogProps) {
-  if (!contact) return null;
-
-  const displayName = contact.contactName || contact.contactEmail;
-
-  return (
-    <div className="dialog-overlay" role="dialog" aria-modal="true">
-      <div className="dialog">
-        <p>「{displayName}」を再学習しますか？</p>
-        <p className="dialog-warning">現在の学習データを削除し、最新のメール履歴で再学習します。</p>
-        <div className="dialog-actions">
-          <button type="button" className="dialog-cancel" onClick={onCancel}>
-            キャンセル
-          </button>
-          <button type="button" className="dialog-confirm" onClick={onConfirm}>
-            確認
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-interface InstructDialogProps {
-  contact: Contact | null;
+  mode: LearnMode;
   instructionText: string;
+  onModeSelect: (mode: 'relearn' | 'instruct') => void;
+  onBack: () => void;
   onTextChange: (text: string) => void;
-  onSubmit: () => void;
+  onRelearnConfirm: () => void;
+  onInstructSubmit: () => void;
   onCancel: () => void;
 }
 
 /**
- * Dialog for entering user instructions for a contact.
+ * Unified learning dialog with mode selection.
  */
-function InstructDialog({
+function LearnDialog({
   contact,
+  mode,
   instructionText,
+  onModeSelect,
+  onBack,
   onTextChange,
-  onSubmit,
+  onRelearnConfirm,
+  onInstructSubmit,
   onCancel,
-}: InstructDialogProps) {
+}: LearnDialogProps) {
   if (!contact) return null;
 
   const displayName = contact.contactName || contact.contactEmail;
 
   return (
-    <div className="dialog-overlay" role="dialog" aria-modal="true" data-testid="instruct-dialog">
-      <div className="dialog instruct-dialog">
-        <p>「{displayName}」さんが宛先の場合の指示</p>
-        <p className="dialog-warning">メール作成時に適用するルールを入力してください。</p>
-        <textarea
-          className="instruct-textarea"
-          data-testid="instruct-textarea"
-          value={instructionText}
-          onChange={(e) => onTextChange(e.target.value)}
-          placeholder="例: 文章の最後には「田中より」と追加して"
-          rows={3}
-          maxLength={1000}
-        />
-        <div className="dialog-actions">
-          <button type="button" className="dialog-cancel" onClick={onCancel}>
-            キャンセル
-          </button>
-          <button
-            type="button"
-            className="instruct-submit"
-            data-testid="instruct-submit"
-            onClick={onSubmit}
-            disabled={!instructionText.trim()}
-          >
-            送信
-          </button>
-        </div>
+    <div className="dialog-overlay" role="dialog" aria-modal="true" data-testid="learn-dialog">
+      <div className="dialog learn-dialog">
+        {mode === 'select' && (
+          <>
+            <p>「{displayName}」の学習</p>
+            <p className="dialog-warning">実行する操作を選択してください。</p>
+            <div className="learn-mode-buttons">
+              <button
+                type="button"
+                className="learn-mode-button"
+                data-testid="learn-mode-relearn"
+                onClick={() => onModeSelect('relearn')}
+              >
+                <span className="learn-mode-label">自動学習</span>
+                <span className="learn-mode-desc">最新のメール履歴で学び直す</span>
+              </button>
+              <button
+                type="button"
+                className="learn-mode-button"
+                data-testid="learn-mode-instruct"
+                onClick={() => onModeSelect('instruct')}
+              >
+                <span className="learn-mode-label">指示</span>
+                <span className="learn-mode-desc">返信ルールを追加する</span>
+              </button>
+            </div>
+            <div className="dialog-actions">
+              <button type="button" className="dialog-cancel" onClick={onCancel}>
+                キャンセル
+              </button>
+            </div>
+          </>
+        )}
+        {mode === 'relearn' && (
+          <>
+            <p>「{displayName}」を再学習しますか？</p>
+            <p className="dialog-warning">現在の学習データを削除し、最新のメール履歴で再学習します。</p>
+            <div className="dialog-actions">
+              <button type="button" className="dialog-cancel" data-testid="learn-back" onClick={onBack}>
+                戻る
+              </button>
+              <button type="button" className="dialog-cancel" onClick={onCancel}>
+                キャンセル
+              </button>
+              <button type="button" className="dialog-confirm" onClick={onRelearnConfirm}>
+                確認
+              </button>
+            </div>
+          </>
+        )}
+        {mode === 'instruct' && (
+          <>
+            <p>「{displayName}」さんが宛先の場合の指示</p>
+            <p className="dialog-warning">メール作成時に適用するルールを入力してください。</p>
+            <textarea
+              className="instruct-textarea"
+              data-testid="instruct-textarea"
+              value={instructionText}
+              onChange={(e) => onTextChange(e.target.value)}
+              placeholder="例: 文章の最後には「田中より」と追加して"
+              rows={3}
+              maxLength={1000}
+            />
+            <div className="dialog-actions">
+              <button type="button" className="dialog-cancel" data-testid="learn-back" onClick={onBack}>
+                戻る
+              </button>
+              <button type="button" className="dialog-cancel" onClick={onCancel}>
+                キャンセル
+              </button>
+              <button
+                type="button"
+                className="instruct-submit"
+                data-testid="instruct-submit"
+                onClick={onInstructSubmit}
+                disabled={!instructionText.trim()}
+              >
+                送信
+              </button>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
@@ -151,6 +184,7 @@ function InstructDialog({
  * - Shows error state on fetch failure
  * - Polls for learning status updates every 30 seconds
  * - Delete with confirmation dialog
+ * - Unified learn dialog with relearn/instruct modes
  */
 export function ContactList() {
   const { idToken } = useAuth();
@@ -159,8 +193,8 @@ export function ContactList() {
   const [error, setError] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Contact | null>(null);
   const [, setIsDeleting] = useState(false);
-  const [relearnTarget, setRelearnTarget] = useState<Contact | null>(null);
-  const [instructTarget, setInstructTarget] = useState<Contact | null>(null);
+  const [learnTarget, setLearnTarget] = useState<Contact | null>(null);
+  const [learnMode, setLearnMode] = useState<LearnMode>('select');
   const [instructionText, setInstructionText] = useState('');
   const pollingRef = useRef<number | null>(null);
 
@@ -249,62 +283,63 @@ export function ContactList() {
     [idToken]
   );
 
-  const handleRelearnClick = useCallback(
+  const handleLearnClick = useCallback(
     (contactId: string) => {
       const contact = contacts.find((c) => c.id === contactId);
       if (contact) {
-        setRelearnTarget(contact);
-      }
-    },
-    [contacts]
-  );
-
-  const handleRelearnConfirm = useCallback(async () => {
-    if (!relearnTarget || !idToken) return;
-
-    try {
-      const updated = await relearnContact(idToken, relearnTarget.id);
-      setContacts((prev) => prev.map((c) => (c.id === relearnTarget.id ? updated : c)));
-      setRelearnTarget(null);
-      setError(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : '再学習に失敗しました');
-      setRelearnTarget(null);
-    }
-  }, [relearnTarget, idToken]);
-
-  const handleRelearnCancel = useCallback(() => {
-    setRelearnTarget(null);
-  }, []);
-
-  const handleInstructClick = useCallback(
-    (contactId: string) => {
-      const contact = contacts.find((c) => c.id === contactId);
-      if (contact) {
-        setInstructTarget(contact);
+        setLearnTarget(contact);
+        setLearnMode('select');
         setInstructionText('');
       }
     },
     [contacts]
   );
 
-  const handleInstructSubmit = useCallback(async () => {
-    if (!instructTarget || !idToken || !instructionText.trim()) return;
+  const handleLearnModeSelect = useCallback((mode: 'relearn' | 'instruct') => {
+    setLearnMode(mode);
+  }, []);
+
+  const handleLearnBack = useCallback(() => {
+    setLearnMode('select');
+  }, []);
+
+  const handleRelearnConfirm = useCallback(async () => {
+    if (!learnTarget || !idToken) return;
 
     try {
-      await instructContact(idToken, instructTarget.id, instructionText.trim());
-      setInstructTarget(null);
+      const updated = await relearnContact(idToken, learnTarget.id);
+      setContacts((prev) => prev.map((c) => (c.id === learnTarget.id ? updated : c)));
+      setLearnTarget(null);
+      setLearnMode('select');
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '再学習に失敗しました');
+      setLearnTarget(null);
+      setLearnMode('select');
+    }
+  }, [learnTarget, idToken]);
+
+  const handleInstructSubmit = useCallback(async () => {
+    if (!learnTarget || !idToken || !instructionText.trim()) return;
+
+    try {
+      const updated = await instructContact(idToken, learnTarget.id, instructionText.trim());
+      setContacts((prev) => prev.map((c) => (c.id === learnTarget.id ? updated : c)));
+      setLearnTarget(null);
+      setLearnMode('select');
       setInstructionText('');
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : '指示の送信に失敗しました');
-      setInstructTarget(null);
+      setLearnTarget(null);
+      setLearnMode('select');
       setInstructionText('');
     }
-  }, [instructTarget, idToken, instructionText]);
+  }, [learnTarget, idToken, instructionText]);
 
-  const handleInstructCancel = useCallback(() => {
-    setInstructTarget(null);
+  const handleLearnCancel = useCallback(() => {
+    setLearnTarget(null);
+    setLearnMode('select');
     setInstructionText('');
   }, []);
 
@@ -345,8 +380,7 @@ export function ContactList() {
             contact={contact}
             onDelete={handleDeleteClick}
             onRetry={handleRetry}
-            onRelearn={handleRelearnClick}
-            onInstruct={handleInstructClick}
+            onLearn={handleLearnClick}
           />
         ))}
       </div>
@@ -355,17 +389,16 @@ export function ContactList() {
         onConfirm={handleDeleteConfirm}
         onCancel={handleDeleteCancel}
       />
-      <RelearnConfirmDialog
-        contact={relearnTarget}
-        onConfirm={handleRelearnConfirm}
-        onCancel={handleRelearnCancel}
-      />
-      <InstructDialog
-        contact={instructTarget}
+      <LearnDialog
+        contact={learnTarget}
+        mode={learnMode}
         instructionText={instructionText}
+        onModeSelect={handleLearnModeSelect}
+        onBack={handleLearnBack}
         onTextChange={setInstructionText}
-        onSubmit={handleInstructSubmit}
-        onCancel={handleInstructCancel}
+        onRelearnConfirm={handleRelearnConfirm}
+        onInstructSubmit={handleInstructSubmit}
+        onCancel={handleLearnCancel}
       />
     </>
   );

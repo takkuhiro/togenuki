@@ -382,6 +382,15 @@ async def instruct_contact_endpoint(
             detail={"error": "no_context"},
         )
 
+    # Reset learning status to "learning_started" before background processing
+    await update_contact_learning_status(
+        session=session,
+        contact_id=contact_id,
+        is_complete=False,
+    )
+    await session.commit()
+    await session.refresh(contact)
+
     # Process instruction in background
     instruction_service = InstructionService()
     background_tasks.add_task(

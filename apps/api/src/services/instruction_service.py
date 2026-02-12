@@ -7,13 +7,17 @@ This service handles:
 
 import json
 import re
+from datetime import UTC, datetime
 from uuid import UUID
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.models import ContactContext
-from src.repositories.contact_repository import update_contact_context_patterns
+from src.repositories.contact_repository import (
+    update_contact_context_patterns,
+    update_contact_learning_status,
+)
 from src.services.gemini_service import GeminiService
 from src.utils.logging import get_logger
 
@@ -60,6 +64,10 @@ class InstructionService:
                 f"Failed to format instruction for contact {contact_id}: "
                 f"{format_result.unwrap_err()}"
             )
+            await update_contact_learning_status(
+                session, contact_id, is_complete=True, failed_at=datetime.now(UTC)
+            )
+            await session.commit()
             return
 
         formatted_instruction = format_result.unwrap()
@@ -75,6 +83,10 @@ class InstructionService:
             logger.error(
                 f"Failed to parse learned_patterns for contact {contact_id}"
             )
+            await update_contact_learning_status(
+                session, contact_id, is_complete=True, failed_at=datetime.now(UTC)
+            )
+            await session.commit()
             return
 
         if "userInstructions" not in patterns:
@@ -86,6 +98,9 @@ class InstructionService:
         updated_patterns = json.dumps(patterns, ensure_ascii=False)
         await update_contact_context_patterns(
             session, contact_id, updated_patterns
+        )
+        await update_contact_learning_status(
+            session, contact_id, is_complete=True
         )
         await session.commit()
 

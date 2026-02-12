@@ -1176,6 +1176,10 @@ class TestContactsEndpoint:
                 "src.routers.contacts.get_contact_context_by_contact_id",
                 new=AsyncMock(return_value=mock_context),
             ),
+            patch(
+                "src.routers.contacts.update_contact_learning_status",
+                new=AsyncMock(),
+            ),
             patch("src.routers.contacts.InstructionService"),
         ):
             mock_auth.verify_id_token.return_value = {
@@ -1195,7 +1199,6 @@ class TestContactsEndpoint:
         assert response.status_code == 202
         data = response.json()
         assert data["contactEmail"] == "boss@example.com"
-        assert data["status"] == "learning_complete"
 
     @pytest.mark.asyncio
     async def test_instruct_not_found_returns_404(

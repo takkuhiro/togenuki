@@ -5,9 +5,11 @@ Tests for the instruction processing service that:
 - Formats user instructions via Gemini
 - Appends to userInstructions array in learned_patterns
 - Updates contact context in DB
+- Updates learning status (started/complete/failed) during processing
 """
 
 import json
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import UUID
 
@@ -295,3 +297,160 @@ class TestProcessInstruction:
             assert "userInstructions" in updated_patterns
             assert updated_patterns["userInstructions"][0] == "メール末尾に署名を追加する"
             assert updated_patterns["contactCharacteristics"]["tone"] == "formal"
+
+
+class TestProcessInstructionLearningStatus:
+    """Tests for learning status updates during instruction processing."""
+
+    @pytest.fixture
+    def contact_id(self) -> UUID:
+        return UUID("019494a5-eb1c-7000-8000-000000000002")
+
+    @pytest.fixture
+    def mock_context(self) -> MagicMock:
+        context = MagicMock()
+        context.learned_patterns = json.dumps(
+            {
+                "contactCharacteristics": {"tone": "formal"},
+                "userReplyPatterns": {"responseStyle": "polite"},
+            }
+        )
+        return context
+
+    @pytest.mark.asyncio
+    async def test_success_calls_update_learning_status_complete(
+        self, contact_id: UUID, mock_context: MagicMock
+    ) -> None:
+        """Should call update_contact_learning_status(is_complete=True) on success."""
+        from src.services.instruction_service import InstructionService
+
+        mock_session = MagicMock()
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = mock_context
+        mock_session.execute = AsyncMock(return_value=mock_result)
+        mock_session.commit = AsyncMock()
+
+        with (
+            patch(
+                "src.services.instruction_service.GeminiService"
+            ) as mock_gemini_cls,
+            patch(
+                "src.services.instruction_service.update_contact_context_patterns",
+                new=AsyncMock(return_value=True),
+            ),
+            patch(
+                "src.services.instruction_service.update_contact_learning_status",
+                new=AsyncMock(),
+            ) as mock_update_status,
+        ):
+            mock_gemini = MagicMock()
+            mock_gemini.format_instruction = AsyncMock(
+                return_value=Ok("整形された指示")
+            )
+            mock_gemini_cls.return_value = mock_gemini
+
+            service = InstructionService()
+            await service.process_instruction(
+                session=mock_session,
+                contact_id=contact_id,
+                instruction="テスト指示",
+            )
+
+            mock_update_status.assert_called_once_with(
+                mock_session, contact_id, is_complete=True
+            )
+
+    @pytest.mark.asyncio
+    async def test_gemini_error_calls_update_learning_status_failed(
+        self, contact_id: UUID, mock_context: MagicMock
+    ) -> None:
+        """Should call update_contact_learning_status with failed_at on Gemini error."""
+        from src.services.instruction_service import InstructionService
+
+        mock_session = MagicMock()
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = mock_context
+        mock_session.execute = AsyncMock(return_value=mock_result)
+        mock_session.commit = AsyncMock()
+
+        with (
+            patch(
+                "src.services.instruction_service.GeminiService"
+            ) as mock_gemini_cls,
+            patch(
+                "src.services.instruction_service.update_contact_context_patterns",
+                new=AsyncMock(return_value=True),
+            ) as mock_update,
+            patch(
+                "src.services.instruction_service.update_contact_learning_status",
+                new=AsyncMock(),
+            ) as mock_update_status,
+        ):
+            mock_gemini = MagicMock()
+            mock_gemini.format_instruction = AsyncMock(
+                return_value=Err(GeminiError.API_ERROR)
+            )
+            mock_gemini_cls.return_value = mock_gemini
+
+            service = InstructionService()
+            await service.process_instruction(
+                session=mock_session,
+                contact_id=contact_id,
+                instruction="テスト指示",
+            )
+
+            mock_update.assert_not_called()
+            mock_update_status.assert_called_once()
+            call_args = mock_update_status.call_args
+            assert call_args[0] == (mock_session, contact_id)
+            assert call_args[1]["is_complete"] is True
+            assert isinstance(call_args[1]["failed_at"], datetime)
+
+    @pytest.mark.asyncio
+    async def test_json_parse_error_calls_update_learning_status_failed(
+        self, contact_id: UUID
+    ) -> None:
+        """Should call update_contact_learning_status with failed_at on JSON parse error."""
+        from src.services.instruction_service import InstructionService
+
+        mock_context = MagicMock()
+        mock_context.learned_patterns = "invalid json"
+
+        mock_session = MagicMock()
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = mock_context
+        mock_session.execute = AsyncMock(return_value=mock_result)
+        mock_session.commit = AsyncMock()
+
+        with (
+            patch(
+                "src.services.instruction_service.GeminiService"
+            ) as mock_gemini_cls,
+            patch(
+                "src.services.instruction_service.update_contact_context_patterns",
+                new=AsyncMock(return_value=True),
+            ) as mock_update,
+            patch(
+                "src.services.instruction_service.update_contact_learning_status",
+                new=AsyncMock(),
+            ) as mock_update_status,
+        ):
+            mock_gemini = MagicMock()
+            mock_gemini.format_instruction = AsyncMock(
+                return_value=Ok("整形された指示")
+            )
+            mock_gemini_cls.return_value = mock_gemini
+
+            service = InstructionService()
+            await service.process_instruction(
+                session=mock_session,
+                contact_id=contact_id,
+                instruction="テスト指示",
+            )
+
+            mock_update.assert_not_called()
+            mock_update_status.assert_called_once()
+            call_args = mock_update_status.call_args
+            assert call_args[0] == (mock_session, contact_id)
+            assert call_args[1]["is_complete"] is True
+            assert isinstance(call_args[1]["failed_at"], datetime)

@@ -19,10 +19,10 @@ const baseContact: Contact = {
   status: 'learning_complete',
 };
 
-describe('ContactCard - 再学習ボタン', () => {
-  describe('再学習ボタンの表示条件 (Requirement 1.1, 1.2, 1.3)', () => {
-    it('should show relearn button when status is learning_complete', () => {
-      const onRelearn = vi.fn();
+describe('ContactCard - 学習ボタン', () => {
+  describe('学習ボタンの表示条件', () => {
+    it('should show learn button when status is learning_complete', () => {
+      const onLearn = vi.fn();
       render(
         <ContactCard
           contact={{
@@ -32,15 +32,15 @@ describe('ContactCard - 再学習ボタン', () => {
             learningFailedAt: null,
           }}
           onDelete={vi.fn()}
-          onRelearn={onRelearn}
+          onLearn={onLearn}
         />
       );
 
-      expect(screen.getByTestId('relearn-button')).toBeInTheDocument();
-      expect(screen.getByTestId('relearn-button')).toHaveTextContent('再学習');
+      expect(screen.getByTestId('learn-button')).toBeInTheDocument();
+      expect(screen.getByTestId('learn-button')).toHaveTextContent('学習');
     });
 
-    it('should not show relearn button when status is learning_started', () => {
+    it('should not show learn button when status is learning_started', () => {
       render(
         <ContactCard
           contact={{
@@ -50,14 +50,14 @@ describe('ContactCard - 再学習ボタン', () => {
             learningFailedAt: null,
           }}
           onDelete={vi.fn()}
-          onRelearn={vi.fn()}
+          onLearn={vi.fn()}
         />
       );
 
-      expect(screen.queryByTestId('relearn-button')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('learn-button')).not.toBeInTheDocument();
     });
 
-    it('should not show relearn button when status is learning_failed', () => {
+    it('should not show learn button when status is learning_failed', () => {
       render(
         <ContactCard
           contact={{
@@ -68,32 +68,32 @@ describe('ContactCard - 再学習ボタン', () => {
           }}
           onDelete={vi.fn()}
           onRetry={vi.fn()}
-          onRelearn={vi.fn()}
+          onLearn={vi.fn()}
         />
       );
 
-      expect(screen.queryByTestId('relearn-button')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('learn-button')).not.toBeInTheDocument();
     });
   });
 
-  describe('再学習ボタンのクリック (Requirement 3.1, 3.3)', () => {
-    it('should call onRelearn with contact id when clicked', async () => {
-      const onRelearn = vi.fn();
+  describe('学習ボタンのクリック', () => {
+    it('should call onLearn with contact id when clicked', async () => {
+      const onLearn = vi.fn();
       const user = userEvent.setup();
 
       render(
         <ContactCard
           contact={{ ...baseContact, status: 'learning_complete', isLearningComplete: true }}
           onDelete={vi.fn()}
-          onRelearn={onRelearn}
+          onLearn={onLearn}
         />
       );
 
-      await user.click(screen.getByTestId('relearn-button'));
-      expect(onRelearn).toHaveBeenCalledWith('1');
+      await user.click(screen.getByTestId('learn-button'));
+      expect(onLearn).toHaveBeenCalledWith('1');
     });
 
-    it('should not show relearn button when onRelearn callback is not provided', () => {
+    it('should not show learn button when onLearn callback is not provided', () => {
       render(
         <ContactCard
           contact={{ ...baseContact, status: 'learning_complete', isLearningComplete: true }}
@@ -101,93 +101,7 @@ describe('ContactCard - 再学習ボタン', () => {
         />
       );
 
-      expect(screen.queryByTestId('relearn-button')).not.toBeInTheDocument();
-    });
-  });
-});
-
-describe('ContactCard - 指示ボタン', () => {
-  describe('指示ボタンの表示条件', () => {
-    it('should show instruct button when status is learning_complete and onInstruct provided', () => {
-      const onInstruct = vi.fn();
-      render(
-        <ContactCard
-          contact={{
-            ...baseContact,
-            status: 'learning_complete',
-            isLearningComplete: true,
-            learningFailedAt: null,
-          }}
-          onDelete={vi.fn()}
-          onInstruct={onInstruct}
-        />
-      );
-
-      expect(screen.getByTestId('instruct-button')).toBeInTheDocument();
-      expect(screen.getByTestId('instruct-button')).toHaveTextContent('指示');
-    });
-
-    it('should not show instruct button when status is learning_started', () => {
-      render(
-        <ContactCard
-          contact={{
-            ...baseContact,
-            status: 'learning_started',
-            isLearningComplete: false,
-            learningFailedAt: null,
-          }}
-          onDelete={vi.fn()}
-          onInstruct={vi.fn()}
-        />
-      );
-
-      expect(screen.queryByTestId('instruct-button')).not.toBeInTheDocument();
-    });
-
-    it('should not show instruct button when status is learning_failed', () => {
-      render(
-        <ContactCard
-          contact={{
-            ...baseContact,
-            status: 'learning_failed',
-            isLearningComplete: false,
-            learningFailedAt: '2024-01-13T12:00:00+00:00',
-          }}
-          onDelete={vi.fn()}
-          onInstruct={vi.fn()}
-        />
-      );
-
-      expect(screen.queryByTestId('instruct-button')).not.toBeInTheDocument();
-    });
-
-    it('should not show instruct button when onInstruct callback is not provided', () => {
-      render(
-        <ContactCard
-          contact={{ ...baseContact, status: 'learning_complete', isLearningComplete: true }}
-          onDelete={vi.fn()}
-        />
-      );
-
-      expect(screen.queryByTestId('instruct-button')).not.toBeInTheDocument();
-    });
-  });
-
-  describe('指示ボタンのクリック', () => {
-    it('should call onInstruct with contact id when clicked', async () => {
-      const onInstruct = vi.fn();
-      const user = userEvent.setup();
-
-      render(
-        <ContactCard
-          contact={{ ...baseContact, status: 'learning_complete', isLearningComplete: true }}
-          onDelete={vi.fn()}
-          onInstruct={onInstruct}
-        />
-      );
-
-      await user.click(screen.getByTestId('instruct-button'));
-      expect(onInstruct).toHaveBeenCalledWith('1');
+      expect(screen.queryByTestId('learn-button')).not.toBeInTheDocument();
     });
   });
 });

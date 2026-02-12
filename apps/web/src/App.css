@@ -696,30 +696,55 @@ button:disabled {
   margin-top: 0;
 }
 
-.contact-card .relearn-button {
+.contact-card .learn-button {
   padding: 0.5rem 0.75rem;
   font-size: 0.75rem;
   background-color: #4A6C74;
   color: white;
 }
 
-.contact-card .relearn-button:hover {
+.contact-card .learn-button:hover {
   background-color: #3A5C64;
 }
 
-.contact-card .instruct-button {
-  padding: 0.5rem 0.75rem;
-  font-size: 0.75rem;
-  background-color: #D6A884;
-  color: white;
-}
-
-.contact-card .instruct-button:hover {
-  background-color: #C89B77;
-}
-
-.instruct-dialog {
+.dialog.learn-dialog {
   max-width: 480px;
+}
+
+.learn-mode-buttons {
+  display: flex;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.learn-mode-button {
+  flex: 1;
+  padding: 0.75rem 1rem;
+  font-size: 0.875rem;
+  background-color: #F0F5F6;
+  color: #4A6C74;
+  border: 1px solid #D4E2E5;
+  border-radius: 8px;
+  font-weight: 500;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.learn-mode-button:hover {
+  background-color: #E0EDF0;
+  border-color: #4A6C74;
+}
+
+.learn-mode-label {
+  font-weight: 600;
+}
+
+.learn-mode-desc {
+  font-size: 0.6875rem;
+  font-weight: 400;
+  color: #8C8C8C;
 }
 
 .instruct-textarea {

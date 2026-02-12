@@ -54,17 +54,17 @@ const mockCharacters = [
   {
     id: 'gyaru',
     displayName: '全肯定お姉さん',
-    description: 'ハイテンションでポジティブなお姉さんがメールを読み上げます',
+    description: 'ハイテンションでポジティブなお姉さん',
   },
   {
     id: 'senpai',
     displayName: '優しい先輩',
-    description: '穏やかで包容力のある先輩がメールを伝えてくれます',
+    description: '穏やかで包容力のある先輩',
   },
   {
     id: 'butler',
     displayName: '冷静な執事',
-    description: '落ち着いた口調の執事がメールを報告します',
+    description: '落ち着いた口調の執事',
   },
 ];
 

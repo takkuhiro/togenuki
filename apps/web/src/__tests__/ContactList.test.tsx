@@ -390,8 +390,8 @@ describe('ContactList', () => {
     });
   });
 
-  describe('再学習機能 (Requirement 2.1-2.3, 2.5, 3.2, 4.2)', () => {
-    it('should show relearn button for completed contacts', async () => {
+  describe('学習機能（統合ダイアログ）', () => {
+    it('should show learn button for completed contacts', async () => {
       vi.mocked(contactApi.fetchContacts).mockResolvedValue({
         contacts: mockContacts,
         total: 3,
@@ -400,13 +400,12 @@ describe('ContactList', () => {
       render(<ContactList />);
 
       await waitFor(() => {
-        // 田中部長 has learning_complete status
         const tanakaCard = screen.getByText('田中部長').closest('[data-testid="contact-card"]');
-        expect(tanakaCard?.querySelector('[data-testid="relearn-button"]')).toBeInTheDocument();
+        expect(tanakaCard?.querySelector('[data-testid="learn-button"]')).toBeInTheDocument();
       });
     });
 
-    it('should not show relearn button for learning or failed contacts', async () => {
+    it('should not show learn button for learning or failed contacts', async () => {
       vi.mocked(contactApi.fetchContacts).mockResolvedValue({
         contacts: mockContacts,
         total: 3,
@@ -417,17 +416,17 @@ describe('ContactList', () => {
       await waitFor(() => {
         // 佐藤課長 is learning_started
         const satoCard = screen.getByText('佐藤課長').closest('[data-testid="contact-card"]');
-        expect(satoCard?.querySelector('[data-testid="relearn-button"]')).not.toBeInTheDocument();
+        expect(satoCard?.querySelector('[data-testid="learn-button"]')).not.toBeInTheDocument();
 
         // suzuki is learning_failed
         const suzukiCard = screen
           .getByText('suzuki@example.com')
           .closest('[data-testid="contact-card"]');
-        expect(suzukiCard?.querySelector('[data-testid="relearn-button"]')).not.toBeInTheDocument();
+        expect(suzukiCard?.querySelector('[data-testid="learn-button"]')).not.toBeInTheDocument();
       });
     });
 
-    it('should show confirmation dialog when relearn button clicked', async () => {
+    it('should show mode selection dialog when learn button clicked', async () => {
       vi.mocked(contactApi.fetchContacts).mockResolvedValue({
         contacts: mockContacts,
         total: 3,
@@ -440,15 +439,41 @@ describe('ContactList', () => {
         expect(screen.getByText('田中部長')).toBeInTheDocument();
       });
 
-      const relearnButton = screen.getByTestId('relearn-button');
-      await user.click(relearnButton);
+      const learnButton = screen.getByTestId('learn-button');
+      await user.click(learnButton);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('learn-dialog')).toBeInTheDocument();
+        expect(screen.getByTestId('learn-mode-relearn')).toBeInTheDocument();
+        expect(screen.getByTestId('learn-mode-instruct')).toBeInTheDocument();
+      });
+    });
+
+    it('should show relearn confirmation when relearn mode selected', async () => {
+      vi.mocked(contactApi.fetchContacts).mockResolvedValue({
+        contacts: mockContacts,
+        total: 3,
+      });
+
+      const user = userEvent.setup();
+      render(<ContactList />);
+
+      await waitFor(() => {
+        expect(screen.getByText('田中部長')).toBeInTheDocument();
+      });
+
+      const learnButton = screen.getByTestId('learn-button');
+      await user.click(learnButton);
+
+      const relearnMode = screen.getByTestId('learn-mode-relearn');
+      await user.click(relearnMode);
 
       await waitFor(() => {
         expect(screen.getByText(/再学習しますか/)).toBeInTheDocument();
       });
     });
 
-    it('should call relearnContact API when confirmed', async () => {
+    it('should call relearnContact API when relearn confirmed', async () => {
       vi.mocked(contactApi.fetchContacts).mockResolvedValue({
         contacts: mockContacts,
         total: 3,
@@ -471,8 +496,11 @@ describe('ContactList', () => {
         expect(screen.getByText('田中部長')).toBeInTheDocument();
       });
 
-      const relearnButton = screen.getByTestId('relearn-button');
-      await user.click(relearnButton);
+      const learnButton = screen.getByTestId('learn-button');
+      await user.click(learnButton);
+
+      const relearnMode = screen.getByTestId('learn-mode-relearn');
+      await user.click(relearnMode);
 
       const confirmButton = await screen.findByRole('button', {
         name: /確認|OK|はい/,
@@ -507,8 +535,11 @@ describe('ContactList', () => {
         expect(screen.getByText('田中部長')).toBeInTheDocument();
       });
 
-      const relearnButton = screen.getByTestId('relearn-button');
-      await user.click(relearnButton);
+      const learnButton = screen.getByTestId('learn-button');
+      await user.click(learnButton);
+
+      const relearnMode = screen.getByTestId('learn-mode-relearn');
+      await user.click(relearnMode);
 
       const confirmButton = await screen.findByRole('button', {
         name: /確認|OK|はい/,
@@ -521,7 +552,7 @@ describe('ContactList', () => {
       });
     });
 
-    it('should not call relearnContact when cancelled', async () => {
+    it('should show instruct form when instruct mode selected', async () => {
       vi.mocked(contactApi.fetchContacts).mockResolvedValue({
         contacts: mockContacts,
         total: 3,
@@ -534,8 +565,182 @@ describe('ContactList', () => {
         expect(screen.getByText('田中部長')).toBeInTheDocument();
       });
 
-      const relearnButton = screen.getByTestId('relearn-button');
-      await user.click(relearnButton);
+      const learnButton = screen.getByTestId('learn-button');
+      await user.click(learnButton);
+
+      const instructMode = screen.getByTestId('learn-mode-instruct');
+      await user.click(instructMode);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('instruct-textarea')).toBeInTheDocument();
+        expect(screen.getByTestId('instruct-submit')).toBeInTheDocument();
+      });
+    });
+
+    it('should call instructContact API when instruct submitted', async () => {
+      vi.mocked(contactApi.fetchContacts).mockResolvedValue({
+        contacts: mockContacts,
+        total: 3,
+      });
+      vi.mocked(contactApi.instructContact).mockResolvedValue({
+        id: '1',
+        contactEmail: 'tanaka@example.com',
+        contactName: '田中部長',
+        gmailQuery: 'from:tanaka@example.com',
+        isLearningComplete: false,
+        learningFailedAt: null,
+        createdAt: '2024-01-15T10:30:00+00:00',
+        status: 'learning_started' as const,
+      });
+
+      const user = userEvent.setup();
+      render(<ContactList />);
+
+      await waitFor(() => {
+        expect(screen.getByText('田中部長')).toBeInTheDocument();
+      });
+
+      const learnButton = screen.getByTestId('learn-button');
+      await user.click(learnButton);
+
+      const instructMode = screen.getByTestId('learn-mode-instruct');
+      await user.click(instructMode);
+
+      const textarea = screen.getByTestId('instruct-textarea');
+      await user.type(textarea, "文章の最後には'田中より'と追加して");
+
+      const submitButton = screen.getByTestId('instruct-submit');
+      await user.click(submitButton);
+
+      await waitFor(() => {
+        expect(contactApi.instructContact).toHaveBeenCalledWith(
+          'mock-token',
+          '1',
+          "文章の最後には'田中より'と追加して"
+        );
+      });
+    });
+
+    it('should update contact status to learning after instruct', async () => {
+      vi.mocked(contactApi.fetchContacts).mockResolvedValue({
+        contacts: mockContacts,
+        total: 3,
+      });
+      vi.mocked(contactApi.instructContact).mockResolvedValue({
+        id: '1',
+        contactEmail: 'tanaka@example.com',
+        contactName: '田中部長',
+        gmailQuery: 'from:tanaka@example.com',
+        isLearningComplete: false,
+        learningFailedAt: null,
+        createdAt: '2024-01-15T10:30:00+00:00',
+        status: 'learning_started' as const,
+      });
+
+      const user = userEvent.setup();
+      render(<ContactList />);
+
+      await waitFor(() => {
+        expect(screen.getByText('田中部長')).toBeInTheDocument();
+      });
+
+      const learnButton = screen.getByTestId('learn-button');
+      await user.click(learnButton);
+
+      const instructMode = screen.getByTestId('learn-mode-instruct');
+      await user.click(instructMode);
+
+      const textarea = screen.getByTestId('instruct-textarea');
+      await user.type(textarea, 'テスト指示');
+
+      const submitButton = screen.getByTestId('instruct-submit');
+      await user.click(submitButton);
+
+      await waitFor(() => {
+        const tanakaCard = screen.getByText('田中部長').closest('[data-testid="contact-card"]');
+        expect(tanakaCard).toHaveTextContent('学習中');
+      });
+    });
+
+    it('should go back to mode selection when back button clicked from relearn', async () => {
+      vi.mocked(contactApi.fetchContacts).mockResolvedValue({
+        contacts: mockContacts,
+        total: 3,
+      });
+
+      const user = userEvent.setup();
+      render(<ContactList />);
+
+      await waitFor(() => {
+        expect(screen.getByText('田中部長')).toBeInTheDocument();
+      });
+
+      const learnButton = screen.getByTestId('learn-button');
+      await user.click(learnButton);
+
+      const relearnMode = screen.getByTestId('learn-mode-relearn');
+      await user.click(relearnMode);
+
+      // Should show relearn confirmation
+      expect(screen.getByText(/再学習しますか/)).toBeInTheDocument();
+
+      // Click back button
+      const backButton = screen.getByTestId('learn-back');
+      await user.click(backButton);
+
+      // Should be back to mode selection
+      await waitFor(() => {
+        expect(screen.getByTestId('learn-mode-relearn')).toBeInTheDocument();
+        expect(screen.getByTestId('learn-mode-instruct')).toBeInTheDocument();
+      });
+    });
+
+    it('should close dialog when cancel button clicked', async () => {
+      vi.mocked(contactApi.fetchContacts).mockResolvedValue({
+        contacts: mockContacts,
+        total: 3,
+      });
+
+      const user = userEvent.setup();
+      render(<ContactList />);
+
+      await waitFor(() => {
+        expect(screen.getByText('田中部長')).toBeInTheDocument();
+      });
+
+      const learnButton = screen.getByTestId('learn-button');
+      await user.click(learnButton);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('learn-dialog')).toBeInTheDocument();
+      });
+
+      const cancelButton = screen.getByRole('button', { name: /キャンセル/ });
+      await user.click(cancelButton);
+
+      await waitFor(() => {
+        expect(screen.queryByTestId('learn-dialog')).not.toBeInTheDocument();
+      });
+    });
+
+    it('should not call relearnContact when relearn cancelled', async () => {
+      vi.mocked(contactApi.fetchContacts).mockResolvedValue({
+        contacts: mockContacts,
+        total: 3,
+      });
+
+      const user = userEvent.setup();
+      render(<ContactList />);
+
+      await waitFor(() => {
+        expect(screen.getByText('田中部長')).toBeInTheDocument();
+      });
+
+      const learnButton = screen.getByTestId('learn-button');
+      await user.click(learnButton);
+
+      const relearnMode = screen.getByTestId('learn-mode-relearn');
+      await user.click(relearnMode);
 
       const cancelButton = await screen.findByRole('button', {
         name: /キャンセル|いいえ/,
@@ -559,8 +764,11 @@ describe('ContactList', () => {
         expect(screen.getByText('田中部長')).toBeInTheDocument();
       });
 
-      const relearnButton = screen.getByTestId('relearn-button');
-      await user.click(relearnButton);
+      const learnButton = screen.getByTestId('learn-button');
+      await user.click(learnButton);
+
+      const relearnMode = screen.getByTestId('learn-mode-relearn');
+      await user.click(relearnMode);
 
       const confirmButton = await screen.findByRole('button', {
         name: /確認|OK|はい/,
@@ -569,134 +777,6 @@ describe('ContactList', () => {
 
       await waitFor(() => {
         expect(screen.getByText(/エラー/)).toBeInTheDocument();
-      });
-    });
-  });
-
-  describe('指示機能', () => {
-    it('should show instruct button for completed contacts', async () => {
-      vi.mocked(contactApi.fetchContacts).mockResolvedValue({
-        contacts: mockContacts,
-        total: 3,
-      });
-
-      render(<ContactList />);
-
-      await waitFor(() => {
-        const tanakaCard = screen.getByText('田中部長').closest('[data-testid="contact-card"]');
-        expect(tanakaCard?.querySelector('[data-testid="instruct-button"]')).toBeInTheDocument();
-      });
-    });
-
-    it('should show instruct dialog when instruct button clicked', async () => {
-      vi.mocked(contactApi.fetchContacts).mockResolvedValue({
-        contacts: mockContacts,
-        total: 3,
-      });
-
-      const user = userEvent.setup();
-      render(<ContactList />);
-
-      await waitFor(() => {
-        expect(screen.getByText('田中部長')).toBeInTheDocument();
-      });
-
-      const instructButton = screen.getByTestId('instruct-button');
-      await user.click(instructButton);
-
-      await waitFor(() => {
-        expect(screen.getByTestId('instruct-dialog')).toBeInTheDocument();
-      });
-    });
-
-    it('should have textarea and submit button in instruct dialog', async () => {
-      vi.mocked(contactApi.fetchContacts).mockResolvedValue({
-        contacts: mockContacts,
-        total: 3,
-      });
-
-      const user = userEvent.setup();
-      render(<ContactList />);
-
-      await waitFor(() => {
-        expect(screen.getByText('田中部長')).toBeInTheDocument();
-      });
-
-      const instructButton = screen.getByTestId('instruct-button');
-      await user.click(instructButton);
-
-      await waitFor(() => {
-        expect(screen.getByTestId('instruct-textarea')).toBeInTheDocument();
-        expect(screen.getByTestId('instruct-submit')).toBeInTheDocument();
-      });
-    });
-
-    it('should call instructContact API when submitted', async () => {
-      vi.mocked(contactApi.fetchContacts).mockResolvedValue({
-        contacts: mockContacts,
-        total: 3,
-      });
-      vi.mocked(contactApi.instructContact).mockResolvedValue({
-        id: '1',
-        contactEmail: 'tanaka@example.com',
-        contactName: '田中部長',
-        gmailQuery: 'from:tanaka@example.com',
-        isLearningComplete: true,
-        learningFailedAt: null,
-        createdAt: '2024-01-15T10:30:00+00:00',
-        status: 'learning_complete' as const,
-      });
-
-      const user = userEvent.setup();
-      render(<ContactList />);
-
-      await waitFor(() => {
-        expect(screen.getByText('田中部長')).toBeInTheDocument();
-      });
-
-      const instructButton = screen.getByTestId('instruct-button');
-      await user.click(instructButton);
-
-      const textarea = screen.getByTestId('instruct-textarea');
-      await user.type(textarea, "文章の最後には'田中より'と追加して");
-
-      const submitButton = screen.getByTestId('instruct-submit');
-      await user.click(submitButton);
-
-      await waitFor(() => {
-        expect(contactApi.instructContact).toHaveBeenCalledWith(
-          'mock-token',
-          '1',
-          "文章の最後には'田中より'と追加して"
-        );
-      });
-    });
-
-    it('should close dialog when cancel button clicked', async () => {
-      vi.mocked(contactApi.fetchContacts).mockResolvedValue({
-        contacts: mockContacts,
-        total: 3,
-      });
-
-      const user = userEvent.setup();
-      render(<ContactList />);
-
-      await waitFor(() => {
-        expect(screen.getByText('田中部長')).toBeInTheDocument();
-      });
-
-      const instructButton = screen.getByTestId('instruct-button');
-      await user.click(instructButton);
-
-      await waitFor(() => {
-        expect(screen.getByTestId('instruct-dialog')).toBeInTheDocument();
-      });
-
-      const cancelButton = screen.getByRole('button', { name: /キャンセル/ });
-      await user.click(cancelButton);
-
-      await waitFor(() => {
-        expect(screen.queryByTestId('instruct-dialog')).not.toBeInTheDocument();
       });
     });
 
@@ -716,8 +796,11 @@ describe('ContactList', () => {
         expect(screen.getByText('田中部長')).toBeInTheDocument();
       });
 
-      const instructButton = screen.getByTestId('instruct-button');
-      await user.click(instructButton);
+      const learnButton = screen.getByTestId('learn-button');
+      await user.click(learnButton);
+
+      const instructMode = screen.getByTestId('learn-mode-instruct');
+      await user.click(instructMode);
 
       const textarea = screen.getByTestId('instruct-textarea');
       await user.type(textarea, 'テスト指示');
@@ -743,8 +826,11 @@ describe('ContactList', () => {
         expect(screen.getByText('田中部長')).toBeInTheDocument();
       });
 
-      const instructButton = screen.getByTestId('instruct-button');
-      await user.click(instructButton);
+      const learnButton = screen.getByTestId('learn-button');
+      await user.click(learnButton);
+
+      const instructMode = screen.getByTestId('learn-mode-instruct');
+      await user.click(instructMode);
 
       const submitButton = screen.getByTestId('instruct-submit');
       expect(submitButton).toBeDisabled();
