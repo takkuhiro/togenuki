@@ -16,7 +16,7 @@ TogeNuki のバックエンド API サービスです。FastAPI + SQLAlchemy で
 | **DB** | PostgreSQL (Cloud SQL) |
 | **マイグレーション** | Alembic |
 | **AI (LLM)** | Gemini 2.5 Flash (google-genai) |
-| **AI (TTS)** | Google Cloud Text-to-Speech |
+| **AI (TTS)** | Gemini 2.5 Flash TTS (google-genai) |
 | **ストレージ** | Google Cloud Storage |
 | **認証** | Firebase Admin SDK |
 | **テスト** | pytest + pytest-asyncio |
@@ -31,25 +31,41 @@ src/
 ├── database.py        # DB接続設定
 ├── models.py          # SQLAlchemy ORM モデル
 ├── routers/           # API エンドポイント
-│   ├── emails.py          # メール一覧
-│   ├── reply.py           # 返信清書・送信
+│   ├── characters.py      # キャラクター選択
 │   ├── contacts.py        # 連絡先管理
-│   ├── webhook.py         # Gmail Pub/Sub Webhook
+│   ├── cron.py            # スケジュールタスク
+│   ├── emails.py          # メール一覧
 │   ├── gmail_oauth.py     # Gmail OAuth 認証
-│   └── gmail_watch.py     # Gmail Push通知設定
+│   ├── gmail_watch.py     # Gmail Push通知設定
+│   ├── reply.py           # 返信清書・送信・下書き
+│   └── webhook.py         # Gmail Pub/Sub Webhook
 ├── services/          # ビジネスロジック
-│   ├── email_processor.py # メール処理 (ギャル変換 + TTS)
-│   ├── tts_service.py     # 音声合成サービス
-│   └── learning_service.py # コンテキスト学習サービス
+│   ├── character_service.py   # キャラクター定義
+│   ├── email_processor.py     # メール処理 (変換 + TTS)
+│   ├── gemini_service.py      # Gemini LLM 統合
+│   ├── gmail_service.py       # Gmail API クライアント
+│   ├── gmail_watch.py         # Gmail Watch 設定
+│   ├── instruction_service.py # ユーザー指示処理
+│   ├── learning_service.py    # コンテキスト学習
+│   ├── reply_service.py       # 返信オーケストレーション
+│   ├── reply_sync_service.py  # Gmail直接返信検出
+│   └── tts_service.py         # Gemini TTS 音声合成
 ├── repositories/      # データアクセス層
 │   ├── email_repository.py
 │   └── contact_repository.py
 ├── schemas/           # Pydantic リクエスト/レスポンスモデル
+│   ├── character.py       # キャラクタースキーマ
+│   ├── contact.py         # 連絡先スキーマ
+│   ├── email.py           # メールスキーマ
+│   └── reply.py           # 返信スキーマ
 ├── auth/              # 認証関連
 │   ├── firebase_admin.py  # Firebase 初期化
 │   ├── gmail_oauth.py     # Gmail OAuth ユーティリティ
-│   └── middleware.py      # 認証ミドルウェア
+│   ├── middleware.py      # 認証ミドルウェア
+│   └── schemas.py         # 認証スキーマ
 └── utils/             # ユーティリティ
+    ├── gcs_signer.py      # GCS署名URL生成
+    └── logging.py         # ログ設定
 
 alembic/               # データベースマイグレーション
 tests/                 # テストファイル
@@ -160,6 +176,14 @@ alembic current
 | POST | `/api/auth/gmail/callback` | OAuthコールバック処理 | 要 |
 | GET | `/api/auth/gmail/status` | Gmail連携状態確認 | 要 |
 
+### キャラクター (`/api`)
+
+| メソッド | パス | 説明 | 認証 |
+|----------|------|------|------|
+| GET | `/api/characters` | キャラクター一覧取得 | 不要 |
+| GET | `/api/users/character` | ユーザーの選択キャラクター取得 | 要 |
+| PUT | `/api/users/character` | キャラクター変更 | 要 |
+
 ### メール (`/api`)
 
 | メソッド | パス | 説明 | 認証 |
@@ -172,6 +196,7 @@ alembic current
 |----------|------|------|------|
 | POST | `/api/emails/{email_id}/compose-reply` | 返信文の清書 (AI生成) | 要 |
 | POST | `/api/emails/{email_id}/send-reply` | 返信メール送信 | 要 |
+| POST | `/api/emails/{email_id}/save-draft` | 返信の下書き保存 | 要 |
 
 ### 連絡先 (`/api`)
 
@@ -180,20 +205,28 @@ alembic current
 | POST | `/api/contacts` | 連絡先登録 (+ バックグラウンド学習開始) | 要 |
 | GET | `/api/contacts` | 連絡先一覧取得 | 要 |
 | DELETE | `/api/contacts/{contact_id}` | 連絡先削除 | 要 |
+| POST | `/api/contacts/{contact_id}/relearn` | 学習済み連絡先の再学習 | 要 |
+| POST | `/api/contacts/{contact_id}/instruct` | 連絡先への指示追加 | 要 |
 | POST | `/api/contacts/{contact_id}/retry` | 学習リトライ | 要 |
 
-### Webhook
+### Webhook (`/api/webhook`)
 
 | メソッド | パス | 説明 | 認証 |
 |----------|------|------|------|
-| POST | `/gmail` | Gmail Pub/Sub Webhook受信 | 不要 (Pub/Sub) |
+| POST | `/api/webhook/gmail` | Gmail Pub/Sub Webhook受信 | 不要 (Pub/Sub) |
 
-### Gmail Watch
+### Gmail Watch (`/api/gmail`)
 
 | メソッド | パス | 説明 | 認証 |
 |----------|------|------|------|
-| POST | `/watch` | Gmail Push通知の設定 | 要 |
-| DELETE | `/watch` | Gmail Push通知の停止 | 要 |
+| POST | `/api/gmail/watch` | Gmail Push通知の設定 | 要 |
+| DELETE | `/api/gmail/watch` | Gmail Push通知の停止 | 要 |
+
+### Cron (`/api/cron`)
+
+| メソッド | パス | 説明 | 認証 |
+|----------|------|------|------|
+| POST | `/api/cron/renew-gmail-watches` | Gmail Watch の一括更新 | スケジューラシークレット |
 
 ## デプロイ (Cloud Run)
 

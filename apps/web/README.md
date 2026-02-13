@@ -27,25 +27,28 @@ src/
 ├── App.tsx            # ルートコンポーネント・ルーティング
 ├── components/        # UIコンポーネント
 │   ├── AudioPlayer.tsx      # 音声再生プレーヤー
+│   ├── CharacterSelector.tsx # キャラクター選択
 │   ├── EmailCard.tsx        # メールカード表示
 │   ├── EmailList.tsx        # メール一覧 (ダッシュボード)
 │   ├── ContactCard.tsx      # 連絡先カード表示
 │   ├── ContactForm.tsx      # 連絡先登録フォーム
-│   └── ContactList.tsx      # 連絡先一覧
+│   ├── ContactList.tsx      # 連絡先一覧
+│   └── SplitActionButton.tsx # 送信/下書き切替ボタン
 ├── pages/             # ページコンポーネント
 │   ├── ContactsPage.tsx     # 連絡先管理ページ
 │   └── GmailCallback.tsx    # Gmail OAuth コールバック
 ├── contexts/          # React Context
 │   └── AuthContext.tsx       # 認証状態管理
 ├── api/               # API呼び出しモジュール
+│   ├── characters.ts        # キャラクターAPI
+│   ├── contacts.ts          # 連絡先API
 │   ├── emails.ts            # メール取得API
-│   ├── reply.ts             # 返信API
-│   └── contacts.ts          # 連絡先API
+│   └── reply.ts             # 返信API
 ├── hooks/             # カスタムフック
 │   └── useSpeechRecognition.ts  # Web Speech API ラッパー
 ├── types/             # 型定義
 ├── firebase/          # Firebase 設定
-└── __tests__/         # テストファイル
+└── __tests/           # テストファイル
 ```
 
 ## セットアップ

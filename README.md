@@ -6,12 +6,20 @@
 
 **TogeNuki**（トゲヌキ）は、リモートワークでのメールストレスを軽減するAIコミュニケーションツールです。
 
-上司や取引先からの冷淡・威圧的なメールを、AIが**「全肯定してくれるハイテンションなギャル」**の口調と音声に変換して読み上げます。返信はユーザーが口語で音声入力すると、AIが完璧なビジネスメールに清書して送信します。
+上司や取引先からの冷淡・威圧的なメールを、AIが選べるキャラクターの口調と音声に変換して読み上げます。返信はユーザーが口語で音声入力すると、AIが完璧なビジネスメールに清書して送信します。
+
+### 選べるキャラクター
+
+| キャラクター | 説明 |
+|-------------|------|
+| **全肯定お姉さん** (デフォルト) | ハイテンションでポジティブなお姉さん |
+| **優しい先輩** | 穏やかで包容力のある先輩 |
+| **冷静な執事** | 落ち着いた口調の執事 |
 
 ### コア体験
 
 1. **受信** - 登録済み連絡先からのメール一覧をダッシュボードで確認
-2. **視聴** - 再生ボタンを押すと「ねー先輩！部長からマジうける連絡きたんだけど〜！ｗ」とギャル口調で読み上げ
+2. **視聴** - 再生ボタンを押すと、選択したキャラクターの口調と音声でメール内容を読み上げ
 3. **返信** - 「あー、わかった。後でやっとくって言っといて」と音声入力
 4. **送信** - AIが「承知いたしました。完了次第直ちに着手いたします。」と清書して送信
 
@@ -23,7 +31,7 @@ graph TD
     PubSub -- Webhook --> API[Cloud Run - FastAPI]
     API -- メール取得 --> GmailAPI[Gmail API]
     API -- ギャル変換・清書 --> Gemini[Gemini 2.5 Flash]
-    API -- 音声合成 --> TTS[Cloud TTS]
+    API -- 音声合成 --> TTS[Gemini TTS]
     API -- 音声保存 --> GCS[Cloud Storage]
     API -- データ永続化 --> SQL[(Cloud SQL)]
     User((ユーザー)) -- ログイン --> Firebase[Firebase Auth]
@@ -37,7 +45,7 @@ graph TD
 |------|------|
 | **フロントエンド** | React 19, TypeScript, Vite |
 | **バックエンド** | Python 3.10+, FastAPI, SQLAlchemy |
-| **AI** | Gemini 2.5 Flash (感情変換・返信清書), Google Cloud TTS (音声合成) |
+| **AI** | Gemini 2.5 Flash (感情変換・返信清書・音声合成) |
 | **認証** | Firebase Authentication, Gmail OAuth |
 | **インフラ** | Cloud Run, Cloud SQL (PostgreSQL), Cloud Pub/Sub, Cloud Storage |
 | **IaC** | Terraform |
@@ -66,7 +74,7 @@ togenuki/
 
 - Node.js 18+
 - Python 3.10+
-- Google Cloud プロジェクト（Cloud Run, Cloud SQL, Pub/Sub, Cloud Storage, Cloud TTS 有効化済み）
+- Google Cloud プロジェクト（Cloud Run, Cloud SQL, Pub/Sub, Cloud Storage 有効化済み）
 - Firebase プロジェクト（Authentication 有効化済み）
 - Gmail API の OAuth クレデンシャル
 
