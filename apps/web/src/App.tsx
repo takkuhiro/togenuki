@@ -98,11 +98,22 @@ function LandingPage() {
     return (
       <div className="app">
         <div className="login-container">
-          <h1>TogeNuki</h1>
-          {error && <p className="error-message">エラー: {error}</p>}
-          <button type="button" onClick={signInWithGoogle} className="login-button">
-            Googleでログイン
-          </button>
+          <video
+            className="login-background-video"
+            autoPlay
+            loop
+            muted
+            playsInline
+          >
+            <source src="/banner_loop.mp4" type="video/mp4" />
+          </video>
+          <div className="login-content">
+            <h1>TogeNuki</h1>
+            {error && <p className="error-message">エラー: {error}</p>}
+            <button type="button" onClick={signInWithGoogle} className="login-button">
+              Googleでログイン
+            </button>
+          </div>
         </div>
       </div>
     );

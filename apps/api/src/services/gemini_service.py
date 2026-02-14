@@ -28,9 +28,17 @@ BUSINESS_REPLY_SYSTEM_PROMPT = """あなたはビジネスメールの清書ア�
 
 1. **敬語**: 相手との関係性に合わせた適切な敬語を使用する
 2. **構成**: 挨拶→本文→締めの構成にする
+   - 冒頭: 挨拶や前置き（例：「お世話になっております」「いつもありがとうございます」）
+   - 本文: 主な内容、依頼、説明
+   - 締め: 結びの挨拶（例：「よろしくお願いいたします」「ご確認ください」）
 3. **正確性**: ユーザーが伝えたい内容を正確に反映する。情報を追加・削除しない
 4. **簡潔さ**: 冗長にならず、必要十分な文量にする
 5. **文脈考慮**: 元メールの内容を踏まえた自然な返信にする
+6. **パターン活用**: 「過去のやり取りパターン」が提供されている場合は、以下を参考にする
+   - `openingExpressions`: 冒頭で使う挨拶表現
+   - `bodyExpressions`: 本文で使う接続詞や依頼表現
+   - `closingExpressions`: 締めで使う結びの表現
+   - `formalityLevel`: 丁寧さのレベル
 
 ## 出力形式
 
@@ -100,7 +108,6 @@ class GeminiService:
                 config=genai.types.GenerateContentConfig(
                     system_instruction=system_prompt,
                     temperature=0.8,
-                    max_output_tokens=1024,
                 ),
             )
 
@@ -168,7 +175,6 @@ class GeminiService:
                 config=genai.types.GenerateContentConfig(
                     system_instruction=BUSINESS_REPLY_SYSTEM_PROMPT,
                     temperature=0.3,
-                    max_output_tokens=1024,
                 ),
             )
 
@@ -230,7 +236,6 @@ class GeminiService:
                 config=genai.types.GenerateContentConfig(
                     system_instruction=system_instruction,
                     temperature=0.2,
-                    max_output_tokens=256,
                 ),
             )
 
@@ -298,13 +303,30 @@ class GeminiService:
 
 2. **userReplyPatterns（ユーザーの返信パターン）**:
    - responseStyle: 対応スタイル（例：「丁寧で謙虚」「簡潔」など）
-   - commonExpressions: よく使う表現のリスト
+   - openingExpressions: メール冒頭でよく使う表現のリスト（挨拶、前置きなど。例：「お世話になっております」「いつもありがとうございます」）
+   - bodyExpressions: メール本文中によく使う表現のリスト（接続詞、依頼表現、理由説明など。例：「つきましては」「恐れ入りますが」「〜のため」）
+   - closingExpressions: メール締めでよく使う表現のリスト（結びの挨拶、催促など。例：「よろしくお願いいたします」「お手数をおかけしますが」「ご確認のほどお願いいたします」）
    - formalityLevel: 丁寧さのレベル（例：「非常に丁寧」「普通」「カジュアル」など）
+
+**重要**: ユーザーの表現パターンは、メールのどの位置（冒頭/本文/締め）に出現するかが重要です。各表現を適切な位置カテゴリに分類してください。
 
 出力はJSON形式のみで、説明文は不要です。"""
 
             system_instruction = """あなたはメールコミュニケーションの分析エキスパートです。
 過去のメールやり取りから、相手のコミュニケーションスタイルとユーザーの返信パターンを分析します。
+
+## 分析の重要ポイント
+
+1. **メール構造の理解**: メールは通常、以下の構造を持ちます
+   - 冒頭（Opening）: 挨拶、前置き（例：「お世話になっております」「いつもありがとうございます」）
+   - 本文（Body）: 主な内容、依頼、説明（例：「つきましては」「恐れ入りますが」「〜の件で」）
+   - 締め（Closing）: 結びの挨拶、催促（例：「よろしくお願いいたします」「ご確認ください」）
+
+2. **表現の位置情報**: ユーザーがよく使う表現を抽出する際は、その表現が**メールのどの位置に出現するか**を必ず考慮してください。
+   同じ「ありがとうございます」でも、冒頭の挨拶なのか、締めの感謝なのかで意味が異なります。
+
+3. **パターンの精度**: 複数のメールで繰り返し使われている表現を優先的に抽出してください。
+
 出力は必ず有効なJSON形式で、日本語で記述してください。"""
 
             response = await asyncio.to_thread(
@@ -314,7 +336,6 @@ class GeminiService:
                 config=genai.types.GenerateContentConfig(
                     system_instruction=system_instruction,
                     temperature=0.3,
-                    max_output_tokens=2048,
                 ),
             )
 
