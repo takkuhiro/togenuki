@@ -17,3 +17,10 @@ docs/VIDEO_STRUCTURE.md
 
 # Character assets
 assets/characters/
+
+# Video assets
+assets/videos/
+assets/slides/
+assets/banner_loop_original.mp4
+assets/banner_thumbnail.png
+scripts/video_generation/

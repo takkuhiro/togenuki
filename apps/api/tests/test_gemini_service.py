@@ -100,7 +100,6 @@ class TestEmailConversion:
             mock_genai.types.GenerateContentConfig.assert_called_once_with(
                 system_instruction=custom_prompt,
                 temperature=0.8,
-                max_output_tokens=1024,
             )
 
     @pytest.mark.asyncio
