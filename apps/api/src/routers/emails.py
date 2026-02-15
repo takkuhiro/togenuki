@@ -108,7 +108,11 @@ async def get_user_emails(
     return [
         {
             "id": str(email.id),
-            "sender_name": email.sender_name,
+            "sender_name": (
+                email.contact.contact_name
+                if email.contact and email.contact.contact_name
+                else email.sender_name
+            ),
             "sender_email": email.sender_email,
             "subject": email.subject,
             "converted_body": email.converted_body,

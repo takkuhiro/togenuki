@@ -588,3 +588,163 @@ class TestEmailsEndpoint:
         for email in response.json()["emails"]:
             assert "repliedAt" in email
             assert email["repliedAt"] is None
+
+
+class TestContactNameResolution:
+    """Test contact name resolution in get_user_emails."""
+
+    @pytest.mark.asyncio
+    async def test_get_user_emails_uses_contact_name_when_available(self) -> None:
+        """Should use Contact.contact_name when available, not Email.sender_name."""
+        from datetime import datetime, timezone
+
+        from src.routers.emails import get_user_emails
+
+        # Mock contact with contact_name
+        mock_contact = MagicMock()
+        mock_contact.contact_name = "二宮部下"
+
+        # Mock email with contact relationship
+        mock_email = MagicMock()
+        mock_email.id = "019494a5-eb1c-7000-8000-000000000001"
+        mock_email.sender_name = "二宮大空"  # Gmail From header name
+        mock_email.sender_email = "ninomiya_hirotaka@cyberagent.co.jp"
+        mock_email.contact = mock_contact  # Contact exists
+        mock_email.subject = "Test Subject"
+        mock_email.converted_body = "Test Body"
+        mock_email.audio_url = None
+        mock_email.is_processed = True
+        mock_email.received_at = datetime(2024, 1, 15, 10, 30, 0, tzinfo=timezone.utc)
+        mock_email.replied_at = None
+        mock_email.reply_body = None
+        mock_email.reply_subject = None
+        mock_email.reply_source = None
+        mock_email.composed_body = None
+        mock_email.composed_subject = None
+        mock_email.google_draft_id = None
+
+        # Mock user
+        mock_user = MagicMock()
+        mock_user.id = "user-id-123"
+
+        mock_session = MagicMock()
+
+        with (
+            patch(
+                "src.routers.emails.get_user_by_firebase_uid",
+                new=AsyncMock(return_value=mock_user),
+            ),
+            patch(
+                "src.routers.emails.get_emails_by_user_id",
+                new=AsyncMock(return_value=[mock_email]),
+            ),
+        ):
+            result = await get_user_emails(mock_session, "test-uid")
+
+        assert len(result) == 1
+        assert result[0]["sender_name"] == "二宮部下"  # Should use contact_name
+        assert result[0]["sender_email"] == "ninomiya_hirotaka@cyberagent.co.jp"
+
+    @pytest.mark.asyncio
+    async def test_get_user_emails_falls_back_to_sender_name_when_no_contact(
+        self,
+    ) -> None:
+        """Should use Email.sender_name when contact does not exist."""
+        from datetime import datetime, timezone
+
+        from src.routers.emails import get_user_emails
+
+        # Mock email without contact (unregistered sender)
+        mock_email = MagicMock()
+        mock_email.id = "019494a5-eb1c-7000-8000-000000000001"
+        mock_email.sender_name = "二宮大空"  # Gmail From header name
+        mock_email.sender_email = "ninomiya_hirotaka@cyberagent.co.jp"
+        mock_email.contact = None  # No contact registered
+        mock_email.subject = "Test Subject"
+        mock_email.converted_body = "Test Body"
+        mock_email.audio_url = None
+        mock_email.is_processed = True
+        mock_email.received_at = datetime(2024, 1, 15, 10, 30, 0, tzinfo=timezone.utc)
+        mock_email.replied_at = None
+        mock_email.reply_body = None
+        mock_email.reply_subject = None
+        mock_email.reply_source = None
+        mock_email.composed_body = None
+        mock_email.composed_subject = None
+        mock_email.google_draft_id = None
+
+        # Mock user
+        mock_user = MagicMock()
+        mock_user.id = "user-id-123"
+
+        mock_session = MagicMock()
+
+        with (
+            patch(
+                "src.routers.emails.get_user_by_firebase_uid",
+                new=AsyncMock(return_value=mock_user),
+            ),
+            patch(
+                "src.routers.emails.get_emails_by_user_id",
+                new=AsyncMock(return_value=[mock_email]),
+            ),
+        ):
+            result = await get_user_emails(mock_session, "test-uid")
+
+        assert len(result) == 1
+        assert result[0]["sender_name"] == "二宮大空"  # Should fallback to sender_name
+        assert result[0]["sender_email"] == "ninomiya_hirotaka@cyberagent.co.jp"
+
+    @pytest.mark.asyncio
+    async def test_get_user_emails_falls_back_to_sender_name_when_contact_name_is_null(
+        self,
+    ) -> None:
+        """Should use Email.sender_name when Contact exists but contact_name is null."""
+        from datetime import datetime, timezone
+
+        from src.routers.emails import get_user_emails
+
+        # Mock contact with null contact_name
+        mock_contact = MagicMock()
+        mock_contact.contact_name = None  # Contact exists but name is not set
+
+        # Mock email with contact relationship
+        mock_email = MagicMock()
+        mock_email.id = "019494a5-eb1c-7000-8000-000000000001"
+        mock_email.sender_name = "二宮大空"  # Gmail From header name
+        mock_email.sender_email = "ninomiya_hirotaka@cyberagent.co.jp"
+        mock_email.contact = mock_contact  # Contact exists but name is None
+        mock_email.subject = "Test Subject"
+        mock_email.converted_body = "Test Body"
+        mock_email.audio_url = None
+        mock_email.is_processed = True
+        mock_email.received_at = datetime(2024, 1, 15, 10, 30, 0, tzinfo=timezone.utc)
+        mock_email.replied_at = None
+        mock_email.reply_body = None
+        mock_email.reply_subject = None
+        mock_email.reply_source = None
+        mock_email.composed_body = None
+        mock_email.composed_subject = None
+        mock_email.google_draft_id = None
+
+        # Mock user
+        mock_user = MagicMock()
+        mock_user.id = "user-id-123"
+
+        mock_session = MagicMock()
+
+        with (
+            patch(
+                "src.routers.emails.get_user_by_firebase_uid",
+                new=AsyncMock(return_value=mock_user),
+            ),
+            patch(
+                "src.routers.emails.get_emails_by_user_id",
+                new=AsyncMock(return_value=[mock_email]),
+            ),
+        ):
+            result = await get_user_emails(mock_session, "test-uid")
+
+        assert len(result) == 1
+        assert result[0]["sender_name"] == "二宮大空"  # Should fallback to sender_name
+        assert result[0]["sender_email"] == "ninomiya_hirotaka@cyberagent.co.jp"
