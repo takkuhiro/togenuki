@@ -98,13 +98,7 @@ function LandingPage() {
     return (
       <div className="app">
         <div className="login-container">
-          <video
-            className="login-background-video"
-            autoPlay
-            loop
-            muted
-            playsInline
-          >
+          <video className="login-background-video" autoPlay loop muted playsInline>
             <source src="/banner_loop.mp4" type="video/mp4" />
           </video>
           <div className="login-content">

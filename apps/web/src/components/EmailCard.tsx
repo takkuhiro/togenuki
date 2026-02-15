@@ -311,7 +311,12 @@ export function EmailCard({ email, isExpanded, onToggle, onReplied }: EmailCardP
                 <SplitActionButton
                   actions={[
                     { key: 'send', label: '送信', icon: <SendIcon />, onClick: handleSend },
-                    { key: 'draft', label: '下書き', icon: <DraftIcon />, onClick: handleSaveDraft },
+                    {
+                      key: 'draft',
+                      label: '下書き',
+                      icon: <DraftIcon />,
+                      onClick: handleSaveDraft,
+                    },
                   ]}
                 />
               </div>
