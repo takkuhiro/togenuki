@@ -40,8 +40,8 @@ export function GmailCallback() {
       }
 
       try {
-        // Exchange the code for tokens
-        const response = await fetch('/api/auth/gmail/callback', {
+        // Step 1: Exchange the code for tokens
+        const callbackResponse = await fetch('/api/auth/gmail/callback', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -50,22 +50,46 @@ export function GmailCallback() {
           body: JSON.stringify({ code }),
         });
 
-        if (response.ok) {
-          setStatus('success');
-          // Update Gmail connection status
-          await checkGmailStatus();
-          // Redirect to emails after 2 seconds
-          setTimeout(() => {
-            navigate('/emails', { replace: true });
-          }, 2000);
-        } else {
-          const data = await response.json();
+        if (!callbackResponse.ok) {
+          const data = await callbackResponse.json();
           setStatus('error');
           setErrorMessage(data.detail?.error || 'トークン交換に失敗しました');
+          return;
         }
-      } catch {
+
+        // Step 2: Setup Gmail Watch for push notifications
+        const watchResponse = await fetch('/api/gmail/watch', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${idToken}`,
+          },
+        });
+
+        if (!watchResponse.ok) {
+          const data = await watchResponse.json();
+          setStatus('error');
+          setErrorMessage(data.detail || 'Gmail Watch設定に失敗しました');
+          return;
+        }
+
+        const watchData = await watchResponse.json();
+        if (!watchData.success) {
+          setStatus('error');
+          setErrorMessage(watchData.error || 'Gmail Watch設定に失敗しました');
+          return;
+        }
+
+        // Step 3: Success - update status and redirect
+        setStatus('success');
+        await checkGmailStatus();
+        setTimeout(() => {
+          navigate('/emails', { replace: true });
+        }, 2000);
+      } catch (error) {
         setStatus('error');
         setErrorMessage('通信エラーが発生しました');
+        console.error('Gmail callback error:', error);
       }
     };
 
@@ -77,7 +101,14 @@ export function GmailCallback() {
   return (
     <div className="callback-container">
       <h1>Gmail連携</h1>
-      {status === 'processing' && <p>処理中...</p>}
+      {status === 'processing' && (
+        <div>
+          <p>処理中...</p>
+          <p style={{ fontSize: '0.9em', color: '#666' }}>
+            Gmail連携とメール通知の設定を行っています
+          </p>
+        </div>
+      )}
       {status === 'success' && (
         <div>
           <p style={{ color: 'green' }}>Gmail連携が完了しました！</p>
