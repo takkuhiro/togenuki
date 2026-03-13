@@ -257,6 +257,9 @@ resource "google_storage_bucket" "audio" {
   name     = var.gcs_audio_bucket_name
   location = var.region
 
+  # Allow deletion even when bucket contains objects
+  force_destroy = true
+
   # Uniform bucket-level access
   uniform_bucket_level_access = true
 
